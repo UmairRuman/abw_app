@@ -1,5 +1,9 @@
 // lib/main.dart
 
+import 'package:abw_app/features/auth/presentation/screens/login/login_screen.dart';
+import 'package:abw_app/features/auth/presentation/screens/signup/customer_signup_screen.dart';
+import 'package:abw_app/features/auth/presentation/screens/signup/rider_signup_screen.dart';
+import 'package:abw_app/features/auth/presentation/screens/splash/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -60,7 +64,7 @@ class MyApp extends ConsumerWidget {
           themeMode: ThemeMode.light, // TODO: Make this dynamic with provider
           
           // Home
-          home: const HomeScreen(),
+          home: const RiderSignupScreen(),
         );
       },
     );

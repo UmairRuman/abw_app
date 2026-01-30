@@ -1,6 +1,7 @@
 // lib/features/auth/domain/entities/customer_entity.dart
 
-import '../../../../shared/enums/user_role.dart';
+import 'package:abw_app/shared/enums/user_role.dart';
+
 import 'user_entity.dart';
 
 class CustomerEntity extends UserEntity {
