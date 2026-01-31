@@ -1,5 +1,6 @@
 // lib/features/auth/presentation/screens/login/login_screen.dart
 
+import 'package:abw_app/core/theme/colors/app_colors_dark.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -46,7 +47,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           value: UserRole.rider,
           child: Row(
             children: [
-              const Icon(Icons.delivery_dining, color: AppColors.primary),
+              const Icon(Icons.delivery_dining, color: AppColorsDark.primary),
               SizedBox(width: 12.w),
               Text('Login as Rider', style: AppTextStyles.bodyMedium()),
             ],
@@ -56,7 +57,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           value: UserRole.admin,
           child: Row(
             children: [
-              const Icon(Icons.admin_panel_settings, color: AppColors.secondary),
+              const Icon(Icons.admin_panel_settings, color: AppColorsDark.secondary),
               SizedBox(width: 12.w),
               Text('Login as Admin', style: AppTextStyles.bodyMedium()),
             ],
@@ -101,13 +102,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColorsDark.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.more_vert, color: AppColors.textPrimary),
+            icon: const Icon(Icons.more_vert, color: AppColorsDark.textPrimary),
             onPressed: _showRoleMenu,
             tooltip: 'Select Login Type',
           ),
@@ -132,7 +133,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 Text(
                   _getRoleSubtitle(),
                   style: AppTextStyles.bodyLarge().copyWith(
-                    color: AppColors.textSecondary,
+                    color: AppColorsDark.textSecondary,
                   ),
                 ),
 
@@ -226,7 +227,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     child: Text(
                       'Forgot Password?',
                       style: AppTextStyles.bodyMedium().copyWith(
-                        color: AppColors.primary,
+                        color: AppColorsDark.primary,
                       ),
                     ),
                   ),
@@ -241,7 +242,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _handleLogin,
                     child: _isLoading
-                        ? const CircularProgressIndicator(color: AppColors.white)
+                        ? const CircularProgressIndicator(color: AppColorsDark.white)
                         : Text('Login'),
                   ),
                 ),
@@ -299,7 +300,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       child: Text(
                         'Sign Up',
                         style: AppTextStyles.bodyMedium().copyWith(
-                          color: AppColors.primary,
+                          color: AppColorsDark.primary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -361,11 +362,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Color _getRoleColor() {
     switch (_selectedRole) {
       case UserRole.customer:
-        return AppColors.primary;
+        return AppColorsDark.primary;
       case UserRole.rider:
-        return AppColors.accent;
+        return AppColorsDark.accent;
       case UserRole.admin:
-        return AppColors.secondary;
+        return AppColorsDark.secondary;
     }
   }
 

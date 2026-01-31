@@ -1,38 +1,16 @@
 // lib/main.dart
 
-import 'package:abw_app/features/auth/presentation/screens/login/login_screen.dart';
-import 'package:abw_app/features/auth/presentation/screens/signup/customer_signup_screen.dart';
-import 'package:abw_app/features/auth/presentation/screens/signup/rider_signup_screen.dart';
-import 'package:abw_app/features/auth/presentation/screens/splash/splash_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'core/theme/app_theme/app_theme.dart';
+import 'core/theme/app_theme/app_theme_dark.dart';
 import 'core/constants/app_constants.dart';
+import 'core/routes/app_router.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize Firebase
-  // await Firebase.initializeApp();
-  
-  // Set preferred orientations
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
-  
-  // Set system UI overlay style
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-      systemNavigationBarColor: Colors.white,
-      systemNavigationBarIconBrightness: Brightness.dark,
-    ),
-  );
+  await Firebase.initializeApp();
   
   runApp(
     const ProviderScope(
@@ -46,6 +24,8 @@ class MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(routerProvider);
+
     return ScreenUtilInit(
       designSize: const Size(
         AppConstants.designWidth,
@@ -54,54 +34,13 @@ class MyApp extends ConsumerWidget {
       minTextAdapt: true,
       splitScreenMode: true,
       builder: (context, child) {
-        return MaterialApp(
+        return MaterialApp.router(
           title: AppConstants.appName,
           debugShowCheckedModeBanner: false,
-          
-          // Theme
-          theme: AppTheme.lightTheme(),
-          darkTheme: AppTheme.darkTheme(),
-          themeMode: ThemeMode.light, // TODO: Make this dynamic with provider
-          
-          // Home
-          home: const RiderSignupScreen(),
+          theme: AppThemeDark.darkTheme(), // Dark theme as default
+          routerConfig: router,
         );
       },
-    );
-  }
-}
-
-// Temporary home screen
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(AppConstants.appName),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'Welcome to ${AppConstants.appName}',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            SizedBox(height: 16.h),
-            Text(
-              'Project setup complete! ✅',
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            SizedBox(height: 32.h),
-            ElevatedButton(
-              onPressed: () {},
-              child: const Text('Get Started'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
