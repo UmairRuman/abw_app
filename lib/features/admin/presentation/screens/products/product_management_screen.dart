@@ -35,6 +35,7 @@ class _ProductManagementScreenState
   }
 
   Future<void> _loadData() async {
+     await Future.delayed(const Duration(milliseconds: 500)); 
     await Future.wait([
       ref.read(productsProvider.notifier).getAllProducts(),
       ref.read(categoriesProvider.notifier).getAllCategories(),
@@ -397,7 +398,7 @@ class _ProductManagementScreenState
           crossAxisCount: 2,
           mainAxisSpacing: 12.h,
           crossAxisSpacing: 12.w,
-          childAspectRatio: 0.7,
+           mainAxisExtent: 280.h,
         ),
         itemCount: filteredProducts.length,
         itemBuilder: (context, index) {
@@ -504,8 +505,7 @@ class _ProductManagementScreenState
             ),
             
             // Product Info
-            Expanded(
-              child: Padding(
+            Padding(
                 padding: EdgeInsets.all(12.w),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -533,7 +533,7 @@ class _ProductManagementScreenState
                       overflow: TextOverflow.ellipsis,
                     ),
                     
-                    const Spacer(),
+                   
                     
                     // Price Row
                     Row(
@@ -558,7 +558,7 @@ class _ProductManagementScreenState
                       ],
                     ),
                     
-                    SizedBox(height: 8.h),
+                    SizedBox(height: 5.h),
                     
                     // Stock Info
                     Row(
@@ -571,14 +571,16 @@ class _ProductManagementScreenState
                               : AppColorsDark.error,
                         ),
                         SizedBox(width: 4.w),
-                        Text(
-                          'Stock: ${product.quantity}',
-                          style: AppTextStyles.bodySmall().copyWith(
-                            color: product.quantity > 0
-                                ? AppColorsDark.success
-                                : AppColorsDark.error,
-                          ),
-                        ),
+                       Text(
+        'Stock: ${product.quantity}',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: AppTextStyles.bodySmall().copyWith(
+          color: product.quantity > 0
+              ? AppColorsDark.success
+              : AppColorsDark.error,
+        ),
+      ),
                         const Spacer(),
                         
                         // More Options
@@ -655,7 +657,7 @@ class _ProductManagementScreenState
                   ],
                 ),
               ),
-            ),
+            
           ],
         ),
       ),

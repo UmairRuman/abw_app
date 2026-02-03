@@ -74,7 +74,7 @@ class StoreDetailsDialog extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    icon: Icon(
+                    icon: const Icon(
                       Icons.close,
                       color: AppColorsDark.white,
                     ),
@@ -282,33 +282,31 @@ class StoreDetailsDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusRow() {
-    return Row(
-      children: [
-        _buildStatusChip(
-          label: store.isApproved ? 'Approved' : 'Pending',
-          color: store.isApproved
-              ? AppColorsDark.success
-              : AppColorsDark.warning,
-          icon: store.isApproved ? Icons.check_circle : Icons.pending,
-        ),
-        SizedBox(width: 12.w),
-        _buildStatusChip(
-          label: store.isActive ? 'Active' : 'Inactive',
-          color: store.isActive
-              ? AppColorsDark.success
-              : AppColorsDark.error,
-          icon: store.isActive ? Icons.visibility : Icons.visibility_off,
-        ),
-        SizedBox(width: 12.w),
-        _buildStatusChip(
-          label: store.isOpen ? 'Open' : 'Closed',
-          color: store.isOpen ? AppColorsDark.info : AppColorsDark.error,
-          icon: store.isOpen ? Icons.lock_open : Icons.lock,
-        ),
-      ],
-    );
-  }
+Widget _buildStatusRow() {
+  return Wrap(
+    spacing: 8.w,
+    runSpacing: 6.h,
+    children: [
+      _buildStatusChip(
+        label: store.isApproved ? 'Approved' : 'Pending',
+        color:
+            store.isApproved ? AppColorsDark.success : AppColorsDark.warning,
+        icon: store.isApproved ? Icons.check_circle : Icons.pending,
+      ),
+      _buildStatusChip(
+        label: store.isActive ? 'Active' : 'Inactive',
+        color: store.isActive ? AppColorsDark.success : AppColorsDark.error,
+        icon: store.isActive ? Icons.visibility : Icons.visibility_off,
+      ),
+      _buildStatusChip(
+        label: store.isOpen ? 'Open' : 'Closed',
+        color: store.isOpen ? AppColorsDark.info : AppColorsDark.error,
+        icon: store.isOpen ? Icons.lock_open : Icons.lock,
+      ),
+    ],
+  );
+}
+
 
   Widget _buildStatusChip({
     required String label,

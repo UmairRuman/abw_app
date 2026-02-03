@@ -37,6 +37,7 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen>
   }
 
   Future<void> _loadUsers() async {
+     await Future.delayed(const Duration(milliseconds: 500)); 
     await Future.wait([
       ref.read(usersProvider.notifier).loadCustomers(),
       ref.read(usersProvider.notifier).loadRiders(),

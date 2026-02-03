@@ -12,14 +12,14 @@ import '../../features/auth/presentation/screens/signup/customer_signup_screen.d
 import '../../features/auth/presentation/screens/signup/rider_signup_screen.dart';
 import '../../features/auth/presentation/screens/splash/splash_screen.dart';
 import '../../features/customer/presentation/screens/home/customer_home_screen.dart';
-import '../../features/customer/presentation/screens/restaurant/restaurant_details_screen.dart';
+import '../../features/customer/presentation/screens/store/store_details_screen.dart.dart';
 import '../../features/admin/presentation/screens/main/admin_main_screen.dart';
 import '../../features/admin/presentation/screens/products/product_management_screen.dart';
 import '../../features/admin/presentation/screens/users/users_list_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: '/splash',
+    initialLocation: '/customer/home',
     debugLogDiagnostics: true,
     routes: [
       // ============================================================
@@ -74,11 +74,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       
       GoRoute(
-        path: '/customer/restaurant/:id',
-        name: 'restaurant-details',
+        path: '/customer/store/:id',
+        name: 'store-details',
         builder: (context, state) {
-          final restaurantId = state.pathParameters['id'] ?? '';
-          return RestaurantDetailsScreen(restaurantId: restaurantId);
+          final storeId = state.pathParameters['id'] ?? '';
+          return StoreDetailsScreen(storeId: storeId);
         },
       ),
 

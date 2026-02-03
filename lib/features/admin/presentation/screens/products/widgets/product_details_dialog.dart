@@ -102,34 +102,47 @@ class ProductDetailsDialog extends StatelessWidget {
                     
                     // Store & Category
                     Row(
-                      children: [
-                        Icon(
-                          Icons.store,
-                          size: 16.sp,
-                          color: AppColorsDark.textSecondary,
-                        ),
-                        SizedBox(width: 4.w),
-                        Text(
-                          product.storeName,
-                          style: AppTextStyles.bodyMedium().copyWith(
-                            color: AppColorsDark.textSecondary,
-                          ),
-                        ),
-                        SizedBox(width: 12.w),
-                        Icon(
-                          Icons.category,
-                          size: 16.sp,
-                          color: AppColorsDark.textSecondary,
-                        ),
-                        SizedBox(width: 4.w),
-                        Text(
-                          product.categoryName,
-                          style: AppTextStyles.bodyMedium().copyWith(
-                            color: AppColorsDark.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
+  children: [
+    Icon(
+      Icons.store,
+      size: 16.sp,
+      color: AppColorsDark.textSecondary,
+    ),
+    SizedBox(width: 4.w),
+
+    Expanded(
+      child: Text(
+        product.storeName,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: AppTextStyles.bodyMedium().copyWith(
+          color: AppColorsDark.textSecondary,
+        ),
+      ),
+    ),
+
+    SizedBox(width: 12.w),
+
+    Icon(
+      Icons.category,
+      size: 16.sp,
+      color: AppColorsDark.textSecondary,
+    ),
+    SizedBox(width: 4.w),
+
+    Expanded(
+      child: Text(
+        product.categoryName,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: AppTextStyles.bodyMedium().copyWith(
+          color: AppColorsDark.textSecondary,
+        ),
+      ),
+    ),
+  ],
+),
+
                     
                     SizedBox(height: 16.h),
                     

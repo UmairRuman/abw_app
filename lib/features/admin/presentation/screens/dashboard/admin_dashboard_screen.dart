@@ -27,6 +27,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 
   Future<void> _loadDashboardData() async {
+    await Future.delayed(const Duration(milliseconds: 500)); // Simulate loading  
     // Load all data for dashboard
     await Future.wait([
       ref.read(categoriesProvider.notifier).getAllCategories(),
@@ -147,7 +148,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           crossAxisCount: 2,
           mainAxisSpacing: 12.h,
           crossAxisSpacing: 12.w,
-          childAspectRatio: 1.5,
+          childAspectRatio: 1.25,
         ),
         delegate: SliverChildListDelegate([
           _buildStatCard(
@@ -191,63 +192,66 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildStatCard({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-    String? badge,
-    String? subtitle,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16.r),
-      child: Container(
-        padding: EdgeInsets.all(16.w),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [
-              AppColorsDark.cardBackground,
-              AppColorsDark.surfaceVariant,
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(
-            color: AppColorsDark.border,
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
+ Widget _buildStatCard({
+  required String title,
+  required String value,
+  required IconData icon,
+  required Color color,
+  String? badge,
+  String? subtitle,
+  required VoidCallback onTap,
+}) {
+  return InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(16.r),
+    child: Container(
+      padding: EdgeInsets.all(14.w),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [
+            AppColorsDark.cardBackground,
+            AppColorsDark.surfaceVariant,
           ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: EdgeInsets.all(10.w),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12.r),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: color,
-                    size: 24.sp,
-                  ),
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(
+          color: AppColorsDark.border,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          /// TOP ROW
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(10.w),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12.r),
                 ),
-                if (badge != null)
-                  Container(
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 22.sp,
+                ),
+              ),
+
+              const Spacer(),
+
+              if (badge != null)
+                Flexible(
+                  child: Container(
                     padding: EdgeInsets.symmetric(
                       horizontal: 8.w,
                       vertical: 4.h,
@@ -258,38 +262,48 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
                     ),
                     child: Text(
                       badge,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: AppTextStyles.labelSmall().copyWith(
                         color: AppColorsDark.error,
                         fontSize: 10.sp,
                       ),
                     ),
                   ),
-              ],
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: AppTextStyles.headlineMedium().copyWith(
-                    color: AppColorsDark.textPrimary,
-                    fontWeight: FontWeight.bold,
-                  ),
                 ),
-                SizedBox(height: 4.h),
-                Text(
-                  subtitle ?? title,
-                  style: AppTextStyles.bodySmall().copyWith(
-                    color: AppColorsDark.textSecondary,
-                  ),
-                ),
-              ],
+            ],
+          ),
+
+          SizedBox(height: 8.h),
+
+          /// VALUE
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.headlineSmall().copyWith(
+              color: AppColorsDark.textPrimary,
+              fontWeight: FontWeight.bold,
             ),
-          ],
-        ),
+          ),
+
+          SizedBox(height: 4.h),
+
+          /// TITLE / SUBTITLE
+          Text(
+            subtitle ?? title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.bodySmall().copyWith(
+              color: AppColorsDark.textSecondary,
+            ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
+
 
   Widget _buildQuickActions(BuildContext context) {
     return SliverToBoxAdapter(

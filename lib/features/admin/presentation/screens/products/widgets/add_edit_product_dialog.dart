@@ -98,9 +98,10 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
   }
 
   Future<void> _loadData() async {
+    await Future.delayed(const Duration(milliseconds: 500));
     await Future.wait([
       ref.read(categoriesProvider.notifier).getAllCategories(),
-      ref.read(storesProvider.notifier).getApprovedStores(),
+      ref.read(storesProvider.notifier).getAllStores(),
     ]);
   }
 
@@ -180,17 +181,26 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
                       SizedBox(height: 16.h),
 
                       // Category & Store
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildCategoryDropdown(categoriesState),
-                          ),
-                          SizedBox(width: 12.w),
-                          Expanded(
-                            child: _buildStoreDropdown(storesState),
-                          ),
-                        ],
-                      ),
+                   LayoutBuilder(
+  builder: (context, constraints) {
+    final fieldWidth = (constraints.maxWidth - 12.w) / 2;
+
+    return Row(
+      children: [
+        SizedBox(
+          width: fieldWidth,
+          child: _buildCategoryDropdown(categoriesState),
+        ),
+        SizedBox(width: 12.w),
+        SizedBox(
+          width: fieldWidth,
+          child: _buildStoreDropdown(storesState),
+        ),
+      ],
+    );
+  },
+),
+
                       SizedBox(height: 24.h),
 
                       // Pricing
@@ -432,13 +442,17 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
       );
     }
 
-    return DropdownButtonFormField<String>(
+    return DropdownButtonFormField<String>(isExpanded: true,
       value: _selectedCategory.isEmpty ? null : _selectedCategory,
       decoration: InputDecoration(labelText: 'Category'),
       items: state.categories.map((category) {
         return DropdownMenuItem(
           value: category.id,
-          child: Text(category.name),
+          child: Text(
+      category.name,
+      overflow: TextOverflow.ellipsis,
+      maxLines: 1,
+    ),
         );
       }).toList(),
       onChanged: (value) {
@@ -460,13 +474,17 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
       );
     }
 
-    return DropdownButtonFormField<String>(
+    return DropdownButtonFormField<String>(isExpanded: true,
       value: _selectedStore.isEmpty ? null : _selectedStore,
       decoration: InputDecoration(labelText: 'Store'),
       items: state.stores.map((store) {
         return DropdownMenuItem(
           value: store.id,
-          child: Text(store.name),
+          child:Text(
+      store.name,
+      overflow: TextOverflow.ellipsis,
+      maxLines: 1,
+    ),
         );
       }).toList(),
       onChanged: (value) {

@@ -51,6 +51,10 @@ class AuthRemoteDataSource {
   /// Login with Google
   Future<UserCredential> loginWithGoogle() async {
     try {
+
+         await GoogleSignIn.instance.initialize(
+      serverClientId: '295760269875-85dik9jd027e93fqd48hu7pm3jlba0ch.apps.googleusercontent.com',
+    );
       // Trigger Google Sign-In flow
       final GoogleSignInAccount? googleUser = await _googleSignIn.authenticate();
 

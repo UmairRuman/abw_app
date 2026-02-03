@@ -123,7 +123,7 @@ Future<void> _handleLogin() async {
     if (mounted) {
       switch (authState.user.role) {
         case UserRole.customer:
-          context.go('/customer/home');
+          context.go('/admin/dashboard');
           break;
         case UserRole.rider:
           context.go('/rider/dashboard');

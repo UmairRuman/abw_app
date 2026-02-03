@@ -39,6 +39,7 @@ class _RestaurantManagementScreenState
   }
 
   Future<void> _loadStores() async {
+     await Future.delayed(const Duration(milliseconds: 500)); 
     await ref.read(storesProvider.notifier).getAllStores();
   }
 
