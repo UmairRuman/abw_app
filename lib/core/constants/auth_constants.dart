@@ -4,7 +4,7 @@ class AuthConstants {
   AuthConstants._();
 
   // Admin Access Key (Store in Firebase Remote Config in production)
-  static const String adminAccessKey = 'ABW_ADMIN_2024_SECURE';
+  static const String adminAccessKey = 'Admin123';
 
   // Firebase Collections
   static const String usersCollection = 'users';

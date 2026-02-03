@@ -1,6 +1,7 @@
 // lib/features/auth/presentation/screens/splash/splash_screen.dart
 
 import 'dart:math' as math;
+import 'package:abw_app/shared/enums/user_role.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -141,27 +142,28 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   void _navigateBasedOnAuthState() {
-    final authState = ref.read(authProvider);
+  final authState = ref.read(authProvider);
 
-    if (authState is Authenticated) {
-      final user = authState.user;
-      switch (user.role.name) {
-        case 'customer':
-          context.go('/customer/home');
-          break;
-        case 'rider':
-          context.go('/rider/dashboard');
-          break;
-        case 'admin':
-          context.go('/admin/dashboard');
-          break;
-      }
-    } else if (authState is RiderPendingApproval) {
-      context.go('/rider/pending');
-    } else {
-      context.go('/login');
+  if (authState is Authenticated) {
+    final user = authState.user;
+    switch (user.role) {
+      case UserRole.customer:
+        context.go('/customer/home');
+        break;
+      case UserRole.rider:
+        context.go('/rider/dashboard');
+        break;
+      case UserRole.admin:
+        context.go('/admin/dashboard');
+        break;
     }
+  } else if (authState is RiderPendingApproval) {
+    context.go('/rider/pending');
+  } else {
+    // Unauthenticated or error - go to login
+    context.go('/login');
   }
+}
 
   @override
   void dispose() {
@@ -178,7 +180,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -289,7 +291,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                             child: Center(
                               child: ShaderMask(
                                 shaderCallback: (bounds) {
-                                  return LinearGradient(
+                                  return const LinearGradient(
                                     colors: [
                                       AppColorsDark.primary,
                                       AppColorsDark.secondary,

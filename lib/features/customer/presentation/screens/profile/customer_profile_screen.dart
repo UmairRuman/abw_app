@@ -55,7 +55,7 @@ class CustomerProfileScreen extends ConsumerWidget {
                 Container(
                   width: 100.w,
                   height: 100.w,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: AppColorsDark.primaryGradient,
                   ),

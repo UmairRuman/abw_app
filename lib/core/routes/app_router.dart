@@ -1,6 +1,5 @@
 // lib/core/routes/app_router.dart
 
-import 'package:abw_app/features/customer/presentation/screens/home/customer_home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,61 +11,16 @@ import '../../features/auth/presentation/screens/rider_request/pending_approval_
 import '../../features/auth/presentation/screens/signup/customer_signup_screen.dart';
 import '../../features/auth/presentation/screens/signup/rider_signup_screen.dart';
 import '../../features/auth/presentation/screens/splash/splash_screen.dart';
-
+import '../../features/customer/presentation/screens/home/customer_home_screen.dart';
 import '../../features/customer/presentation/screens/restaurant/restaurant_details_screen.dart';
 import '../../features/admin/presentation/screens/main/admin_main_screen.dart';
-import '../../shared/enums/user_role.dart';
+import '../../features/admin/presentation/screens/products/product_management_screen.dart';
+import '../../features/admin/presentation/screens/users/users_list_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
-
   return GoRouter(
     initialLocation: '/splash',
     debugLogDiagnostics: true,
-    
-    redirect: (context, state) {
-      final isOnSplash = state.matchedLocation == '/splash';
-      final isOnAuth = state.matchedLocation.startsWith('/login') ||
-          state.matchedLocation.startsWith('/signup') ||
-          state.matchedLocation.startsWith('/forgot-password');
-
-      // Show splash during loading
-      if (authState is AuthLoading && !isOnSplash) {
-        return '/splash';
-      }
-
-      // Handle authenticated users
-      if (authState is Authenticated) {
-        if (isOnAuth || isOnSplash) {
-          final user = authState.user;
-          switch (user.role) {
-            case UserRole.customer:
-              return '/customer/home';
-            case UserRole.rider:
-              return '/rider/dashboard';
-            case UserRole.admin:
-              return '/admin/dashboard';
-          }
-        }
-      }
-
-      // Handle pending rider approval
-      if (authState is RiderPendingApproval) {
-        if (state.matchedLocation != '/rider/pending') {
-          return '/rider/pending';
-        }
-      }
-
-      // Handle unauthenticated users
-      if (authState is Unauthenticated) {
-        if (!isOnAuth && !isOnSplash) {
-          return '/login';
-        }
-      }
-
-      return null;
-    },
-
     routes: [
       // ============================================================
       // SPLASH SCREEN
@@ -129,6 +83,27 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
 
       // ============================================================
+      // ADMIN ROUTES
+      // ============================================================
+      GoRoute(
+        path: '/admin/dashboard',
+        name: 'admin-dashboard',
+        builder: (context, state) => const AdminMainScreen(),
+      ),
+      
+      GoRoute(
+        path: '/admin/products',
+        name: 'admin-products',
+        builder: (context, state) => const ProductManagementScreen(),
+      ),
+      
+      GoRoute(
+        path: '/admin/users',
+        name: 'admin-users',
+        builder: (context, state) => const UsersListScreen(),
+      ),
+
+      // ============================================================
       // RIDER ROUTES (Milestone 2)
       // ============================================================
       GoRoute(
@@ -142,15 +117,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
         ),
-      ),
-
-      // ============================================================
-      // ADMIN ROUTES
-      // ============================================================
-      GoRoute(
-        path: '/admin/dashboard',
-        name: 'admin-dashboard',
-        builder: (context, state) => const AdminMainScreen(),
       ),
 
       // ============================================================
@@ -184,7 +150,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
 
-    // Error handler
     errorBuilder: (context, state) => Scaffold(
       body: Center(
         child: Column(
@@ -228,6 +193,8 @@ extension NavigationExtensions on BuildContext {
   
   // Admin navigation
   void goToAdminDashboard() => go('/admin/dashboard');
+  void goToAdminProducts() => go('/admin/products');
+  void goToAdminUsers() => go('/admin/users');
   
   // Rider navigation
   void goToRiderDashboard() => go('/rider/dashboard');

@@ -1,9 +1,13 @@
 // lib/features/auth/presentation/screens/signup/rider_signup_screen.dart
 
+import 'package:abw_app/core/theme/colors/app_colors_dark.dart';
+import 'package:abw_app/features/auth/presentation/providers/auth_provider.dart';
+import 'package:abw_app/features/auth/presentation/providers/auth_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../../core/theme/colors/app_colors.dart';
 import '../../../../../core/theme/text_styles/app_text_styles.dart';
 
@@ -32,42 +36,80 @@ class _RiderSignupScreenState extends ConsumerState<RiderSignupScreen> {
 
   final List<String> _vehicleTypes = ['Bike', 'Scooter', 'Car', 'Bicycle'];
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
-    _phoneController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
-    _vehicleNumberController.dispose();
-    _licenseController.dispose();
-    super.dispose();
+
+
+
+@override
+void dispose() {
+  ref.read(authProvider.notifier).clearError();
+  _nameController.dispose();
+  _emailController.dispose();
+  _phoneController.dispose();
+  _passwordController.dispose();
+  _confirmPasswordController.dispose();
+  _vehicleNumberController.dispose();
+  _licenseController.dispose();
+  super.dispose();
+}
+
+ Future<void> _handleSignup() async {
+  if (!_formKey.currentState!.validate()) return;
+
+  if (!_agreeToTerms) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please agree to Terms & Conditions'),
+        backgroundColor: AppColorsDark.error,
+      ),
+    );
+    return;
   }
 
-  Future<void> _handleSignup() async {
-    if (!_formKey.currentState!.validate()) return;
+  setState(() => _isLoading = true);
 
-    if (!_agreeToTerms) {
+  await ref.read(authProvider.notifier).signUpRider(
+    email: _emailController.text.trim(),
+    password: _passwordController.text.trim(),
+    name: _nameController.text.trim(),
+    phone: _phoneController.text.trim(),
+    vehicleType: _selectedVehicleType,
+    vehicleNumber: _vehicleNumberController.text.trim(),
+    licenseNumber: _licenseController.text.trim().isEmpty 
+        ? null 
+        : _licenseController.text.trim(),
+  );
+
+  if (mounted) {
+    setState(() => _isLoading = false);
+  }
+
+  final authState = ref.read(authProvider);
+  
+  if (authState is AuthError) {
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please agree to Terms & Conditions'),
-          backgroundColor: AppColors.error,
+        SnackBar(
+          content: Text(authState.message),
+          backgroundColor: AppColorsDark.error,
         ),
       );
-      return;
     }
-
-    setState(() => _isLoading = true);
-
-    // TODO: Implement rider signup
-    await Future.delayed(const Duration(seconds: 2));
-
+  } else if (authState is RiderPendingApproval) {
     if (mounted) {
-      setState(() => _isLoading = false);
-      // Show success message about pending approval
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Request submitted! Awaiting admin approval.'),
+          backgroundColor: AppColorsDark.warning,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted) {
+        context.go('/rider/pending');
+      }
     }
   }
-
+}
   @override
   Widget build(BuildContext context) {
     return Scaffold(

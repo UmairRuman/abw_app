@@ -1,27 +1,58 @@
 // lib/features/admin/presentation/screens/dashboard/admin_dashboard_screen.dart
 
+import 'package:abw_app/core/routes/app_router.dart';
+import 'package:abw_app/features/admin/presentation/screens/categories/category_management_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../../core/theme/colors/app_colors_dark.dart';
 import '../../../../../core/theme/text_styles/app_text_styles.dart';
+import '../../../../categories/presentation/providers/categories_provider.dart';
+import '../../../../stores/presentation/providers/stores_provider.dart';
+import '../../../../products/presentation/providers/products_provider.dart';
 
-class AdminDashboardScreen extends ConsumerWidget {
+class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
+}
+
+class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboardData();
+  }
+
+  Future<void> _loadDashboardData() async {
+    // Load all data for dashboard
+    await Future.wait([
+      ref.read(categoriesProvider.notifier).getAllCategories(),
+      ref.read(storesProvider.notifier).getAllStores(),
+      ref.read(productsProvider.notifier).getAllProducts(),
+    ]);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColorsDark.background,
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            _buildAppBar(),
-            _buildStatsGrid(),
-            _buildQuickActions(context),
-            _buildPendingApprovals(context),
-            _buildRecentActivity(),
-          ],
+      body: RefreshIndicator(
+        onRefresh: _loadDashboardData,
+        color: AppColorsDark.primary,
+        backgroundColor: AppColorsDark.surface,
+        child: SafeArea(
+          child: CustomScrollView(
+            slivers: [
+              _buildAppBar(),
+              _buildStatsGrid(),
+              _buildQuickActions(context),
+              _buildPendingApprovals(context),
+              _buildRecentStores(),
+            ],
+          ),
         ),
       ),
     );
@@ -31,6 +62,7 @@ class AdminDashboardScreen extends ConsumerWidget {
     return SliverAppBar(
       floating: true,
       backgroundColor: AppColorsDark.surface,
+      elevation: 0,
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -38,10 +70,11 @@ class AdminDashboardScreen extends ConsumerWidget {
             'Admin Dashboard',
             style: AppTextStyles.titleLarge().copyWith(
               color: AppColorsDark.textPrimary,
+              fontWeight: FontWeight.bold,
             ),
           ),
           Text(
-            'Welcome back, Admin',
+            'Manage your platform',
             style: AppTextStyles.bodySmall().copyWith(
               color: AppColorsDark.textSecondary,
             ),
@@ -50,15 +83,63 @@ class AdminDashboardScreen extends ConsumerWidget {
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.notifications_outlined),
-          color: AppColorsDark.textPrimary,
-          onPressed: () {},
+          icon: Stack(
+            children: [
+              Icon(
+                Icons.notifications_outlined,
+                color: AppColorsDark.textPrimary,
+                size: 24.sp,
+              ),
+              // Notification badge
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Container(
+                  width: 8.w,
+                  height: 8.w,
+                  decoration: const BoxDecoration(
+                    color: AppColorsDark.error,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          onPressed: () {
+            // TODO: Show notifications
+          },
         ),
+        SizedBox(width: 8.w),
       ],
     );
   }
 
   Widget _buildStatsGrid() {
+    final categoriesState = ref.watch(categoriesProvider);
+    final storesState = ref.watch(storesProvider);
+    final productsState = ref.watch(productsProvider);
+
+    // Calculate stats
+    int totalCategories = 0;
+    int totalStores = 0;
+    int pendingStores = 0;
+    int totalProducts = 0;
+
+    if (categoriesState is CategoriesLoaded) {
+      totalCategories = categoriesState.categories.length;
+    }
+
+    if (storesState is StoresLoaded) {
+      totalStores = storesState.stores.length;
+      pendingStores = storesState.stores
+          .where((store) => !store.isApproved)
+          .length;
+    }
+
+    if (productsState is ProductsLoaded) {
+      totalProducts = productsState.products.length;
+    }
+
     return SliverPadding(
       padding: EdgeInsets.all(16.w),
       sliver: SliverGrid(
@@ -70,36 +151,40 @@ class AdminDashboardScreen extends ConsumerWidget {
         ),
         delegate: SliverChildListDelegate([
           _buildStatCard(
-            title: 'Total Orders',
-            value: '1,247',
-            icon: Icons.shopping_bag,
+            title: 'Categories',
+            value: '$totalCategories',
+            icon: Icons.category,
             color: AppColorsDark.primary,
-            trend: '+12%',
-            isPositive: true,
+            onTap: () {
+              // Navigate to categories
+            },
           ),
           _buildStatCard(
-            title: 'Active Riders',
-            value: '42',
-            icon: Icons.delivery_dining,
+            title: 'Stores',
+            value: '$totalStores',
+            icon: Icons.store,
             color: AppColorsDark.success,
-            trend: '+5',
-            isPositive: true,
+            badge: pendingStores > 0 ? '$pendingStores Pending' : null,
+            onTap: () {
+              // Navigate to stores
+            },
           ),
           _buildStatCard(
-            title: 'Restaurants',
-            value: '156',
-            icon: Icons.restaurant,
+            title: 'Products',
+            value: '$totalProducts',
+            icon: Icons.inventory,
             color: AppColorsDark.accent,
-            trend: '+8',
-            isPositive: true,
+            onTap: () {
+              // Navigate to products
+            },
           ),
           _buildStatCard(
             title: 'Revenue',
-            value: '\$12.5k',
+            value: 'PKR 0',
             icon: Icons.attach_money,
             color: AppColorsDark.warning,
-            trend: '+18%',
-            isPositive: true,
+            subtitle: 'Coming Soon',
+            onTap: () {},
           ),
         ]),
       ),
@@ -111,93 +196,97 @@ class AdminDashboardScreen extends ConsumerWidget {
     required String value,
     required IconData icon,
     required Color color,
-    required String trend,
-    required bool isPositive,
+    String? badge,
+    String? subtitle,
+    required VoidCallback onTap,
   }) {
-    return Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColorsDark.cardBackground,
-            AppColorsDark.surfaceVariant,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16.r),
+      child: Container(
+        padding: EdgeInsets.all(16.w),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [
+              AppColorsDark.cardBackground,
+              AppColorsDark.surfaceVariant,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16.r),
+          border: Border.all(
+            color: AppColorsDark.border,
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
           ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: AppColorsDark.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: EdgeInsets.all(8.w),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8.r),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: EdgeInsets.all(10.w),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: color,
+                    size: 24.sp,
+                  ),
                 ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 24.sp,
-                ),
-              ),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-                decoration: BoxDecoration(
-                  color: isPositive
-                      ? AppColorsDark.success.withOpacity(0.2)
-                      : AppColorsDark.error.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(6.r),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      isPositive ? Icons.arrow_upward : Icons.arrow_downward,
-                      size: 12.sp,
-                      color: isPositive
-                          ? AppColorsDark.success
-                          : AppColorsDark.error,
+                if (badge != null)
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 8.w,
+                      vertical: 4.h,
                     ),
-                    SizedBox(width: 2.w),
-                    Text(
-                      trend,
+                    decoration: BoxDecoration(
+                      color: AppColorsDark.error.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    child: Text(
+                      badge,
                       style: AppTextStyles.labelSmall().copyWith(
-                        color: isPositive
-                            ? AppColorsDark.success
-                            : AppColorsDark.error,
+                        color: AppColorsDark.error,
+                        fontSize: 10.sp,
                       ),
                     ),
-                  ],
+                  ),
+              ],
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: AppTextStyles.headlineMedium().copyWith(
+                    color: AppColorsDark.textPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: AppTextStyles.headlineMedium().copyWith(
-                  color: AppColorsDark.textPrimary,
-                  fontWeight: FontWeight.bold,
+                SizedBox(height: 4.h),
+                Text(
+                  subtitle ?? title,
+                  style: AppTextStyles.bodySmall().copyWith(
+                    color: AppColorsDark.textSecondary,
+                  ),
                 ),
-              ),
-              SizedBox(height: 4.h),
-              Text(
-                title,
-                style: AppTextStyles.bodySmall().copyWith(
-                  color: AppColorsDark.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -213,6 +302,7 @@ class AdminDashboardScreen extends ConsumerWidget {
               'Quick Actions',
               style: AppTextStyles.titleMedium().copyWith(
                 color: AppColorsDark.textPrimary,
+                fontWeight: FontWeight.bold,
               ),
             ),
             SizedBox(height: 12.h),
@@ -220,23 +310,48 @@ class AdminDashboardScreen extends ConsumerWidget {
               children: [
                 Expanded(
                   child: _buildActionCard(
-                    icon: Icons.person_add,
-                    label: 'Approve Riders',
+                    icon: Icons.category_rounded,
+                    label: 'Add Category',
                     color: AppColorsDark.primary,
-                    badge: '3',
                     onTap: () {
-                      // TODO: Navigate to rider approvals
+                      _showAddCategoryDialog(context);
                     },
                   ),
                 ),
                 SizedBox(width: 12.w),
                 Expanded(
                   child: _buildActionCard(
-                    icon: Icons.restaurant,
-                    label: 'Add Restaurant',
+                    icon: Icons.store_rounded,
+                    label: 'Add Store',
+                    color: AppColorsDark.success,
+                    onTap: () {
+                      _showAddStoreDialog(context);
+                    },
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 12.h),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildActionCard(
+                    icon: Icons.inventory_rounded,
+                    label: 'Add Product',
                     color: AppColorsDark.accent,
                     onTap: () {
-                      // TODO: Navigate to add restaurant
+                      _showAddProductDialog(context);
+                    },
+                  ),
+                ),
+                SizedBox(width: 12.w),
+                Expanded(
+                  child: _buildActionCard(
+                    icon: Icons.people_rounded,
+                    label: 'View Users',
+                    color: AppColorsDark.info,
+                    onTap: () {
+                      _showUsersScreen(context);
                     },
                   ),
                 ),
@@ -252,7 +367,6 @@ class AdminDashboardScreen extends ConsumerWidget {
     required IconData icon,
     required String label,
     required Color color,
-    String? badge,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -264,50 +378,34 @@ class AdminDashboardScreen extends ConsumerWidget {
           color: AppColorsDark.cardBackground,
           borderRadius: BorderRadius.circular(12.r),
           border: Border.all(color: AppColorsDark.border),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
           children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  padding: EdgeInsets.all(12.w),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12.r),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: color,
-                    size: 28.sp,
-                  ),
-                ),
-                if (badge != null)
-                  Positioned(
-                    top: -4,
-                    right: -4,
-                    child: Container(
-                      padding: EdgeInsets.all(6.w),
-                      decoration: BoxDecoration(
-                        color: AppColorsDark.error,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        badge,
-                        style: AppTextStyles.labelSmall().copyWith(
-                          color: AppColorsDark.white,
-                          fontSize: 10.sp,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
+            Container(
+              padding: EdgeInsets.all(12.w),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+              child: Icon(
+                icon,
+                color: color,
+                size: 28.sp,
+              ),
             ),
             SizedBox(height: 12.h),
             Text(
               label,
               style: AppTextStyles.bodyMedium().copyWith(
                 color: AppColorsDark.textPrimary,
+                fontWeight: FontWeight.w600,
               ),
               textAlign: TextAlign.center,
             ),
@@ -318,6 +416,21 @@ class AdminDashboardScreen extends ConsumerWidget {
   }
 
   Widget _buildPendingApprovals(BuildContext context) {
+    final storesState = ref.watch(storesProvider);
+
+    if (storesState is! StoresLoaded) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
+
+    final pendingStores = storesState.stores
+        .where((store) => !store.isApproved)
+        .take(3)
+        .toList();
+
+    if (pendingStores.isEmpty) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
+
     return SliverToBoxAdapter(
       child: Padding(
         padding: EdgeInsets.all(16.w),
@@ -328,14 +441,15 @@ class AdminDashboardScreen extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Pending Approvals',
+                  'Pending Store Approvals',
                   style: AppTextStyles.titleMedium().copyWith(
                     color: AppColorsDark.textPrimary,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
                 TextButton(
                   onPressed: () {
-                    // TODO: Navigate to all approvals
+                    // Navigate to all pending stores
                   },
                   child: Text(
                     'View All',
@@ -347,17 +461,24 @@ class AdminDashboardScreen extends ConsumerWidget {
               ],
             ),
             SizedBox(height: 12.h),
-            _buildApprovalCard(
-              name: 'John Rider',
-              vehicle: 'Bike - ABC-1234',
-              time: '2 hours ago',
-            ),
-            SizedBox(height: 8.h),
-            _buildApprovalCard(
-              name: 'Mike Delivery',
-              vehicle: 'Scooter - XYZ-5678',
-              time: '5 hours ago',
-            ),
+            ...pendingStores.map((store) => Padding(
+              padding: EdgeInsets.only(bottom: 8.h),
+              child: _buildApprovalCard(
+                name: store.name,
+                type: store.type,
+                city: store.city,
+                onApprove: () async {
+                  await ref.read(storesProvider.notifier).approveStore(
+                    store.id,
+                    'admin-id', // TODO: Get from auth provider
+                  );
+                  _loadDashboardData();
+                },
+                onReject: () async {
+                  _showRejectDialog(context, store.id);
+                },
+              ),
+            )),
           ],
         ),
       ),
@@ -366,8 +487,10 @@ class AdminDashboardScreen extends ConsumerWidget {
 
   Widget _buildApprovalCard({
     required String name,
-    required String vehicle,
-    required String time,
+    required String type,
+    required String city,
+    required VoidCallback onApprove,
+    required VoidCallback onReject,
   }) {
     return Container(
       padding: EdgeInsets.all(12.w),
@@ -385,13 +508,10 @@ class AdminDashboardScreen extends ConsumerWidget {
               gradient: AppColorsDark.primaryGradient,
               borderRadius: BorderRadius.circular(12.r),
             ),
-            child: Center(
-              child: Text(
-                name.substring(0, 2).toUpperCase(),
-                style: AppTextStyles.titleMedium().copyWith(
-                  color: AppColorsDark.white,
-                ),
-              ),
+            child: Icon(
+              Icons.store,
+              color: AppColorsDark.white,
+              size: 24.sp,
             ),
           ),
           SizedBox(width: 12.w),
@@ -403,20 +523,14 @@ class AdminDashboardScreen extends ConsumerWidget {
                   name,
                   style: AppTextStyles.titleSmall().copyWith(
                     color: AppColorsDark.textPrimary,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 SizedBox(height: 4.h),
                 Text(
-                  vehicle,
+                  '$type • $city',
                   style: AppTextStyles.bodySmall().copyWith(
                     color: AppColorsDark.textSecondary,
-                  ),
-                ),
-                SizedBox(height: 2.h),
-                Text(
-                  time,
-                  style: AppTextStyles.bodySmall().copyWith(
-                    color: AppColorsDark.textTertiary,
                   ),
                 ),
               ],
@@ -426,19 +540,19 @@ class AdminDashboardScreen extends ConsumerWidget {
             children: [
               IconButton(
                 icon: Icon(
-                  Icons.check_circle,
+                  Icons.check_circle_rounded,
                   color: AppColorsDark.success,
-                  size: 24.sp,
+                  size: 28.sp,
                 ),
-                onPressed: () {},
+                onPressed: onApprove,
               ),
               IconButton(
                 icon: Icon(
-                  Icons.cancel,
+                  Icons.cancel_rounded,
                   color: AppColorsDark.error,
-                  size: 24.sp,
+                  size: 28.sp,
                 ),
-                onPressed: () {},
+                onPressed: onReject,
               ),
             ],
           ),
@@ -447,7 +561,22 @@ class AdminDashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildRecentActivity() {
+  Widget _buildRecentStores() {
+    final storesState = ref.watch(storesProvider);
+
+    if (storesState is! StoresLoaded) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
+
+    final recentStores = storesState.stores
+        .where((store) => store.isApproved)
+        .take(5)
+        .toList();
+
+    if (recentStores.isEmpty) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
+
     return SliverToBoxAdapter(
       child: Padding(
         padding: EdgeInsets.all(16.w),
@@ -455,32 +584,139 @@ class AdminDashboardScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Recent Activity',
+              'Recent Stores',
               style: AppTextStyles.titleMedium().copyWith(
                 color: AppColorsDark.textPrimary,
+                fontWeight: FontWeight.bold,
               ),
             ),
             SizedBox(height: 12.h),
-            _buildActivityItem(
-              icon: Icons.check_circle,
-              title: 'Rider Approved',
-              subtitle: 'John Doe was approved as a rider',
-              time: '10 min ago',
-              color: AppColorsDark.success,
+            ...recentStores.map((store) => Padding(
+              padding: EdgeInsets.only(bottom: 8.h),
+              child: _buildStoreItem(
+                name: store.name,
+                rating: store.rating,
+                orders: store.totalOrders,
+                isActive: store.isActive,
+                onTap: () {
+                  // Navigate to store details
+                },
+              ),
+            )),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStoreItem({
+    required String name,
+    required double rating,
+    required int orders,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12.r),
+      child: Container(
+        padding: EdgeInsets.all(12.w),
+        decoration: BoxDecoration(
+          color: AppColorsDark.cardBackground,
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(color: AppColorsDark.border),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 50.w,
+              height: 50.w,
+              decoration: BoxDecoration(
+                color: AppColorsDark.surfaceVariant,
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+              child: Icon(
+                Icons.store,
+                color: AppColorsDark.textSecondary,
+                size: 24.sp,
+              ),
             ),
-            _buildActivityItem(
-              icon: Icons.restaurant,
-              title: 'New Restaurant',
-              subtitle: 'Pizza Palace added to platform',
-              time: '1 hour ago',
-              color: AppColorsDark.accent,
+            SizedBox(width: 12.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          name,
+                          style: AppTextStyles.titleSmall().copyWith(
+                            color: AppColorsDark.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 8.w,
+                          vertical: 4.h,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isActive
+                              ? AppColorsDark.success.withOpacity(0.2)
+                              : AppColorsDark.error.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(6.r),
+                        ),
+                        child: Text(
+                          isActive ? 'Active' : 'Inactive',
+                          style: AppTextStyles.labelSmall().copyWith(
+                            color: isActive
+                                ? AppColorsDark.success
+                                : AppColorsDark.error,
+                            fontSize: 10.sp,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 4.h),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.star,
+                        color: AppColorsDark.warning,
+                        size: 14.sp,
+                      ),
+                      SizedBox(width: 4.w),
+                      Text(
+                        rating.toStringAsFixed(1),
+                        style: AppTextStyles.bodySmall().copyWith(
+                          color: AppColorsDark.textSecondary,
+                        ),
+                      ),
+                      SizedBox(width: 12.w),
+                      Icon(
+                        Icons.shopping_bag,
+                        color: AppColorsDark.textTertiary,
+                        size: 14.sp,
+                      ),
+                      SizedBox(width: 4.w),
+                      Text(
+                        '$orders orders',
+                        style: AppTextStyles.bodySmall().copyWith(
+                          color: AppColorsDark.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-            _buildActivityItem(
-              icon: Icons.shopping_bag,
-              title: 'Order Completed',
-              subtitle: 'Order #1234 delivered successfully',
-              time: '2 hours ago',
-              color: AppColorsDark.primary,
+            Icon(
+              Icons.chevron_right,
+              color: AppColorsDark.textTertiary,
+              size: 24.sp,
             ),
           ],
         ),
@@ -488,56 +724,90 @@ class AdminDashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildActivityItem({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required String time,
-    required Color color,
-  }) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: 12.h),
-      child: Row(
-        children: [
-          Container(
-            padding: EdgeInsets.all(8.w),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8.r),
-            ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 20.sp,
-            ),
+  // Dialog methods
+void _showAddCategoryDialog(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (context) => const CategoryManagementDialog(),
+  );
+}
+
+ void _showAddStoreDialog(BuildContext context) {
+  // Navigate to store management screen instead
+  context.go('/admin/dashboard'); // Stay on dashboard, they can use drawer
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text('Go to Stores tab to add new store'),
+      backgroundColor: AppColorsDark.info,
+      action: SnackBarAction(
+        label: 'GO',
+        textColor: AppColorsDark.white,
+        onPressed: () {
+          // This will be handled by the main screen tab switching
+        },
+      ),
+    ),
+  );
+}
+
+ void _showAddProductDialog(BuildContext context) {
+  context.goToAdminProducts();
+}
+
+void _showUsersScreen(BuildContext context) {
+  context.goToAdminUsers();
+}
+
+  void _showRejectDialog(BuildContext context, String storeId) {
+    final reasonController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColorsDark.surface,
+        title: Text(
+          'Reject Store',
+          style: AppTextStyles.titleMedium().copyWith(
+            color: AppColorsDark.textPrimary,
           ),
-          SizedBox(width: 12.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppTextStyles.bodyMedium().copyWith(
-                    color: AppColorsDark.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                SizedBox(height: 2.h),
-                Text(
-                  subtitle,
-                  style: AppTextStyles.bodySmall().copyWith(
-                    color: AppColorsDark.textSecondary,
-                  ),
-                ),
-              ],
-            ),
+        ),
+        content: TextField(
+          controller: reasonController,
+          style: AppTextStyles.bodyMedium().copyWith(
+            color: AppColorsDark.textPrimary,
           ),
-          Text(
-            time,
-            style: AppTextStyles.bodySmall().copyWith(
+          decoration: InputDecoration(
+            hintText: 'Reason for rejection',
+            hintStyle: AppTextStyles.bodyMedium().copyWith(
               color: AppColorsDark.textTertiary,
             ),
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: AppTextStyles.bodyMedium().copyWith(
+                color: AppColorsDark.textSecondary,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await ref.read(storesProvider.notifier).rejectStore(
+                storeId,
+                'admin-id', // TODO: Get from auth provider
+                reasonController.text,
+              );
+              Navigator.pop(context);
+              _loadDashboardData();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColorsDark.error,
+            ),
+            child: const Text('Reject'),
           ),
         ],
       ),

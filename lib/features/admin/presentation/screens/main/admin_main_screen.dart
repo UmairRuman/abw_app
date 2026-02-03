@@ -3,11 +3,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../../core/theme/colors/app_colors_dark.dart';
 import '../../../../../core/theme/text_styles/app_text_styles.dart';
 import '../dashboard/admin_dashboard_screen.dart';
 import '../riders/rider_approval_screen.dart';
 import '../restaurants/restaurant_management_screen.dart';
+import '../products/product_management_screen.dart';
+import '../users/users_list_screen.dart';
+import '../categories/category_management_dialog.dart';
 
 class AdminMainScreen extends ConsumerStatefulWidget {
   const AdminMainScreen({super.key});
@@ -21,9 +25,16 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
 
   final List<Widget> _screens = const [
     AdminDashboardScreen(),
-    RiderApprovalScreen(),
     RestaurantManagementScreen(),
-    AdminSettingsScreen(),
+    ProductManagementScreen(),
+    UsersListScreen(),
+  ];
+
+  final List<String> _screenTitles = const [
+    'Dashboard',
+    'Stores',
+    'Products',
+    'Users',
   ];
 
   @override
@@ -67,10 +78,11 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
                     'Admin Panel',
                     style: AppTextStyles.titleLarge().copyWith(
                       color: AppColorsDark.white,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                   Text(
-                    'admin@abw.com',
+                    'AbW Services',
                     style: AppTextStyles.bodySmall().copyWith(
                       color: AppColorsDark.white.withOpacity(0.8),
                     ),
@@ -90,22 +102,74 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
                     index: 0,
                   ),
                   _buildDrawerItem(
-                    icon: Icons.delivery_dining,
-                    title: 'Rider Approvals',
+                    icon: Icons.store,
+                    title: 'Stores',
                     index: 1,
-                    badge: '3',
                   ),
                   _buildDrawerItem(
-                    icon: Icons.restaurant,
-                    title: 'Restaurants',
+                    icon: Icons.inventory,
+                    title: 'Products',
                     index: 2,
                   ),
                   _buildDrawerItem(
-                    icon: Icons.settings,
-                    title: 'Settings',
+                    icon: Icons.people,
+                    title: 'Users',
                     index: 3,
                   ),
+                  
                   const Divider(),
+                  
+                  // Additional Actions
+                  ListTile(
+                    leading: const Icon(
+                      Icons.category,
+                      color: AppColorsDark.accent,
+                    ),
+                    title: Text(
+                      'Manage Categories',
+                      style: AppTextStyles.bodyMedium().copyWith(
+                        color: AppColorsDark.textPrimary,
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showCategoryManagement();
+                    },
+                  ),
+                  
+                  ListTile(
+                    leading: const Icon(
+                      Icons.delivery_dining,
+                      color: AppColorsDark.success,
+                    ),
+                    title: Text(
+                      'Rider Approvals',
+                      style: AppTextStyles.bodyMedium().copyWith(
+                        color: AppColorsDark.textPrimary,
+                      ),
+                    ),
+                    trailing: Container(
+                      padding: EdgeInsets.all(6.w),
+                      decoration: const BoxDecoration(
+                        color: AppColorsDark.error,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        '0',
+                        style: AppTextStyles.labelSmall().copyWith(
+                          color: AppColorsDark.white,
+                          fontSize: 10.sp,
+                        ),
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      // TODO: Show rider approvals
+                    },
+                  ),
+                  
+                  const Divider(),
+                  
                   ListTile(
                     leading: const Icon(
                       Icons.logout,
@@ -117,8 +181,44 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
                         color: AppColorsDark.error,
                       ),
                     ),
-                    onTap: () {
+                    onTap: () async {
                       // TODO: Implement logout
+                      final shouldLogout = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          backgroundColor: AppColorsDark.surface,
+                          title: Text(
+                            'Logout',
+                            style: AppTextStyles.titleMedium().copyWith(
+                              color: AppColorsDark.textPrimary,
+                            ),
+                          ),
+                          content: Text(
+                            'Are you sure you want to logout?',
+                            style: AppTextStyles.bodyMedium().copyWith(
+                              color: AppColorsDark.textSecondary,
+                            ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Cancel'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColorsDark.error,
+                              ),
+                              child: const Text('Logout'),
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (shouldLogout == true && mounted) {
+                        // TODO: Call logout from auth provider
+                        context.go('/login');
+                      }
                     },
                   ),
                 ],
@@ -134,7 +234,6 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
     required IconData icon,
     required String title,
     required int index,
-    String? badge,
   }) {
     final isSelected = _selectedIndex == index;
 
@@ -152,22 +251,6 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
         ),
       ),
-      trailing: badge != null
-          ? Container(
-              padding: EdgeInsets.all(6.w),
-              decoration: const BoxDecoration(
-                color: AppColorsDark.error,
-                shape: BoxShape.circle,
-              ),
-              child: Text(
-                badge,
-                style: AppTextStyles.labelSmall().copyWith(
-                  color: AppColorsDark.white,
-                  fontSize: 10.sp,
-                ),
-              ),
-            )
-          : null,
       selected: isSelected,
       selectedTileColor: AppColorsDark.primaryContainer.withOpacity(0.2),
       shape: RoundedRectangleBorder(
@@ -205,22 +288,21 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
                 index: 0,
               ),
               _buildNavItem(
-                icon: Icons.delivery_dining_outlined,
-                activeIcon: Icons.delivery_dining,
-                label: 'Riders',
+                icon: Icons.store_outlined,
+                activeIcon: Icons.store,
+                label: 'Stores',
                 index: 1,
-                badge: '3',
               ),
               _buildNavItem(
-                icon: Icons.restaurant_outlined,
-                activeIcon: Icons.restaurant,
-                label: 'Restaurants',
+                icon: Icons.inventory_outlined,
+                activeIcon: Icons.inventory,
+                label: 'Products',
                 index: 2,
               ),
               _buildNavItem(
-                icon: Icons.settings_outlined,
-                activeIcon: Icons.settings,
-                label: 'Settings',
+                icon: Icons.people_outline,
+                activeIcon: Icons.people,
+                label: 'Users',
                 index: 3,
               ),
             ],
@@ -235,7 +317,6 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
     required IconData activeIcon,
     required String label,
     required int index,
-    String? badge,
   }) {
     final isSelected = _selectedIndex == index;
 
@@ -253,36 +334,12 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Icon(
-                  isSelected ? activeIcon : icon,
-                  color: isSelected
-                      ? AppColorsDark.primary
-                      : AppColorsDark.textSecondary,
-                  size: 24.sp,
-                ),
-                if (badge != null)
-                  Positioned(
-                    top: -4,
-                    right: -4,
-                    child: Container(
-                      padding: EdgeInsets.all(4.w),
-                      decoration: const BoxDecoration(
-                        color: AppColorsDark.error,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        badge,
-                        style: AppTextStyles.labelSmall().copyWith(
-                          color: AppColorsDark.white,
-                          fontSize: 8.sp,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
+            Icon(
+              isSelected ? activeIcon : icon,
+              color: isSelected
+                  ? AppColorsDark.primary
+                  : AppColorsDark.textSecondary,
+              size: 24.sp,
             ),
             SizedBox(height: 4.h),
             Text(
@@ -299,51 +356,11 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
       ),
     );
   }
-}
 
-// Placeholder Settings Screen
-class AdminSettingsScreen extends StatelessWidget {
-  const AdminSettingsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColorsDark.background,
-      appBar: AppBar(
-        backgroundColor: AppColorsDark.surface,
-        title: Text(
-          'Admin Settings',
-          style: AppTextStyles.titleLarge().copyWith(
-            color: AppColorsDark.textPrimary,
-          ),
-        ),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.settings,
-              size: 80.sp,
-              color: AppColorsDark.textTertiary,
-            ),
-            SizedBox(height: 16.h),
-            Text(
-              'Settings Feature',
-              style: AppTextStyles.headlineSmall().copyWith(
-                color: AppColorsDark.textPrimary,
-              ),
-            ),
-            SizedBox(height: 8.h),
-            Text(
-              'Configuration options coming soon',
-              style: AppTextStyles.bodyMedium().copyWith(
-                color: AppColorsDark.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
+  void _showCategoryManagement() {
+    showDialog(
+      context: context,
+      builder: (context) => const CategoryManagementDialog(),
     );
   }
 }

@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../../core/theme/colors/app_colors_dark.dart';
 import '../../../../../core/theme/text_styles/app_text_styles.dart';
 
@@ -385,6 +386,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
       child: InkWell(
         onTap: () {
           // TODO: Navigate to restaurant details
+          context.go('/customer/restaurant/${index + 1}');
         },
         borderRadius: BorderRadius.circular(16.r),
         child: Padding(

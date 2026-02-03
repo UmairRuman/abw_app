@@ -1,8 +1,12 @@
 // lib/features/auth/presentation/screens/forgot_password/forgot_password_screen.dart
 
+import 'package:abw_app/core/theme/colors/app_colors_dark.dart';
+import 'package:abw_app/features/auth/presentation/providers/auth_provider.dart';
+import 'package:abw_app/features/auth/presentation/providers/auth_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../../core/theme/colors/app_colors.dart';
 import '../../../../../core/theme/text_styles/app_text_styles.dart';
 
@@ -27,30 +31,54 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   }
 
   Future<void> _handleResetPassword() async {
-    if (!_formKey.currentState!.validate()) return;
+  if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+  setState(() => _isLoading = true);
 
-    // TODO: Implement password reset with provider
-    await Future.delayed(const Duration(seconds: 2));
+  await ref.read(authProvider.notifier).sendPasswordResetEmail(
+    _emailController.text.trim(),
+  );
 
+  if (mounted) {
+    setState(() => _isLoading = false);
+  }
+
+  final authState = ref.read(authProvider);
+  
+  if (authState is AuthError) {
     if (mounted) {
-      setState(() {
-        _isLoading = false;
-        _emailSent = true;
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authState.message),
+          backgroundColor: AppColorsDark.error,
+        ),
+      );
+    }
+  } else {
+    // Success
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password reset email sent! Check your inbox.'),
+          backgroundColor: AppColorsDark.success,
+        ),
+      );
+      await Future.delayed(const Duration(seconds: 2));
+      if (mounted) {
+        context.go('/login');
+      }
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColorsDark.background,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: const Icon(Icons.arrow_back, color: AppColorsDark.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -75,14 +103,14 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           Container(
             width: 80.w,
             height: 80.w,
-            decoration: BoxDecoration(
-              color: AppColors.primaryContainer,
+            decoration: const BoxDecoration(
+              color: AppColorsDark.primaryContainer,
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.lock_reset,
               size: 40.sp,
-              color: AppColors.primary,
+              color: AppColorsDark.primary,
             ),
           ),
 
@@ -91,7 +119,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           // Title
           Text(
             'Forgot Password?',
-            style: AppTextStyles.headlineLarge(),
+             style: AppTextStyles.headlineLarge().copyWith(
+                    color: AppColorsDark.textPrimary,
+                  ),
           ),
 
           SizedBox(height: 12.h),
@@ -136,7 +166,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             child: ElevatedButton(
               onPressed: _isLoading ? null : _handleResetPassword,
               child: _isLoading
-                  ? const CircularProgressIndicator(color: AppColors.white)
+                  ? const CircularProgressIndicator(color: AppColorsDark.white)
                   : const Text('Send Reset Link'),
             ),
           ),
@@ -150,14 +180,14 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               Icon(
                 Icons.arrow_back,
                 size: 16.sp,
-                color: AppColors.primary,
+                color: AppColorsDark.primary,
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: Text(
                   'Back to Login',
                   style: AppTextStyles.bodyMedium().copyWith(
-                    color: AppColors.primary,
+                    color: AppColorsDark.primary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -179,13 +209,13 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           width: 120.w,
           height: 120.w,
           decoration: BoxDecoration(
-            color: AppColors.successLight.withOpacity(0.2),
+            color: AppColorsDark.successLight.withOpacity(0.2),
             shape: BoxShape.circle,
           ),
           child: Icon(
             Icons.mark_email_read,
             size: 60.sp,
-            color: AppColors.success,
+            color: AppColorsDark.success,
           ),
         ),
 
@@ -218,17 +248,17 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         Container(
           padding: EdgeInsets.all(16.w),
           decoration: BoxDecoration(
-            color: AppColors.info.withOpacity(0.1),
+            color: AppColorsDark.info.withOpacity(0.1),
             borderRadius: BorderRadius.circular(12.r),
             border: Border.all(
-              color: AppColors.info.withOpacity(0.3),
+              color: AppColorsDark.info.withOpacity(0.3),
             ),
           ),
           child: Row(
             children: [
               Icon(
                 Icons.info_outline,
-                color: AppColors.info,
+                color: AppColorsDark.info,
                 size: 24.sp,
               ),
               SizedBox(width: 12.w),

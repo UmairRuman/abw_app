@@ -14,7 +14,7 @@ class AppThemeDark {
       brightness: Brightness.dark,
       
       // Color Scheme
-      colorScheme: ColorScheme.dark(
+      colorScheme: const ColorScheme.dark(
         primary: AppColorsDark.primary,
         onPrimary: AppColorsDark.background,
         primaryContainer: AppColorsDark.primaryContainer,

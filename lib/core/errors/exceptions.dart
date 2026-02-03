@@ -3,7 +3,7 @@
 /// Base exception class
 class AppException implements Exception {
   final String message;
-  final int? code;
+  final String? code;
 
   AppException({
     required this.message,
@@ -29,7 +29,7 @@ class ServerException extends AppException {
 class NetworkException extends AppException {
   NetworkException({
     super.message = 'No internet connection',
-    super.code = 0,
+    super.code = '0',
   });
 
   @override
@@ -117,7 +117,7 @@ class TimeoutException extends AppException {
 class NotFoundException extends AppException {
   NotFoundException({
     super.message = 'Resource not found',
-    super.code = 404,
+    super.code = '404',
   });
 
   @override
@@ -128,7 +128,7 @@ class NotFoundException extends AppException {
 class UnauthorizedException extends AppException {
   UnauthorizedException({
     super.message = 'Unauthorized access',
-    super.code = 401,
+    super.code = '401',
   });
 
   @override

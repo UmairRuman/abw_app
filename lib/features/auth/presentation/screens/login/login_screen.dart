@@ -1,10 +1,14 @@
 // lib/features/auth/presentation/screens/login/login_screen.dart
 
-import 'package:abw_app/core/theme/colors/app_colors_dark.dart';
+import 'dart:developer';
+
+import 'package:abw_app/features/auth/presentation/providers/auth_provider.dart';
+import 'package:abw_app/features/auth/presentation/providers/auth_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import '../../../../../core/theme/colors/app_colors.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../../core/theme/colors/app_colors_dark.dart';
 import '../../../../../core/theme/text_styles/app_text_styles.dart';
 import '../../../../../shared/enums/user_role.dart';
 
@@ -25,13 +29,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscurePassword = true;
   bool _isLoading = false;
 
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    _adminKeyController.dispose();
-    super.dispose();
-  }
+
+
+
+
+@override
+void dispose() {
+  // Clear any error state when leaving screen
+
+  _emailController.dispose();
+  _passwordController.dispose();
+  _adminKeyController.dispose();
+  super.dispose();
+}
 
   void _showRoleMenu() {
     showMenu(
@@ -49,7 +59,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             children: [
               const Icon(Icons.delivery_dining, color: AppColorsDark.primary),
               SizedBox(width: 12.w),
-              Text('Login as Rider', style: AppTextStyles.bodyMedium()),
+              Text('Login as Rider', style: AppTextStyles.bodyMedium().copyWith(color: AppColorsDark.textPrimary)),
             ],
           ),
         ),
@@ -59,7 +69,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             children: [
               const Icon(Icons.admin_panel_settings, color: AppColorsDark.secondary),
               SizedBox(width: 12.w),
-              Text('Login as Admin', style: AppTextStyles.bodyMedium()),
+              Text('Login as Admin', style: AppTextStyles.bodyMedium().copyWith(color: AppColorsDark.textPrimary)),
             ],
           ),
         ),
@@ -74,33 +84,97 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
   }
 
-  Future<void> _handleLogin() async {
-    if (!_formKey.currentState!.validate()) return;
+ 
+Future<void> _handleLogin() async {
+  if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+  setState(() => _isLoading = true);
 
-    // TODO: Implement login logic with provider
-    await Future.delayed(const Duration(seconds: 2));
+  // Call auth method
+  await ref.read(authProvider.notifier).loginWithEmail(
+    email: _emailController.text.trim(),
+    password: _passwordController.text.trim(),
+    role: _selectedRole,
+    adminKey: _selectedRole == UserRole.admin 
+        ? _adminKeyController.text.trim() 
+        : null,
+  );
 
-    if (mounted) {
-      setState(() => _isLoading = false);
-      // Navigate based on role
-    }
+  // Stop loading
+  if (mounted) {
+    setState(() => _isLoading = false);
   }
 
-  Future<void> _handleGoogleSignIn() async {
-    setState(() => _isLoading = true);
-
-    // TODO: Implement Google sign-in
-    await Future.delayed(const Duration(seconds: 2));
-
+  // Check result
+  final authState = ref.read(authProvider);
+  
+  if (authState is AuthError) {
+    // Show error
     if (mounted) {
-      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authState.message),
+          backgroundColor: AppColorsDark.error,
+        ),
+      );
+    }
+  } else if (authState is Authenticated) {
+    // Success - navigate based on role
+    if (mounted) {
+      switch (authState.user.role) {
+        case UserRole.customer:
+          context.go('/customer/home');
+          break;
+        case UserRole.rider:
+          context.go('/rider/dashboard');
+          break;
+        case UserRole.admin:
+          context.go('/admin/dashboard');
+          break;
+      }
+    }
+  } else if (authState is RiderPendingApproval) {
+    // Rider not approved
+    if (mounted) {
+      context.go('/rider/pending');
     }
   }
+}
+
+
+Future<void> _handleGoogleSignIn() async {
+  setState(() => _isLoading = true);
+
+  await ref.read(authProvider.notifier).loginWithGoogle();
+
+  if (mounted) {
+    setState(() => _isLoading = false);
+  }
+
+  final authState = ref.read(authProvider);
+  
+  if (authState is AuthError) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authState.message),
+          backgroundColor: AppColorsDark.error,
+        ),
+      );
+    }
+  } else if (authState is Authenticated) {
+    if (mounted) {
+      context.go('/customer/home');
+    }
+  }
+}
+
 
   @override
   Widget build(BuildContext context) {
+
+    
+
     return Scaffold(
       backgroundColor: AppColorsDark.background,
       appBar: AppBar(
@@ -127,7 +201,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 // Welcome Text
                 Text(
                   'Welcome Back!',
-                  style: AppTextStyles.headlineLarge(),
+                  style: AppTextStyles.headlineLarge().copyWith(
+                    color: AppColorsDark.textPrimary,
+                  ),
                 ),
                 SizedBox(height: 8.h),
                 Text(
@@ -148,10 +224,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textPrimary,
+                  ),
+                  decoration: const InputDecoration(
                     labelText: 'Email',
                     hintText: 'Enter your email',
-                    prefixIcon: const Icon(Icons.email_outlined),
+                    prefixIcon: Icon(Icons.email_outlined),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -170,6 +249,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textPrimary,
+                  ),
                   decoration: InputDecoration(
                     labelText: 'Password',
                     hintText: 'Enter your password',
@@ -201,10 +283,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   SizedBox(height: 16.h),
                   TextFormField(
                     controller: _adminKeyController,
-                    decoration: InputDecoration(
+                    style: AppTextStyles.bodyMedium().copyWith(
+                      color: AppColorsDark.textPrimary,
+                    ),
+                    decoration: const InputDecoration(
                       labelText: 'Admin Access Key',
                       hintText: 'Enter admin key',
-                      prefixIcon: const Icon(Icons.key),
+                      prefixIcon: Icon(Icons.key),
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -222,7 +307,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () {
-                      Navigator.pushNamed(context, '/forgot-password');
+                      context.push('/forgot-password');
                     },
                     child: Text(
                       'Forgot Password?',
@@ -242,8 +327,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _handleLogin,
                     child: _isLoading
-                        ? const CircularProgressIndicator(color: AppColorsDark.white)
-                        : Text('Login'),
+                        ? const CircularProgressIndicator(color: AppColorsDark.background)
+                        : const Text('Login'),
                   ),
                 ),
 
@@ -255,14 +340,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     height: 56.h,
                     child: OutlinedButton.icon(
                       onPressed: _isLoading ? null : _handleGoogleSignIn,
-                      icon: Image.asset(
-                        'assets/icons/google.png',
-                        height: 24.h,
-                        width: 24.w,
-                        errorBuilder: (_, __, ___) => const Icon(
-                          Icons.g_mobiledata,
-                          size: 32,
-                        ),
+                      icon: Icon(
+                        Icons.g_mobiledata,
+                        size: 32.sp,
+                        color: AppColorsDark.primary,
                       ),
                       label: const Text('Continue with Google'),
                     ),
@@ -275,7 +356,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Center(
                     child: TextButton.icon(
                       onPressed: () {
-                        Navigator.pushNamed(context, '/rider-request');
+                        context.go('/signup/rider');
                       },
                       icon: const Icon(Icons.person_add),
                       label: const Text('Request Rider Access'),
@@ -291,11 +372,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   children: [
                     Text(
                       "Don't have an account? ",
-                      style: AppTextStyles.bodyMedium(),
+                      style: AppTextStyles.bodyMedium().copyWith(
+                        color: AppColorsDark.textSecondary,
+                      ),
                     ),
                     TextButton(
                       onPressed: () {
-                        Navigator.pushNamed(context, '/signup');
+                        if (_selectedRole == UserRole.rider) {
+                          context.go('/signup/rider');
+                        } else {
+                          context.go('/signup/customer');
+                        }
                       },
                       child: Text(
                         'Sign Up',

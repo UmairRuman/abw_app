@@ -1,7 +1,5 @@
 // lib/features/auth/domain/entities/rider_entity.dart
 
-import 'package:abw_app/shared/enums/user_role.dart';
-
 import 'user_entity.dart';
 
 class RiderEntity extends UserEntity {
@@ -12,12 +10,15 @@ class RiderEntity extends UserEntity {
   final bool isAvailable;
   final double rating;
   final int totalDeliveries;
+  final DateTime? approvedAt;  // ✅ ADD THIS
+  final String? approvedBy;    // ✅ ADD THIS (optional - who approved)
 
   const RiderEntity({
     required super.id,
     required super.email,
     required super.name,
     required super.phone,
+    required super.role,
     super.profileImage,
     required super.isActive,
     required super.createdAt,
@@ -29,7 +30,9 @@ class RiderEntity extends UserEntity {
     this.isAvailable = false,
     this.rating = 0.0,
     this.totalDeliveries = 0,
-  }) : super(role: UserRole.rider);
+    this.approvedAt,     // ✅ ADD THIS
+    this.approvedBy,     // ✅ ADD THIS
+  });
 
   @override
   List<Object?> get props => [
@@ -41,41 +44,7 @@ class RiderEntity extends UserEntity {
         isAvailable,
         rating,
         totalDeliveries,
+        approvedAt,    // ✅ ADD THIS
+        approvedBy,    // ✅ ADD THIS
       ];
-
-  RiderEntity copyWith({
-    String? id,
-    String? email,
-    String? name,
-    String? phone,
-    String? profileImage,
-    bool? isActive,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-    String? vehicleType,
-    String? vehicleNumber,
-    String? licenseNumber,
-    bool? isApproved,
-    bool? isAvailable,
-    double? rating,
-    int? totalDeliveries,
-  }) {
-    return RiderEntity(
-      id: id ?? this.id,
-      email: email ?? this.email,
-      name: name ?? this.name,
-      phone: phone ?? this.phone,
-      profileImage: profileImage ?? this.profileImage,
-      isActive: isActive ?? this.isActive,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      vehicleType: vehicleType ?? this.vehicleType,
-      vehicleNumber: vehicleNumber ?? this.vehicleNumber,
-      licenseNumber: licenseNumber ?? this.licenseNumber,
-      isApproved: isApproved ?? this.isApproved,
-      isAvailable: isAvailable ?? this.isAvailable,
-      rating: rating ?? this.rating,
-      totalDeliveries: totalDeliveries ?? this.totalDeliveries,
-    );
-  }
 }

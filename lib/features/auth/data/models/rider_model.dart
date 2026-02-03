@@ -1,7 +1,7 @@
 // lib/features/auth/data/models/rider_model.dart
 
+import 'package:abw_app/shared/enums/user_role.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../../shared/enums/user_role.dart';
 import '../../domain/entities/rider_entity.dart';
 
 class RiderModel extends RiderEntity {
@@ -10,6 +10,7 @@ class RiderModel extends RiderEntity {
     required super.email,
     required super.name,
     required super.phone,
+    super.role = UserRole.rider,
     super.profileImage,
     required super.isActive,
     required super.createdAt,
@@ -21,12 +22,13 @@ class RiderModel extends RiderEntity {
     super.isAvailable = false,
     super.rating = 0.0,
     super.totalDeliveries = 0,
+    super.approvedAt,    // ✅ ADD THIS
+    super.approvedBy,    // ✅ ADD THIS
   });
 
-  // From JSON
   factory RiderModel.fromJson(Map<String, dynamic> json) {
     return RiderModel(
-      id: json['userId'] as String,
+      id: json['id'] as String,
       email: json['email'] as String,
       name: json['name'] as String,
       phone: json['phone'] as String,
@@ -41,18 +43,20 @@ class RiderModel extends RiderEntity {
       isAvailable: json['isAvailable'] as bool? ?? false,
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
       totalDeliveries: json['totalDeliveries'] as int? ?? 0,
+      approvedAt: json['approvedAt'] != null        // ✅ ADD THIS
+          ? (json['approvedAt'] as Timestamp).toDate()
+          : null,
+      approvedBy: json['approvedBy'] as String?,    // ✅ ADD THIS
     );
   }
 
-  // To JSON
   Map<String, dynamic> toJson() {
     return {
-      'userId': id,
+      'id': id,
       'email': email,
       'name': name,
       'phone': phone,
       'profileImage': profileImage,
-      'role': UserRole.rider.name,
       'isActive': isActive,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
@@ -63,34 +67,13 @@ class RiderModel extends RiderEntity {
       'isAvailable': isAvailable,
       'rating': rating,
       'totalDeliveries': totalDeliveries,
+      'approvedAt': approvedAt != null              // ✅ ADD THIS
+          ? Timestamp.fromDate(approvedAt!)
+          : null,
+      'approvedBy': approvedBy,                     // ✅ ADD THIS
     };
   }
 
-  // From Entity
-  factory RiderModel.fromEntity(RiderEntity entity) {
-    return RiderModel(
-      id: entity.id,
-      email: entity.email,
-      name: entity.name,
-      phone: entity.phone,
-      profileImage: entity.profileImage,
-      isActive: entity.isActive,
-      createdAt: entity.createdAt,
-      updatedAt: entity.updatedAt,
-      vehicleType: entity.vehicleType,
-      vehicleNumber: entity.vehicleNumber,
-      licenseNumber: entity.licenseNumber,
-      isApproved: entity.isApproved,
-      isAvailable: entity.isAvailable,
-      rating: entity.rating,
-      totalDeliveries: entity.totalDeliveries,
-    );
-  }
-
-  // To Entity
-  RiderEntity toEntity() => this;
-
-  @override
   RiderModel copyWith({
     String? id,
     String? email,
@@ -107,6 +90,8 @@ class RiderModel extends RiderEntity {
     bool? isAvailable,
     double? rating,
     int? totalDeliveries,
+    DateTime? approvedAt,    // ✅ ADD THIS
+    String? approvedBy,      // ✅ ADD THIS
   }) {
     return RiderModel(
       id: id ?? this.id,
@@ -124,6 +109,8 @@ class RiderModel extends RiderEntity {
       isAvailable: isAvailable ?? this.isAvailable,
       rating: rating ?? this.rating,
       totalDeliveries: totalDeliveries ?? this.totalDeliveries,
+      approvedAt: approvedAt ?? this.approvedAt,        // ✅ ADD THIS
+      approvedBy: approvedBy ?? this.approvedBy,        // ✅ ADD THIS
     );
   }
 }
