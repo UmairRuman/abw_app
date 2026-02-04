@@ -1,7 +1,5 @@
 // lib/features/auth/presentation/screens/login/login_screen.dart
 
-
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -83,13 +81,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
     setState(() => _isLoading = true);
 
-    await ref.read(authProvider.notifier).loginWithEmail(
+    await ref
+        .read(authProvider.notifier)
+        .loginWithEmail(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
           role: _selectedRole,
-          adminKey: _selectedRole == UserRole.admin
-              ? _adminKeyController.text.trim()
-              : null,
+          adminKey:
+              _selectedRole == UserRole.admin
+                  ? _adminKeyController.text.trim()
+                  : null,
         );
 
     if (mounted) {
@@ -162,18 +163,101 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     }
   }
 
+  void _showRoleMenu() {
+    showMenu(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        MediaQuery.of(context).size.width - 20.w,
+        AppBar().preferredSize.height + 40.h,
+        20.w,
+        0,
+      ),
+      items: [
+        // Customer option (always show)
+        PopupMenuItem(
+          value: UserRole.customer,
+          child: Row(
+            children: [
+              const Icon(Icons.person, color: AppColorsDark.primary),
+              SizedBox(width: 12.w),
+              Text(
+                'Login as Customer',
+                style: AppTextStyles.bodyMedium().copyWith(
+                  color: AppColorsDark.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Rider option
+        PopupMenuItem(
+          value: UserRole.rider,
+          child: Row(
+            children: [
+              const Icon(Icons.delivery_dining, color: AppColorsDark.accent),
+              SizedBox(width: 12.w),
+              Text(
+                'Login as Rider',
+                style: AppTextStyles.bodyMedium().copyWith(
+                  color: AppColorsDark.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Admin option
+        PopupMenuItem(
+          value: UserRole.admin,
+          child: Row(
+            children: [
+              const Icon(
+                Icons.admin_panel_settings,
+                color: AppColorsDark.secondary,
+              ),
+              SizedBox(width: 12.w),
+              Text(
+                'Login as Admin',
+                style: AppTextStyles.bodyMedium().copyWith(
+                  color: AppColorsDark.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+      elevation: 8,
+    ).then((value) {
+      if (value != null) {
+        setState(() {
+          _selectedRole = value;
+        });
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: _getRoleColor(_selectedRole),
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.more_vert, color: AppColorsDark.textPrimary),
+            onPressed: _showRoleMenu,
+            tooltip: 'Select Login Type',
+          ),
+        ],
+      ),
       body: Container(
-        decoration: BoxDecoration(
-          gradient: _getRoleGradient(),
-        ),
+        decoration: BoxDecoration(gradient: _getRoleGradient()),
         child: SafeArea(
           child: Column(
             children: [
               // Top Role Selector Tabs
-              _buildRoleTabs(),
+              // _buildRoleTabs(),
 
               // Form Content
               Expanded(
@@ -219,9 +303,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       decoration: BoxDecoration(
         color: AppColorsDark.surface.withOpacity(0.3),
         borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(
-          color: AppColorsDark.white.withOpacity(0.2),
-        ),
+        border: Border.all(color: AppColorsDark.white.withOpacity(0.2)),
       ),
       child: Row(
         children: [
@@ -250,33 +332,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           decoration: BoxDecoration(
             color: isSelected ? color : Colors.transparent,
             borderRadius: BorderRadius.circular(12.r),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: color.withOpacity(0.4),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : [],
+            boxShadow:
+                isSelected
+                    ? [
+                      BoxShadow(
+                        color: color.withOpacity(0.4),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                    : [],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 icon,
-                color: isSelected
-                    ? AppColorsDark.white
-                    : AppColorsDark.white.withOpacity(0.6),
+                color:
+                    isSelected
+                        ? AppColorsDark.white
+                        : AppColorsDark.white.withOpacity(0.6),
                 size: 24.sp,
               ),
               SizedBox(height: 4.h),
               Text(
                 label,
                 style: AppTextStyles.labelSmall().copyWith(
-                  color: isSelected
-                      ? AppColorsDark.white
-                      : AppColorsDark.white.withOpacity(0.6),
+                  color:
+                      isSelected
+                          ? AppColorsDark.white
+                          : AppColorsDark.white.withOpacity(0.6),
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
@@ -475,28 +560,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     borderRadius: BorderRadius.circular(12.r),
                   ),
                 ),
-                child: _isLoading
-                    ? SizedBox(
-                        width: 24.w,
-                        height: 24.w,
-                        child: const CircularProgressIndicator(
-                          color: AppColorsDark.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(_getRoleIcon(), size: 20.sp),
-                          SizedBox(width: 8.w),
-                          Text(
-                            'Login as ${_selectedRole.displayName}',
-                            style: AppTextStyles.titleSmall().copyWith(
-                              color: AppColorsDark.white,
-                            ),
+                child:
+                    _isLoading
+                        ? SizedBox(
+                          width: 24.w,
+                          height: 24.w,
+                          child: const CircularProgressIndicator(
+                            color: AppColorsDark.white,
+                            strokeWidth: 2,
                           ),
-                        ],
-                      ),
+                        )
+                        : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(_getRoleIcon(), size: 20.sp),
+                            SizedBox(width: 8.w),
+                            Text(
+                              'Login as ${_selectedRole.displayName}',
+                              style: AppTextStyles.titleSmall().copyWith(
+                                color: AppColorsDark.white,
+                              ),
+                            ),
+                          ],
+                        ),
               ),
             ),
 
@@ -505,7 +591,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               SizedBox(height: 16.h),
               Row(
                 children: [
-                  Expanded(child: Divider(color: AppColorsDark.border)),
+                  const Expanded(child: Divider(color: AppColorsDark.border)),
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16.w),
                     child: Text(
@@ -515,7 +601,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       ),
                     ),
                   ),
-                  Expanded(child: Divider(color: AppColorsDark.border)),
+                  const Expanded(child: Divider(color: AppColorsDark.border)),
                 ],
               ),
               SizedBox(height: 16.h),
@@ -525,7 +611,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 child: OutlinedButton.icon(
                   onPressed: _isLoading ? null : _handleGoogleSignIn,
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: AppColorsDark.border),
+                    side: const BorderSide(color: AppColorsDark.border),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12.r),
                     ),
@@ -555,9 +641,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             decoration: BoxDecoration(
               color: AppColorsDark.accent.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12.r),
-              border: Border.all(
-                color: AppColorsDark.accent.withOpacity(0.3),
-              ),
+              border: Border.all(color: AppColorsDark.accent.withOpacity(0.3)),
             ),
             child: Row(
               children: [
@@ -595,13 +679,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               onPressed: () {
                 switch (_selectedRole) {
                   case UserRole.customer:
-                    context.go('/signup/customer');
+                    context.push('/signup/customer');
                     break;
                   case UserRole.rider:
-                    context.go('/signup/rider');
+                    context.push('/signup/rider');
                     break;
                   case UserRole.admin:
-                    context.go('/signup/admin');
+                    context.push('/signup/admin');
                     break;
                 }
               },

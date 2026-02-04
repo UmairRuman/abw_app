@@ -18,10 +18,7 @@ import '../../../../products/data/models/product_model.dart';
 class StoreDetailsScreen extends ConsumerStatefulWidget {
   final String storeId;
 
-  const StoreDetailsScreen({
-    super.key,
-    required this.storeId,
-  });
+  const StoreDetailsScreen({super.key, required this.storeId});
 
   @override
   ConsumerState<StoreDetailsScreen> createState() => _StoreDetailsScreenState();
@@ -33,12 +30,7 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
   final ScrollController _scrollController = ScrollController();
   bool _isAppBarExpanded = true;
 
-  final List<String> _filterOptions = [
-    'All',
-    'Vegetarian',
-    'Popular',
-    'New',
-  ];
+  final List<String> _filterOptions = ['All', 'Vegetarian', 'Popular', 'New'];
   String _selectedFilter = 'All';
 
   @override
@@ -50,7 +42,9 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
   }
 
   Future<void> _loadData() async {
-     await Future.delayed(const Duration(milliseconds: 200)); // Ensure context is available
+    await Future.delayed(
+      const Duration(milliseconds: 200),
+    ); // Ensure context is available
     await Future.wait([
       ref.read(storesProvider.notifier).getStore(widget.storeId),
       ref.read(productsProvider.notifier).getProductsByStore(widget.storeId),
@@ -115,13 +109,14 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
             _buildFilters(),
           ];
         },
-        body: productsState is ProductsLoading
-            ? const Center(
-                child: CircularProgressIndicator(
-                  color: AppColorsDark.primary,
-                ),
-              )
-            : productsState is ProductsLoaded
+        body:
+            productsState is ProductsLoading
+                ? const Center(
+                  child: CircularProgressIndicator(
+                    color: AppColorsDark.primary,
+                  ),
+                )
+                : productsState is ProductsLoaded
                 ? _buildProductsList(productsState)
                 : const Center(child: Text('No products available')),
       ),
@@ -148,8 +143,9 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
           ),
         ),
         onPressed: () {
-           ref.read(categoriesProvider.notifier).getAllCategories();
-      ref.read(storesProvider.notifier).getAllStores();
+          ref.read(categoriesProvider.notifier).getAllCategories();
+          ref.read(storesProvider.notifier).getAllStores();
+          _loadCart();
           context.pop();
         },
       ),
@@ -176,11 +172,7 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
               color: AppColorsDark.background.withOpacity(0.8),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              Icons.share,
-              color: AppColorsDark.white,
-              size: 20.sp,
-            ),
+            child: Icon(Icons.share, color: AppColorsDark.white, size: 20.sp),
           ),
           onPressed: () {},
         ),
@@ -191,10 +183,10 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
           children: [
             store.bannerUrl.isNotEmpty
                 ? Image.network(
-                    store.bannerUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _buildBannerPlaceholder(),
-                  )
+                  store.bannerUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _buildBannerPlaceholder(),
+                )
                 : _buildBannerPlaceholder(),
             Container(
               decoration: BoxDecoration(
@@ -248,7 +240,10 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
                   ),
                 ),
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 12.w,
+                    vertical: 6.h,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColorsDark.success.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(8.r),
@@ -315,23 +310,26 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
             Container(
               padding: EdgeInsets.all(12.w),
               decoration: BoxDecoration(
-                color: store.isOpen
-                    ? AppColorsDark.success.withOpacity(0.1)
-                    : AppColorsDark.error.withOpacity(0.1),
+                color:
+                    store.isOpen
+                        ? AppColorsDark.success.withOpacity(0.1)
+                        : AppColorsDark.error.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8.r),
                 border: Border.all(
-                  color: store.isOpen
-                      ? AppColorsDark.success.withOpacity(0.3)
-                      : AppColorsDark.error.withOpacity(0.3),
+                  color:
+                      store.isOpen
+                          ? AppColorsDark.success.withOpacity(0.3)
+                          : AppColorsDark.error.withOpacity(0.3),
                 ),
               ),
               child: Row(
                 children: [
                   Icon(
                     store.isOpen ? Icons.check_circle : Icons.schedule,
-                    color: store.isOpen
-                        ? AppColorsDark.success
-                        : AppColorsDark.error,
+                    color:
+                        store.isOpen
+                            ? AppColorsDark.success
+                            : AppColorsDark.error,
                     size: 20.sp,
                   ),
                   SizedBox(width: 8.w),
@@ -340,9 +338,10 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
                         ? 'Open Now • Accepting Orders'
                         : 'Closed • Opens at ${store.openingTime}',
                     style: AppTextStyles.bodyMedium().copyWith(
-                      color: store.isOpen
-                          ? AppColorsDark.success
-                          : AppColorsDark.error,
+                      color:
+                          store.isOpen
+                              ? AppColorsDark.success
+                              : AppColorsDark.error,
                     ),
                   ),
                 ],
@@ -365,11 +364,7 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 16.sp,
-            color: AppColorsDark.primary,
-          ),
+          Icon(icon, size: 16.sp, color: AppColorsDark.primary),
           SizedBox(width: 6.w),
           Text(
             label,
@@ -382,40 +377,40 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
     );
   }
 
- Widget _buildFilters() {
-  return SliverAppBar(
-    pinned: true,
-    toolbarHeight: 60.h,
-    backgroundColor: AppColorsDark.surface,
-    automaticallyImplyLeading: false, // Remove back button
-    elevation: 0,
-    flexibleSpace: Container(
-      color: AppColorsDark.surface,
-      padding: EdgeInsets.symmetric(vertical: 8.h),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.symmetric(horizontal: 16.w),
-        itemCount: _filterOptions.length,
-        itemBuilder: (context, index) {
-          final filter = _filterOptions[index];
-          final isSelected = filter == _selectedFilter;
-          return Padding(
-            padding: EdgeInsets.only(right: 8.w),
-            child: FilterChip(
-              label: Text(filter),
-              selected: isSelected,
-              onSelected: (selected) {
-                setState(() => _selectedFilter = filter);
-              },
-              selectedColor: AppColorsDark.primary.withOpacity(0.3),
-              checkmarkColor: AppColorsDark.primary,
-            ),
-          );
-        },
+  Widget _buildFilters() {
+    return SliverAppBar(
+      pinned: true,
+      toolbarHeight: 60.h,
+      backgroundColor: AppColorsDark.surface,
+      automaticallyImplyLeading: false, // Remove back button
+      elevation: 0,
+      flexibleSpace: Container(
+        color: AppColorsDark.surface,
+        padding: EdgeInsets.symmetric(vertical: 8.h),
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          padding: EdgeInsets.symmetric(horizontal: 16.w),
+          itemCount: _filterOptions.length,
+          itemBuilder: (context, index) {
+            final filter = _filterOptions[index];
+            final isSelected = filter == _selectedFilter;
+            return Padding(
+              padding: EdgeInsets.only(right: 8.w),
+              child: FilterChip(
+                label: Text(filter),
+                selected: isSelected,
+                onSelected: (selected) {
+                  setState(() => _selectedFilter = filter);
+                },
+                selectedColor: AppColorsDark.primary.withOpacity(0.3),
+                checkmarkColor: AppColorsDark.primary,
+              ),
+            );
+          },
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildProductsList(ProductsLoaded state) {
     var products = state.products;
@@ -481,23 +476,25 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
               // Image
               ClipRRect(
                 borderRadius: BorderRadius.circular(8.r),
-                child: product.thumbnail.isNotEmpty
-                    ? Image.network(
-                        product.thumbnail,
-                        width: 90.w,
-                        height: 90.w,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _buildProductPlaceholder(),
-                      )
-                    : _buildProductPlaceholder(),
+                child:
+                    product.thumbnail.isNotEmpty
+                        ? Image.network(
+                          product.thumbnail,
+                          width: 90.w,
+                          height: 90.w,
+                          fit: BoxFit.cover,
+                          errorBuilder:
+                              (_, __, ___) => _buildProductPlaceholder(),
+                        )
+                        : _buildProductPlaceholder(),
               ),
 
               SizedBox(width: 12.w),
 
               // Details
               Flexible(
-  fit: FlexFit.tight,
-  child: Column(
+                fit: FlexFit.tight,
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Badges Row
@@ -557,30 +554,29 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
                     SizedBox(height: 8.h),
 
                     // Price & Discount
-                   Wrap(
-  spacing: 8.w,
-  runSpacing: 4.h,
-  crossAxisAlignment: WrapCrossAlignment.center,
-  children: [
-    Text(
-      'PKR ${product.discountedPrice.toInt()}',
-      style: AppTextStyles.titleMedium().copyWith(
-        color: AppColorsDark.primary,
-        fontWeight: FontWeight.bold,
-      ),
-    ),
+                    Wrap(
+                      spacing: 8.w,
+                      runSpacing: 4.h,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          'PKR ${product.discountedPrice.toInt()}',
+                          style: AppTextStyles.titleMedium().copyWith(
+                            color: AppColorsDark.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
 
-    if (product.discount > 0)
-      Text(
-        'PKR ${product.price.toInt()}',
-        style: AppTextStyles.bodySmall().copyWith(
-          color: AppColorsDark.textTertiary,
-          decoration: TextDecoration.lineThrough,
-        ),
-      ),
-  ],
-),
-
+                        if (product.discount > 0)
+                          Text(
+                            'PKR ${product.price.toInt()}',
+                            style: AppTextStyles.bodySmall().copyWith(
+                              color: AppColorsDark.textTertiary,
+                              decoration: TextDecoration.lineThrough,
+                            ),
+                          ),
+                      ],
+                    ),
 
                     // Stock Status
                     if (!product.isAvailable || product.quantity == 0)
@@ -598,10 +594,10 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
               ),
 
               // Add Button
-         SizedBox(
-  width: 110.w, // fixed safe width
-  child: _buildAddButton(product),
-),
+              SizedBox(
+                width: 110.w, // fixed safe width
+                child: _buildAddButton(product),
+              ),
             ],
           ),
         ),
@@ -624,121 +620,114 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
 
   // In store_details_screen.dart - Replace the entire method:
 
-Widget _buildAddButton(ProductModel product) {
-  final cartState = ref.watch(cartProvider);
-  
-  // Check if product is in cart and get quantity
-  int quantityInCart = 0;
-  if (cartState is CartLoaded) {
-    try {
-      final item = cartState.cart.items.firstWhere(
-        (item) => item.productId == product.id,
-      );
-      quantityInCart = item.quantity;
-    } catch (e) {
-      // Product not in cart, quantity stays 0
-      quantityInCart = 0;
+  Widget _buildAddButton(ProductModel product) {
+    final cartState = ref.watch(cartProvider);
+
+    // Check if product is in cart and get quantity
+    int quantityInCart = 0;
+    if (cartState is CartLoaded) {
+      try {
+        final item = cartState.cart.items.firstWhere(
+          (item) => item.productId == product.id,
+        );
+        quantityInCart = item.quantity;
+      } catch (e) {
+        // Product not in cart, quantity stays 0
+        quantityInCart = 0;
+      }
     }
-  }
 
-  // If item is unavailable or out of stock
-  if (!product.isAvailable || product.quantity == 0) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
-      decoration: BoxDecoration(
-        color: AppColorsDark.textTertiary.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(8.r),
-      ),
-      child: Text(
-        'Out of Stock',
-        style: AppTextStyles.labelSmall().copyWith(
-          color: AppColorsDark.textTertiary,
-          fontWeight: FontWeight.w600,
+    // If item is unavailable or out of stock
+    if (!product.isAvailable || product.quantity == 0) {
+      return Container(
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+        decoration: BoxDecoration(
+          color: AppColorsDark.textTertiary.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(8.r),
         ),
+        child: Text(
+          'Out of Stock',
+          style: AppTextStyles.labelSmall().copyWith(
+            color: AppColorsDark.textTertiary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    }
+
+    // If product is already in cart, show quantity controls
+    if (quantityInCart > 0) {
+      return Container(
+        decoration: BoxDecoration(
+          color: AppColorsDark.primary,
+          borderRadius: BorderRadius.circular(8.r),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Decrement button
+            InkWell(
+              onTap: () => _decrementQuantity(product),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(8.r),
+                bottomLeft: Radius.circular(8.r),
+              ),
+              child: Container(
+                padding: EdgeInsets.all(8.w),
+                child: Icon(
+                  quantityInCart > 1 ? Icons.remove : Icons.delete_outline,
+                  color: AppColorsDark.white,
+                  size: 18.sp,
+                ),
+              ),
+            ),
+
+            // Quantity display
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 12.w),
+              child: Text(
+                '$quantityInCart',
+                style: AppTextStyles.titleSmall().copyWith(
+                  color: AppColorsDark.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+
+            // Increment button
+            InkWell(
+              onTap:
+                  quantityInCart < product.maxOrderQuantity
+                      ? () => _incrementQuantity(product)
+                      : null,
+              borderRadius: BorderRadius.only(
+                topRight: Radius.circular(8.r),
+                bottomRight: Radius.circular(8.r),
+              ),
+              child: Container(
+                padding: EdgeInsets.all(8.w),
+                child: Icon(Icons.add, color: AppColorsDark.white, size: 18.sp),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Show add button (product not in cart)
+    return InkWell(
+      onTap: () => _addToCart(product),
+      borderRadius: BorderRadius.circular(8.r),
+      child: Container(
+        padding: EdgeInsets.all(8.w),
+        decoration: BoxDecoration(
+          color: AppColorsDark.primary,
+          borderRadius: BorderRadius.circular(8.r),
+        ),
+        child: Icon(Icons.add, color: AppColorsDark.white, size: 20.sp),
       ),
     );
   }
-
-  // If product is already in cart, show quantity controls
-  if (quantityInCart > 0) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColorsDark.primary,
-        borderRadius: BorderRadius.circular(8.r),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Decrement button
-          InkWell(
-            onTap: () => _decrementQuantity(product),
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(8.r),
-              bottomLeft: Radius.circular(8.r),
-            ),
-            child: Container(
-              padding: EdgeInsets.all(8.w),
-              child: Icon(
-                quantityInCart > 1 ? Icons.remove : Icons.delete_outline,
-                color: AppColorsDark.white,
-                size: 18.sp,
-              ),
-            ),
-          ),
-          
-          // Quantity display
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 12.w),
-            child: Text(
-              '$quantityInCart',
-              style: AppTextStyles.titleSmall().copyWith(
-                color: AppColorsDark.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          
-          // Increment button
-          InkWell(
-            onTap: quantityInCart < product.maxOrderQuantity
-                ? () => _incrementQuantity(product)
-                : null,
-            borderRadius: BorderRadius.only(
-              topRight: Radius.circular(8.r),
-              bottomRight: Radius.circular(8.r),
-            ),
-            child: Container(
-              padding: EdgeInsets.all(8.w),
-              child: Icon(
-                Icons.add,
-                color: AppColorsDark.white,
-                size: 18.sp,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Show add button (product not in cart)
-  return InkWell(
-    onTap: () => _addToCart(product),
-    borderRadius: BorderRadius.circular(8.r),
-    child: Container(
-      padding: EdgeInsets.all(8.w),
-      decoration: BoxDecoration(
-        color: AppColorsDark.primary,
-        borderRadius: BorderRadius.circular(8.r),
-      ),
-      child: Icon(
-        Icons.add,
-        color: AppColorsDark.white,
-        size: 20.sp,
-      ),
-    ),
-  );
-}
 
   Future<void> _addToCart(ProductModel product) async {
     final authState = ref.read(authProvider);
@@ -747,11 +736,9 @@ Widget _buildAddButton(ProductModel product) {
       return;
     }
 
-    await ref.read(cartProvider.notifier).addToCart(
-          authState.user.id,
-          product,
-          1,
-        );
+    await ref
+        .read(cartProvider.notifier)
+        .addToCart(authState.user.id, product, 1);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -768,20 +755,18 @@ Widget _buildAddButton(ProductModel product) {
     final authState = ref.read(authProvider);
     if (authState is! Authenticated) return;
 
-    await ref.read(cartProvider.notifier).incrementQuantity(
-          authState.user.id,
-          product.id,
-        );
+    await ref
+        .read(cartProvider.notifier)
+        .incrementQuantity(authState.user.id, product.id);
   }
 
   Future<void> _decrementQuantity(ProductModel product) async {
     final authState = ref.read(authProvider);
     if (authState is! Authenticated) return;
 
-    await ref.read(cartProvider.notifier).decrementQuantity(
-          authState.user.id,
-          product.id,
-        );
+    await ref
+        .read(cartProvider.notifier)
+        .decrementQuantity(authState.user.id, product.id);
   }
 
   Widget _buildCartButton(CartState cartState) {
@@ -878,15 +863,16 @@ Widget _buildAddButton(ProductModel product) {
                 width: double.infinity,
                 height: 250.h,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  height: 250.h,
-                  color: AppColorsDark.surfaceContainer,
-                  child: Icon(
-                    Icons.fastfood,
-                    size: 80.sp,
-                    color: AppColorsDark.textTertiary,
-                  ),
-                ),
+                errorBuilder:
+                    (_, __, ___) => Container(
+                      height: 250.h,
+                      color: AppColorsDark.surfaceContainer,
+                      child: Icon(
+                        Icons.fastfood,
+                        size: 80.sp,
+                        color: AppColorsDark.textTertiary,
+                      ),
+                    ),
               ),
             ),
 
@@ -942,58 +928,64 @@ Widget _buildAddButton(ProductModel product) {
                   SizedBox(height: 16.h),
 
                   // Price
-                 Wrap(
-  spacing: 8.w,
-  runSpacing: 4.h,
-  crossAxisAlignment: WrapCrossAlignment.center,
-  children: [
-    Text(
-      'PKR ${product.discountedPrice.toInt()}',
-      style: AppTextStyles.headlineMedium().copyWith(
-        color: AppColorsDark.primary,
-        fontWeight: FontWeight.bold,
-      ),
-    ),
+                  Wrap(
+                    spacing: 8.w,
+                    runSpacing: 4.h,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        'PKR ${product.discountedPrice.toInt()}',
+                        style: AppTextStyles.headlineMedium().copyWith(
+                          color: AppColorsDark.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
 
-    if (product.discount > 0) ...[
-      Text(
-        'PKR ${product.price.toInt()}',
-        style: AppTextStyles.titleMedium().copyWith(
-          color: AppColorsDark.textTertiary,
-          decoration: TextDecoration.lineThrough,
-        ),
-      ),
+                      if (product.discount > 0) ...[
+                        Text(
+                          'PKR ${product.price.toInt()}',
+                          style: AppTextStyles.titleMedium().copyWith(
+                            color: AppColorsDark.textTertiary,
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                        ),
 
-      Container(
-        padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-        decoration: BoxDecoration(
-          color: AppColorsDark.error,
-          borderRadius: BorderRadius.circular(6.r),
-        ),
-        child: Text(
-          '${product.discount.toInt()}% OFF',
-          style: AppTextStyles.labelSmall().copyWith(
-            color: AppColorsDark.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    ],
-  ],
-),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 8.w,
+                            vertical: 4.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColorsDark.error,
+                            borderRadius: BorderRadius.circular(6.r),
+                          ),
+                          child: Text(
+                            '${product.discount.toInt()}% OFF',
+                            style: AppTextStyles.labelSmall().copyWith(
+                              color: AppColorsDark.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
 
                   if (product.tags.isNotEmpty) ...[
                     SizedBox(height: 16.h),
                     Wrap(
                       spacing: 8.w,
                       runSpacing: 8.h,
-                      children: product.tags
-                          .map((tag) => Chip(
-                                label: Text(tag),
-                                backgroundColor:
-                                    AppColorsDark.primaryContainer,
-                              ))
-                          .toList(),
+                      children:
+                          product.tags
+                              .map(
+                                (tag) => Chip(
+                                  label: Text(tag),
+                                  backgroundColor:
+                                      AppColorsDark.primaryContainer,
+                                ),
+                              )
+                              .toList(),
                     ),
                   ],
                 ],
@@ -1006,12 +998,13 @@ Widget _buildAddButton(ProductModel product) {
             padding: EdgeInsets.all(16.w),
             child: SafeArea(
               child: ElevatedButton(
-                onPressed: product.isAvailable && product.quantity > 0
-                    ? () {
-                        _addToCart(product);
-                        Navigator.pop(context);
-                      }
-                    : null,
+                onPressed:
+                    product.isAvailable && product.quantity > 0
+                        ? () {
+                          _addToCart(product);
+                          Navigator.pop(context);
+                        }
+                        : null,
                 style: ElevatedButton.styleFrom(
                   minimumSize: Size(double.infinity, 56.h),
                 ),
@@ -1028,4 +1021,3 @@ Widget _buildAddButton(ProductModel product) {
     );
   }
 }
-

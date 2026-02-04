@@ -2,6 +2,7 @@
 
 import 'package:abw_app/core/routes/app_router.dart';
 import 'package:abw_app/features/admin/presentation/screens/categories/category_management_dialog.dart';
+import 'package:abw_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -61,6 +62,26 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
   Widget _buildAppBar() {
     return SliverAppBar(
+       leading: IconButton(
+        icon: Container(
+          padding: EdgeInsets.all(8.w),
+          decoration: BoxDecoration(
+            color: AppColorsDark.background.withOpacity(0.8),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            Icons.logout,
+            color: AppColorsDark.white,
+            size: 20.sp,
+          ),
+        ),
+        onPressed: () async {
+          await ref.read(authProvider.notifier).logout();
+              if (context.mounted) {
+                context.go('/login');
+              }
+        },
+      ),
       floating: true,
       backgroundColor: AppColorsDark.surface,
       elevation: 0,
