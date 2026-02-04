@@ -128,20 +128,43 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   void _startAnimationSequence() async {
-    // Start all animations
-    _primaryController.forward();
-    _rotationController.repeat();
+  // Start animations
+  _primaryController.forward();
+  _rotationController.repeat();
 
-    // Wait for animations to complete, then navigate
-    await Future.delayed(const Duration(milliseconds: 3000));
+  // Wait for animations AND auth check
+  await Future.wait([
+    Future.delayed(const Duration(milliseconds: 2500)), // Animation time
+    _waitForAuthCheck(), // Wait for auth to initialize
+  ]);
 
-    if (mounted && !_navigating) {
-      _navigating = true;
-      _navigateBasedOnAuthState();
-    }
+  if (mounted && !_navigating) {
+    _navigating = true;
+    _navigateBasedOnAuthState();
   }
+}
 
-  void _navigateBasedOnAuthState() {
+// NEW METHOD: Wait for auth state to be ready
+Future<void> _waitForAuthCheck() async {
+  // Give auth provider time to check Firebase Auth state
+  int attempts = 0;
+  const maxAttempts = 10; // 5 seconds max (10 x 500ms)
+  
+  while (attempts < maxAttempts) {
+    final authState = ref.read(authProvider);
+    
+    // If state is no longer loading, we're ready
+    if (authState is! AuthLoading) {
+      return;
+    }
+    
+    // Wait a bit and try again
+    await Future.delayed(const Duration(milliseconds: 500));
+    attempts++;
+  }
+}
+
+void _navigateBasedOnAuthState() {
   final authState = ref.read(authProvider);
 
   if (authState is Authenticated) {
@@ -160,7 +183,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   } else if (authState is RiderPendingApproval) {
     context.go('/rider/pending');
   } else {
-    // Unauthenticated or error - go to login
+    // Unauthenticated, AuthError, or AuthInitial - go to login
     context.go('/login');
   }
 }

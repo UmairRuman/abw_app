@@ -15,7 +15,7 @@ class AddressModel {
   final String area;
   final String city;
   final String state;
-  final String postalCode;
+  final String? postalCode;
   final String country;
   
   // Coordinates
@@ -45,7 +45,7 @@ class AddressModel {
     required this.area,
     required this.city,
     required this.state,
-    required this.postalCode,
+    this.postalCode,
     required this.country,
     required this.latitude,
     required this.longitude,

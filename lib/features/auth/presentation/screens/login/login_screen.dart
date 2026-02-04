@@ -1,9 +1,7 @@
 // lib/features/auth/presentation/screens/login/login_screen.dart
 
-import 'dart:developer';
 
-import 'package:abw_app/features/auth/presentation/providers/auth_provider.dart';
-import 'package:abw_app/features/auth/presentation/providers/auth_state.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -11,6 +9,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../../core/theme/colors/app_colors_dark.dart';
 import '../../../../../core/theme/text_styles/app_text_styles.dart';
 import '../../../../../shared/enums/user_role.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/auth_state.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -19,7 +19,8 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -29,425 +30,632 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscurePassword = true;
   bool _isLoading = false;
 
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
 
+  @override
+  void initState() {
+    super.initState();
+    _setupAnimations();
+  }
 
+  void _setupAnimations() {
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
 
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
+    );
 
-@override
-void dispose() {
-  // Clear any error state when leaving screen
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.1),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
 
-  _emailController.dispose();
-  _passwordController.dispose();
-  _adminKeyController.dispose();
-  super.dispose();
-}
+    _animationController.forward();
+  }
 
-  void _showRoleMenu() {
-    showMenu(
-      context: context,
-      position: RelativeRect.fromLTRB(
-        MediaQuery.of(context).size.width - 20.w,
-        AppBar().preferredSize.height + 40.h,
-        20.w,
-        0,
-      ),
-      items: [
-        PopupMenuItem(
-          value: UserRole.rider,
-          child: Row(
-            children: [
-              const Icon(Icons.delivery_dining, color: AppColorsDark.primary),
-              SizedBox(width: 12.w),
-              Text('Login as Rider', style: AppTextStyles.bodyMedium().copyWith(color: AppColorsDark.textPrimary)),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: UserRole.admin,
-          child: Row(
-            children: [
-              const Icon(Icons.admin_panel_settings, color: AppColorsDark.secondary),
-              SizedBox(width: 12.w),
-              Text('Login as Admin', style: AppTextStyles.bodyMedium().copyWith(color: AppColorsDark.textPrimary)),
-            ],
-          ),
-        ),
-      ],
-      elevation: 8,
-    ).then((value) {
-      if (value != null) {
-        setState(() {
-          _selectedRole = value;
-        });
-      }
+  @override
+  void dispose() {
+    _animationController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _adminKeyController.dispose();
+    super.dispose();
+  }
+
+  void _onRoleChanged(UserRole newRole) {
+    setState(() {
+      _selectedRole = newRole;
     });
+    // Restart animation when role changes
+    _animationController.reset();
+    _animationController.forward();
   }
 
- 
-Future<void> _handleLogin() async {
-  if (!_formKey.currentState!.validate()) return;
+  Future<void> _handleLogin() async {
+    if (!_formKey.currentState!.validate()) return;
 
-  setState(() => _isLoading = true);
+    setState(() => _isLoading = true);
 
-  // Call auth method
-  await ref.read(authProvider.notifier).loginWithEmail(
-    email: _emailController.text.trim(),
-    password: _passwordController.text.trim(),
-    role: _selectedRole,
-    adminKey: _selectedRole == UserRole.admin 
-        ? _adminKeyController.text.trim() 
-        : null,
-  );
+    await ref.read(authProvider.notifier).loginWithEmail(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+          role: _selectedRole,
+          adminKey: _selectedRole == UserRole.admin
+              ? _adminKeyController.text.trim()
+              : null,
+        );
 
-  // Stop loading
-  if (mounted) {
-    setState(() => _isLoading = false);
-  }
-
-  // Check result
-  final authState = ref.read(authProvider);
-  
-  if (authState is AuthError) {
-    // Show error
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authState.message),
-          backgroundColor: AppColorsDark.error,
-        ),
-      );
+      setState(() => _isLoading = false);
     }
-  } else if (authState is Authenticated) {
-    // Success - navigate based on role
-    if (mounted) {
-      switch (authState.user.role) {
-        case UserRole.customer:
-          context.go('/admin/dashboard');
-          break;
-        case UserRole.rider:
-          context.go('/rider/dashboard');
-          break;
-        case UserRole.admin:
-          context.go('/admin/dashboard');
-          break;
+
+    final authState = ref.read(authProvider);
+
+    if (authState is AuthError) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                SizedBox(width: 12.w),
+                Expanded(child: Text(authState.message)),
+              ],
+            ),
+            backgroundColor: AppColorsDark.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } else if (authState is Authenticated) {
+      if (mounted) {
+        switch (authState.user.role) {
+          case UserRole.customer:
+            context.go('/customer/home');
+            break;
+          case UserRole.rider:
+            context.go('/rider/dashboard');
+            break;
+          case UserRole.admin:
+            context.go('/admin/dashboard');
+            break;
+        }
+      }
+    } else if (authState is RiderPendingApproval) {
+      if (mounted) {
+        context.go('/rider/pending');
       }
     }
-  } else if (authState is RiderPendingApproval) {
-    // Rider not approved
-    if (mounted) {
-      context.go('/rider/pending');
-    }
-  }
-}
-
-
-Future<void> _handleGoogleSignIn() async {
-  setState(() => _isLoading = true);
-
-  await ref.read(authProvider.notifier).loginWithGoogle();
-
-  if (mounted) {
-    setState(() => _isLoading = false);
   }
 
-  final authState = ref.read(authProvider);
-  
-  if (authState is AuthError) {
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isLoading = true);
+
+    await ref.read(authProvider.notifier).loginWithGoogle();
+
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authState.message),
-          backgroundColor: AppColorsDark.error,
-        ),
-      );
+      setState(() => _isLoading = false);
     }
-  } else if (authState is Authenticated) {
-    if (mounted) {
-      context.go('/customer/home');
+
+    final authState = ref.read(authProvider);
+
+    if (authState is AuthError) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(authState.message),
+            backgroundColor: AppColorsDark.error,
+          ),
+        );
+      }
+    } else if (authState is Authenticated) {
+      if (mounted) {
+        context.go('/customer/home');
+      }
     }
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
-
-    
-
     return Scaffold(
-      backgroundColor: AppColorsDark.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.more_vert, color: AppColorsDark.textPrimary),
-            onPressed: _showRoleMenu,
-            tooltip: 'Select Login Type',
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(horizontal: 24.w),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(height: 20.h),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: _getRoleGradient(),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Top Role Selector Tabs
+              _buildRoleTabs(),
 
-                // Welcome Text
-                Text(
-                  'Welcome Back!',
-                  style: AppTextStyles.headlineLarge().copyWith(
-                    color: AppColorsDark.textPrimary,
-                  ),
-                ),
-                SizedBox(height: 8.h),
-                Text(
-                  _getRoleSubtitle(),
-                  style: AppTextStyles.bodyLarge().copyWith(
-                    color: AppColorsDark.textSecondary,
-                  ),
-                ),
+              // Form Content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.all(24.w),
+                  child: FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: SlideTransition(
+                      position: _slideAnimation,
+                      child: Column(
+                        children: [
+                          SizedBox(height: 20.h),
 
-                SizedBox(height: 40.h),
+                          // Role Icon & Title
+                          _buildRoleHeader(),
 
-                // Role Indicator
-                _buildRoleIndicator(),
+                          SizedBox(height: 40.h),
 
-                SizedBox(height: 24.h),
+                          // Login Form Card
+                          _buildLoginForm(),
 
-                // Email Field
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  style: AppTextStyles.bodyMedium().copyWith(
-                    color: AppColorsDark.textPrimary,
-                  ),
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    hintText: 'Enter your email',
-                    prefixIcon: Icon(Icons.email_outlined),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Email is required';
-                    }
-                    if (!value.contains('@')) {
-                      return 'Invalid email address';
-                    }
-                    return null;
-                  },
-                ),
+                          SizedBox(height: 24.h),
 
-                SizedBox(height: 16.h),
-
-                // Password Field
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  style: AppTextStyles.bodyMedium().copyWith(
-                    color: AppColorsDark.textPrimary,
-                  ),
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    hintText: 'Enter your password',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                      ),
-                      onPressed: () {
-                        setState(() => _obscurePassword = !_obscurePassword);
-                      },
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Password is required';
-                    }
-                    if (value.length < 8) {
-                      return 'Password must be at least 8 characters';
-                    }
-                    return null;
-                  },
-                ),
-
-                // Admin Key Field (only for admin)
-                if (_selectedRole == UserRole.admin) ...[
-                  SizedBox(height: 16.h),
-                  TextFormField(
-                    controller: _adminKeyController,
-                    style: AppTextStyles.bodyMedium().copyWith(
-                      color: AppColorsDark.textPrimary,
-                    ),
-                    decoration: const InputDecoration(
-                      labelText: 'Admin Access Key',
-                      hintText: 'Enter admin key',
-                      prefixIcon: Icon(Icons.key),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Admin key is required';
-                      }
-                      return null;
-                    },
-                  ),
-                ],
-
-                SizedBox(height: 12.h),
-
-                // Forgot Password
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () {
-                      context.push('/forgot-password');
-                    },
-                    child: Text(
-                      'Forgot Password?',
-                      style: AppTextStyles.bodyMedium().copyWith(
-                        color: AppColorsDark.primary,
+                          // Additional Actions
+                          _buildAdditionalActions(),
+                        ],
                       ),
                     ),
                   ),
                 ),
-
-                SizedBox(height: 24.h),
-
-                // Login Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 56.h,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _handleLogin,
-                    child: _isLoading
-                        ? const CircularProgressIndicator(color: AppColorsDark.background)
-                        : const Text('Login'),
-                  ),
-                ),
-
-                // Google Sign-In (only for customers)
-                if (_selectedRole == UserRole.customer) ...[
-                  SizedBox(height: 16.h),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56.h,
-                    child: OutlinedButton.icon(
-                      onPressed: _isLoading ? null : _handleGoogleSignIn,
-                      icon: Icon(
-                        Icons.g_mobiledata,
-                        size: 32.sp,
-                        color: AppColorsDark.primary,
-                      ),
-                      label: const Text('Continue with Google'),
-                    ),
-                  ),
-                ],
-
-                // Request Access (for riders)
-                if (_selectedRole == UserRole.rider) ...[
-                  SizedBox(height: 16.h),
-                  Center(
-                    child: TextButton.icon(
-                      onPressed: () {
-                        context.go('/signup/rider');
-                      },
-                      icon: const Icon(Icons.person_add),
-                      label: const Text('Request Rider Access'),
-                    ),
-                  ),
-                ],
-
-                SizedBox(height: 32.h),
-
-                // Sign Up Link
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      "Don't have an account? ",
-                      style: AppTextStyles.bodyMedium().copyWith(
-                        color: AppColorsDark.textSecondary,
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        if (_selectedRole == UserRole.rider) {
-                          context.go('/signup/rider');
-                        } else {
-                          context.go('/signup/customer');
-                        }
-                      },
-                      child: Text(
-                        'Sign Up',
-                        style: AppTextStyles.bodyMedium().copyWith(
-                          color: AppColorsDark.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                SizedBox(height: 24.h),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  String _getRoleSubtitle() {
-    switch (_selectedRole) {
-      case UserRole.customer:
-        return 'Sign in to order delicious food';
-      case UserRole.rider:
-        return 'Sign in to start delivering';
-      case UserRole.admin:
-        return 'Admin portal access';
-    }
-  }
-
-  Widget _buildRoleIndicator() {
+  Widget _buildRoleTabs() {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+      margin: EdgeInsets.all(16.w),
+      padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
-        color: _getRoleColor().withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12.r),
+        color: AppColorsDark.surface.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(16.r),
         border: Border.all(
-          color: _getRoleColor().withOpacity(0.3),
-          width: 1,
+          color: AppColorsDark.white.withOpacity(0.2),
         ),
       ),
       child: Row(
         children: [
-          Icon(
-            _getRoleIcon(),
-            color: _getRoleColor(),
-            size: 20.sp,
-          ),
-          SizedBox(width: 12.w),
-          Text(
-            'Logging in as ${_selectedRole.displayName}',
-            style: AppTextStyles.bodyMedium().copyWith(
-              color: _getRoleColor(),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          _buildRoleTab(UserRole.customer, Icons.person, 'Customer'),
+          SizedBox(width: 4.w),
+          _buildRoleTab(UserRole.rider, Icons.delivery_dining, 'Rider'),
+          SizedBox(width: 4.w),
+          _buildRoleTab(UserRole.admin, Icons.admin_panel_settings, 'Admin'),
         ],
       ),
     );
   }
 
-  Color _getRoleColor() {
+  Widget _buildRoleTab(UserRole role, IconData icon, String label) {
+    final isSelected = _selectedRole == role;
+    final color = _getRoleColor(role);
+
+    return Expanded(
+      child: InkWell(
+        onTap: () => _onRoleChanged(role),
+        borderRadius: BorderRadius.circular(12.r),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          padding: EdgeInsets.symmetric(vertical: 12.h),
+          decoration: BoxDecoration(
+            color: isSelected ? color : Colors.transparent,
+            borderRadius: BorderRadius.circular(12.r),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: color.withOpacity(0.4),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : [],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                color: isSelected
+                    ? AppColorsDark.white
+                    : AppColorsDark.white.withOpacity(0.6),
+                size: 24.sp,
+              ),
+              SizedBox(height: 4.h),
+              Text(
+                label,
+                style: AppTextStyles.labelSmall().copyWith(
+                  color: isSelected
+                      ? AppColorsDark.white
+                      : AppColorsDark.white.withOpacity(0.6),
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRoleHeader() {
+    return Column(
+      children: [
+        // Animated Icon
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          width: 100.w,
+          height: 100.w,
+          decoration: BoxDecoration(
+            color: AppColorsDark.white,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: _getRoleColor(_selectedRole).withOpacity(0.5),
+                blurRadius: 20,
+                spreadRadius: 5,
+              ),
+            ],
+          ),
+          child: Icon(
+            _getRoleIcon(),
+            size: 50.sp,
+            color: _getRoleColor(_selectedRole),
+          ),
+        ),
+
+        SizedBox(height: 20.h),
+
+        // Title
+        Text(
+          _getRoleTitle(),
+          style: AppTextStyles.headlineMedium().copyWith(
+            color: AppColorsDark.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+
+        SizedBox(height: 8.h),
+
+        // Subtitle
+        Text(
+          _getRoleSubtitle(),
+          style: AppTextStyles.bodyMedium().copyWith(
+            color: AppColorsDark.white.withOpacity(0.8),
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoginForm() {
+    return Container(
+      padding: EdgeInsets.all(24.w),
+      decoration: BoxDecoration(
+        color: AppColorsDark.surface,
+        borderRadius: BorderRadius.circular(20.r),
+        boxShadow: [
+          BoxShadow(
+            color: AppColorsDark.black.withOpacity(0.2),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            // Email Field
+            TextFormField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              style: AppTextStyles.bodyMedium().copyWith(
+                color: AppColorsDark.textPrimary,
+              ),
+              decoration: InputDecoration(
+                labelText: 'Email',
+                hintText: 'Enter your email',
+                prefixIcon: Icon(
+                  Icons.email_outlined,
+                  color: _getRoleColor(_selectedRole),
+                ),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Email is required';
+                }
+                if (!value.contains('@')) {
+                  return 'Invalid email address';
+                }
+                return null;
+              },
+            ),
+
+            SizedBox(height: 16.h),
+
+            // Password Field
+            TextFormField(
+              controller: _passwordController,
+              obscureText: _obscurePassword,
+              style: AppTextStyles.bodyMedium().copyWith(
+                color: AppColorsDark.textPrimary,
+              ),
+              decoration: InputDecoration(
+                labelText: 'Password',
+                hintText: 'Enter your password',
+                prefixIcon: Icon(
+                  Icons.lock_outline,
+                  color: _getRoleColor(_selectedRole),
+                ),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                  onPressed: () {
+                    setState(() => _obscurePassword = !_obscurePassword);
+                  },
+                ),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Password is required';
+                }
+                if (value.length < 8) {
+                  return 'Password must be at least 8 characters';
+                }
+                return null;
+              },
+            ),
+
+            // Admin Key Field
+            if (_selectedRole == UserRole.admin) ...[
+              SizedBox(height: 16.h),
+              TextFormField(
+                controller: _adminKeyController,
+                style: AppTextStyles.bodyMedium().copyWith(
+                  color: AppColorsDark.textPrimary,
+                ),
+                decoration: InputDecoration(
+                  labelText: 'Admin Access Key',
+                  hintText: 'Enter admin key',
+                  prefixIcon: Icon(
+                    Icons.vpn_key,
+                    color: _getRoleColor(_selectedRole),
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Admin key is required';
+                  }
+                  return null;
+                },
+              ),
+            ],
+
+            SizedBox(height: 12.h),
+
+            // Forgot Password
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => context.push('/forgot-password'),
+                child: Text(
+                  'Forgot Password?',
+                  style: AppTextStyles.bodySmall().copyWith(
+                    color: _getRoleColor(_selectedRole),
+                  ),
+                ),
+              ),
+            ),
+
+            SizedBox(height: 24.h),
+
+            // Login Button
+            SizedBox(
+              width: double.infinity,
+              height: 56.h,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _handleLogin,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _getRoleColor(_selectedRole),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                ),
+                child: _isLoading
+                    ? SizedBox(
+                        width: 24.w,
+                        height: 24.w,
+                        child: const CircularProgressIndicator(
+                          color: AppColorsDark.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(_getRoleIcon(), size: 20.sp),
+                          SizedBox(width: 8.w),
+                          Text(
+                            'Login as ${_selectedRole.displayName}',
+                            style: AppTextStyles.titleSmall().copyWith(
+                              color: AppColorsDark.white,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+
+            // Google Sign-In (Customer only)
+            if (_selectedRole == UserRole.customer) ...[
+              SizedBox(height: 16.h),
+              Row(
+                children: [
+                  Expanded(child: Divider(color: AppColorsDark.border)),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.w),
+                    child: Text(
+                      'OR',
+                      style: AppTextStyles.labelSmall().copyWith(
+                        color: AppColorsDark.textTertiary,
+                      ),
+                    ),
+                  ),
+                  Expanded(child: Divider(color: AppColorsDark.border)),
+                ],
+              ),
+              SizedBox(height: 16.h),
+              SizedBox(
+                width: double.infinity,
+                height: 56.h,
+                child: OutlinedButton.icon(
+                  onPressed: _isLoading ? null : _handleGoogleSignIn,
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: AppColorsDark.border),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                  ),
+                  icon: Icon(
+                    Icons.g_mobiledata,
+                    size: 28.sp,
+                    color: AppColorsDark.primary,
+                  ),
+                  label: const Text('Continue with Google'),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdditionalActions() {
+    return Column(
+      children: [
+        // Rider Request Access
+        if (_selectedRole == UserRole.rider) ...[
+          Container(
+            padding: EdgeInsets.all(16.w),
+            decoration: BoxDecoration(
+              color: AppColorsDark.accent.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12.r),
+              border: Border.all(
+                color: AppColorsDark.accent.withOpacity(0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: AppColorsDark.accent,
+                  size: 20.sp,
+                ),
+                SizedBox(width: 12.w),
+                Expanded(
+                  child: Text(
+                    'New riders must request access and await approval',
+                    style: AppTextStyles.bodySmall().copyWith(
+                      color: AppColorsDark.white.withOpacity(0.9),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: 16.h),
+        ],
+
+        // Sign Up Link
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              "Don't have an account? ",
+              style: AppTextStyles.bodyMedium().copyWith(
+                color: AppColorsDark.white.withOpacity(0.8),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                switch (_selectedRole) {
+                  case UserRole.customer:
+                    context.go('/signup/customer');
+                    break;
+                  case UserRole.rider:
+                    context.go('/signup/rider');
+                    break;
+                  case UserRole.admin:
+                    context.go('/signup/admin');
+                    break;
+                }
+              },
+              child: Text(
+                'Sign Up',
+                style: AppTextStyles.bodyMedium().copyWith(
+                  color: AppColorsDark.white,
+                  fontWeight: FontWeight.bold,
+                  decoration: TextDecoration.underline,
+                  decorationColor: AppColorsDark.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // Helper methods
+  LinearGradient _getRoleGradient() {
     switch (_selectedRole) {
+      case UserRole.customer:
+        return LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColorsDark.primary.withOpacity(0.9),
+            AppColorsDark.primaryDark,
+          ],
+        );
+      case UserRole.rider:
+        return LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColorsDark.accent.withOpacity(0.9),
+            AppColorsDark.accent.withOpacity(0.7),
+          ],
+        );
+      case UserRole.admin:
+        return LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColorsDark.secondary.withOpacity(0.9),
+            AppColorsDark.secondary.withOpacity(0.7),
+          ],
+        );
+    }
+  }
+
+  Color _getRoleColor(UserRole role) {
+    switch (role) {
       case UserRole.customer:
         return AppColorsDark.primary;
       case UserRole.rider:
@@ -465,6 +673,28 @@ Future<void> _handleGoogleSignIn() async {
         return Icons.delivery_dining;
       case UserRole.admin:
         return Icons.admin_panel_settings;
+    }
+  }
+
+  String _getRoleTitle() {
+    switch (_selectedRole) {
+      case UserRole.customer:
+        return 'Welcome Back!';
+      case UserRole.rider:
+        return 'Rider Portal';
+      case UserRole.admin:
+        return 'Admin Access';
+    }
+  }
+
+  String _getRoleSubtitle() {
+    switch (_selectedRole) {
+      case UserRole.customer:
+        return 'Sign in to order delicious food';
+      case UserRole.rider:
+        return 'Start delivering and earning today';
+      case UserRole.admin:
+        return 'Manage platform operations';
     }
   }
 }

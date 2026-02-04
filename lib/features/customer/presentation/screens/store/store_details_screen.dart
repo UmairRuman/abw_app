@@ -1,6 +1,7 @@
 // lib/features/customer/presentation/screens/store/store_details_screen.dart
 
 import 'package:abw_app/features/auth/presentation/providers/auth_state.dart';
+import 'package:abw_app/features/categories/presentation/providers/categories_provider.dart';
 import 'package:abw_app/features/stores/data/models/store_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -49,7 +50,7 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
   }
 
   Future<void> _loadData() async {
-    await Future.delayed(const Duration(milliseconds: 300)); // Small delay for better UX
+     await Future.delayed(const Duration(milliseconds: 200)); // Ensure context is available
     await Future.wait([
       ref.read(storesProvider.notifier).getStore(widget.storeId),
       ref.read(productsProvider.notifier).getProductsByStore(widget.storeId),
@@ -86,7 +87,7 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
     final cartState = ref.watch(cartProvider);
 
     if (storesState is StoresLoading) {
-      return Scaffold(
+      return const Scaffold(
         backgroundColor: AppColorsDark.background,
         body: Center(
           child: CircularProgressIndicator(color: AppColorsDark.primary),
@@ -95,7 +96,7 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
     }
 
     if (storesState is! StoreSingleLoaded) {
-      return Scaffold(
+      return const Scaffold(
         backgroundColor: AppColorsDark.background,
         body: Center(child: Text('Store not found')),
       );
@@ -115,14 +116,14 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
           ];
         },
         body: productsState is ProductsLoading
-            ? Center(
+            ? const Center(
                 child: CircularProgressIndicator(
                   color: AppColorsDark.primary,
                 ),
               )
             : productsState is ProductsLoaded
                 ? _buildProductsList(productsState)
-                : Center(child: Text('No products available')),
+                : const Center(child: Text('No products available')),
       ),
       bottomNavigationBar: _buildCartButton(cartState),
     );
@@ -146,7 +147,11 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
             size: 20.sp,
           ),
         ),
-        onPressed: () => Navigator.pop(context),
+        onPressed: () {
+           ref.read(categoriesProvider.notifier).getAllCategories();
+      ref.read(storesProvider.notifier).getAllStores();
+          context.pop();
+        },
       ),
       actions: [
         IconButton(
@@ -377,40 +382,40 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
     );
   }
 
-  Widget _buildFilters() {
-    return SliverPersistentHeader(
-      pinned: true,
-      delegate: _FiltersDelegate(
-        SizedBox(
-          height: 60.h,
-          child: Container(
-            color: AppColorsDark.surface,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-              itemCount: _filterOptions.length,
-              itemBuilder: (context, index) {
-                final filter = _filterOptions[index];
-                final isSelected = filter == _selectedFilter;
-                return Padding(
-                  padding: EdgeInsets.only(right: 8.w),
-                  child: FilterChip(
-                    label: Text(filter),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      setState(() => _selectedFilter = filter);
-                    },
-                    selectedColor: AppColorsDark.primary.withOpacity(0.3),
-                    checkmarkColor: AppColorsDark.primary,
-                  ),
-                );
+ Widget _buildFilters() {
+  return SliverAppBar(
+    pinned: true,
+    toolbarHeight: 60.h,
+    backgroundColor: AppColorsDark.surface,
+    automaticallyImplyLeading: false, // Remove back button
+    elevation: 0,
+    flexibleSpace: Container(
+      color: AppColorsDark.surface,
+      padding: EdgeInsets.symmetric(vertical: 8.h),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.symmetric(horizontal: 16.w),
+        itemCount: _filterOptions.length,
+        itemBuilder: (context, index) {
+          final filter = _filterOptions[index];
+          final isSelected = filter == _selectedFilter;
+          return Padding(
+            padding: EdgeInsets.only(right: 8.w),
+            child: FilterChip(
+              label: Text(filter),
+              selected: isSelected,
+              onSelected: (selected) {
+                setState(() => _selectedFilter = filter);
               },
+              selectedColor: AppColorsDark.primary.withOpacity(0.3),
+              checkmarkColor: AppColorsDark.primary,
             ),
-          ),
-        ),
+          );
+        },
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildProductsList(ProductsLoaded state) {
     var products = state.products;
@@ -424,25 +429,27 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
     // TODO: Add 'New' filter based on createdAt
 
     if (products.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: EdgeInsets.all(40.h),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.inventory_2_outlined,
-                size: 64.sp,
-                color: AppColorsDark.textTertiary,
-              ),
-              SizedBox(height: 16.h),
-              Text(
-                'No products available',
-                style: AppTextStyles.titleMedium().copyWith(
-                  color: AppColorsDark.textPrimary,
+      return SingleChildScrollView(
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.all(40.h),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.inventory_2_outlined,
+                  size: 64.sp,
+                  color: AppColorsDark.textTertiary,
                 ),
-              ),
-            ],
+                SizedBox(height: 16.h),
+                Text(
+                  'No products available',
+                  style: AppTextStyles.titleMedium().copyWith(
+                    color: AppColorsDark.textPrimary,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -488,8 +495,9 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
               SizedBox(width: 12.w),
 
               // Details
-              Expanded(
-                child: Column(
+              Flexible(
+  fit: FlexFit.tight,
+  child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Badges Row
@@ -549,27 +557,30 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
                     SizedBox(height: 8.h),
 
                     // Price & Discount
-                    Row(
-                      children: [
-                        Text(
-                          'PKR ${product.discountedPrice.toInt()}',
-                          style: AppTextStyles.titleMedium().copyWith(
-                            color: AppColorsDark.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        if (product.discount > 0) ...[
-                          SizedBox(width: 8.w),
-                          Text(
-                            'PKR ${product.price.toInt()}',
-                            style: AppTextStyles.bodySmall().copyWith(
-                              color: AppColorsDark.textTertiary,
-                              decoration: TextDecoration.lineThrough,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+                   Wrap(
+  spacing: 8.w,
+  runSpacing: 4.h,
+  crossAxisAlignment: WrapCrossAlignment.center,
+  children: [
+    Text(
+      'PKR ${product.discountedPrice.toInt()}',
+      style: AppTextStyles.titleMedium().copyWith(
+        color: AppColorsDark.primary,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+
+    if (product.discount > 0)
+      Text(
+        'PKR ${product.price.toInt()}',
+        style: AppTextStyles.bodySmall().copyWith(
+          color: AppColorsDark.textTertiary,
+          decoration: TextDecoration.lineThrough,
+        ),
+      ),
+  ],
+),
+
 
                     // Stock Status
                     if (!product.isAvailable || product.quantity == 0)
@@ -587,7 +598,10 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
               ),
 
               // Add Button
-              _buildAddButton(product),
+         SizedBox(
+  width: 110.w, // fixed safe width
+  child: _buildAddButton(product),
+),
             ],
           ),
         ),
@@ -608,87 +622,123 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
     );
   }
 
-  Widget _buildAddButton(ProductModel product) {
-    final cartState = ref.watch(cartProvider);
-    
-    // Check if product is in cart
-    int quantityInCart = 0;
-    if (cartState is CartLoaded) {
+  // In store_details_screen.dart - Replace the entire method:
+
+Widget _buildAddButton(ProductModel product) {
+  final cartState = ref.watch(cartProvider);
+  
+  // Check if product is in cart and get quantity
+  int quantityInCart = 0;
+  if (cartState is CartLoaded) {
+    try {
       final item = cartState.cart.items.firstWhere(
         (item) => item.productId == product.id,
-        orElse: () => cartState.cart.items.first,
       );
-      if (cartState.cart.items.contains(item)) {
-        quantityInCart = item.quantity;
-      }
+      quantityInCart = item.quantity;
+    } catch (e) {
+      // Product not in cart, quantity stays 0
+      quantityInCart = 0;
     }
+  }
 
-    if (quantityInCart > 0) {
-      // Show quantity controls
-      return Container(
-        decoration: BoxDecoration(
-          color: AppColorsDark.primary,
-          borderRadius: BorderRadius.circular(8.r),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: Icon(Icons.remove, size: 18.sp),
-              color: AppColorsDark.white,
-              onPressed: () => _decrementQuantity(product),
-              padding: EdgeInsets.all(4.w),
-              constraints: BoxConstraints(
-                minWidth: 32.w,
-                minHeight: 32.h,
-              ),
-            ),
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 8.w),
-              child: Text(
-                '$quantityInCart',
-                style: AppTextStyles.titleSmall().copyWith(
-                  color: AppColorsDark.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            IconButton(
-              icon: Icon(Icons.add, size: 18.sp),
-              color: AppColorsDark.white,
-              onPressed: () => _incrementQuantity(product),
-              padding: EdgeInsets.all(4.w),
-              constraints: BoxConstraints(
-                minWidth: 32.w,
-                minHeight: 32.h,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // Show add button
-    return IconButton(
-      icon: Container(
-        padding: EdgeInsets.all(8.w),
-        decoration: BoxDecoration(
-          color: product.isAvailable && product.quantity > 0
-              ? AppColorsDark.primary
-              : AppColorsDark.textTertiary,
-          borderRadius: BorderRadius.circular(8.r),
-        ),
-        child: Icon(
-          Icons.add,
-          color: AppColorsDark.white,
-          size: 20.sp,
+  // If item is unavailable or out of stock
+  if (!product.isAvailable || product.quantity == 0) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+      decoration: BoxDecoration(
+        color: AppColorsDark.textTertiary.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8.r),
+      ),
+      child: Text(
+        'Out of Stock',
+        style: AppTextStyles.labelSmall().copyWith(
+          color: AppColorsDark.textTertiary,
+          fontWeight: FontWeight.w600,
         ),
       ),
-      onPressed: product.isAvailable && product.quantity > 0
-          ? () => _addToCart(product)
-          : null,
     );
   }
+
+  // If product is already in cart, show quantity controls
+  if (quantityInCart > 0) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColorsDark.primary,
+        borderRadius: BorderRadius.circular(8.r),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Decrement button
+          InkWell(
+            onTap: () => _decrementQuantity(product),
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(8.r),
+              bottomLeft: Radius.circular(8.r),
+            ),
+            child: Container(
+              padding: EdgeInsets.all(8.w),
+              child: Icon(
+                quantityInCart > 1 ? Icons.remove : Icons.delete_outline,
+                color: AppColorsDark.white,
+                size: 18.sp,
+              ),
+            ),
+          ),
+          
+          // Quantity display
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 12.w),
+            child: Text(
+              '$quantityInCart',
+              style: AppTextStyles.titleSmall().copyWith(
+                color: AppColorsDark.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          
+          // Increment button
+          InkWell(
+            onTap: quantityInCart < product.maxOrderQuantity
+                ? () => _incrementQuantity(product)
+                : null,
+            borderRadius: BorderRadius.only(
+              topRight: Radius.circular(8.r),
+              bottomRight: Radius.circular(8.r),
+            ),
+            child: Container(
+              padding: EdgeInsets.all(8.w),
+              child: Icon(
+                Icons.add,
+                color: AppColorsDark.white,
+                size: 18.sp,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Show add button (product not in cart)
+  return InkWell(
+    onTap: () => _addToCart(product),
+    borderRadius: BorderRadius.circular(8.r),
+    child: Container(
+      padding: EdgeInsets.all(8.w),
+      decoration: BoxDecoration(
+        color: AppColorsDark.primary,
+        borderRadius: BorderRadius.circular(8.r),
+      ),
+      child: Icon(
+        Icons.add,
+        color: AppColorsDark.white,
+        size: 20.sp,
+      ),
+    ),
+  );
+}
 
   Future<void> _addToCart(ProductModel product) async {
     final authState = ref.read(authProvider);
@@ -697,18 +747,18 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
       return;
     }
 
-    // await ref.read(cartProvider.notifier).addToCart(
-    //       authState.user.id,
-    //       product ,
-    //       1,
-    //     );
+    await ref.read(cartProvider.notifier).addToCart(
+          authState.user.id,
+          product,
+          1,
+        );
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${product.name} added to cart'),
           backgroundColor: AppColorsDark.success,
-          duration: Duration(seconds: 1),
+          duration: const Duration(seconds: 1),
         ),
       );
     }
@@ -892,45 +942,45 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
                   SizedBox(height: 16.h),
 
                   // Price
-                  Row(
-                    children: [
-                      Text(
-                        'PKR ${product.discountedPrice.toInt()}',
-                        style: AppTextStyles.headlineMedium().copyWith(
-                          color: AppColorsDark.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      if (product.discount > 0) ...[
-                        SizedBox(width: 12.w),
-                        Text(
-                          'PKR ${product.price.toInt()}',
-                          style: AppTextStyles.titleMedium().copyWith(
-                            color: AppColorsDark.textTertiary,
-                            decoration: TextDecoration.lineThrough,
-                          ),
-                        ),
-                        SizedBox(width: 8.w),
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 8.w,
-                            vertical: 4.h,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColorsDark.error,
-                            borderRadius: BorderRadius.circular(6.r),
-                          ),
-                          child: Text(
-                            '${product.discount.toInt()}% OFF',
-                            style: AppTextStyles.labelSmall().copyWith(
-                              color: AppColorsDark.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
+                 Wrap(
+  spacing: 8.w,
+  runSpacing: 4.h,
+  crossAxisAlignment: WrapCrossAlignment.center,
+  children: [
+    Text(
+      'PKR ${product.discountedPrice.toInt()}',
+      style: AppTextStyles.headlineMedium().copyWith(
+        color: AppColorsDark.primary,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+
+    if (product.discount > 0) ...[
+      Text(
+        'PKR ${product.price.toInt()}',
+        style: AppTextStyles.titleMedium().copyWith(
+          color: AppColorsDark.textTertiary,
+          decoration: TextDecoration.lineThrough,
+        ),
+      ),
+
+      Container(
+        padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+        decoration: BoxDecoration(
+          color: AppColorsDark.error,
+          borderRadius: BorderRadius.circular(6.r),
+        ),
+        child: Text(
+          '${product.discount.toInt()}% OFF',
+          style: AppTextStyles.labelSmall().copyWith(
+            color: AppColorsDark.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    ],
+  ],
+),
 
                   if (product.tags.isNotEmpty) ...[
                     SizedBox(height: 16.h),
@@ -979,25 +1029,3 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
   }
 }
 
-// Custom delegate for sticky filters
-class _FiltersDelegate extends SliverPersistentHeaderDelegate {
-  final Widget child;
-
-  _FiltersDelegate(this.child);
-
-  @override
-  double get minExtent => 60.0;
-  @override
-  double get maxExtent => 60.0;
-
-  @override
-  Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return child;
-  }
-
-  @override
-  bool shouldRebuild(_FiltersDelegate oldDelegate) {
-    return false;
-  }
-}

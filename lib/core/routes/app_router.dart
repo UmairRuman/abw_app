@@ -1,10 +1,9 @@
 // lib/core/routes/app_router.dart
 
+import 'package:abw_app/features/auth/presentation/screens/signup/admin_signup_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../features/auth/presentation/providers/auth_provider.dart';
-import '../../features/auth/presentation/providers/auth_state.dart';
 import '../../features/auth/presentation/screens/forgot_password/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/login/login_screen.dart';
 import '../../features/auth/presentation/screens/rider_request/pending_approval_screen.dart';
@@ -12,14 +11,18 @@ import '../../features/auth/presentation/screens/signup/customer_signup_screen.d
 import '../../features/auth/presentation/screens/signup/rider_signup_screen.dart';
 import '../../features/auth/presentation/screens/splash/splash_screen.dart';
 import '../../features/customer/presentation/screens/home/customer_home_screen.dart';
-import '../../features/customer/presentation/screens/store/store_details_screen.dart.dart';
+import '../../features/customer/presentation/screens/store/store_details_screen.dart';
+import '../../features/customer/presentation/screens/search/search_screen.dart';
+import '../../features/customer/presentation/screens/cart/cart_screen.dart';
+import '../../features/customer/presentation/screens/profile/customer_profile_screen.dart';
+import '../../features/customer/presentation/screens/addresses/addresses_screen.dart';
 import '../../features/admin/presentation/screens/main/admin_main_screen.dart';
 import '../../features/admin/presentation/screens/products/product_management_screen.dart';
 import '../../features/admin/presentation/screens/users/users_list_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: '/customer/home',
+    initialLocation: '/splash',
     debugLogDiagnostics: true,
     routes: [
       // ============================================================
@@ -45,7 +48,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'signup-customer',
         builder: (context, state) => const CustomerSignupScreen(),
       ),
-      
+      GoRoute(
+  path: '/signup/admin',
+  name: 'signup-admin',
+  builder: (context, state) => const AdminSignupScreen(),
+),
       GoRoute(
         path: '/signup/rider',
         name: 'signup-rider',
@@ -80,6 +87,30 @@ final routerProvider = Provider<GoRouter>((ref) {
           final storeId = state.pathParameters['id'] ?? '';
           return StoreDetailsScreen(storeId: storeId);
         },
+      ),
+
+      GoRoute(
+        path: '/customer/search',
+        name: 'search',
+        builder: (context, state) => const SearchScreen(),
+      ),
+
+      GoRoute(
+        path: '/customer/cart',
+        name: 'cart',
+        builder: (context, state) => const CartScreen(),
+      ),
+
+      GoRoute(
+        path: '/customer/profile',
+        name: 'profile',
+        builder: (context, state) => const CustomerProfileScreen(),
+      ),
+
+      GoRoute(
+        path: '/customer/addresses',
+        name: 'addresses',
+        builder: (context, state) => const AddressesScreen(),
       ),
 
       // ============================================================
@@ -188,8 +219,11 @@ extension NavigationExtensions on BuildContext {
   
   // Customer navigation
   void goToCustomerHome() => go('/customer/home');
-  void goToRestaurantDetails(String restaurantId) => 
-      go('/customer/restaurant/$restaurantId');
+  void goToStoreDetails(String storeId) => go('/customer/store/$storeId');
+  void goToSearch() => go('/customer/search');
+  void goToCart() => go('/customer/cart');
+  void goToProfile() => go('/customer/profile');
+  void goToAddresses() => go('/customer/addresses');
   
   // Admin navigation
   void goToAdminDashboard() => go('/admin/dashboard');

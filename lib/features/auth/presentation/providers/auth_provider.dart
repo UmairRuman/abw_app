@@ -1,5 +1,6 @@
 // lib/features/auth/presentation/providers/auth_provider.dart
 
+import 'package:abw_app/features/auth/domain/usecases/create_admin_usecase.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -76,6 +77,10 @@ final getCurrentUserUseCaseProvider = Provider<GetCurrentUserUseCase>((ref) {
   return GetCurrentUserUseCase(ref.watch(authRepositoryProvider));
 });
 
+final createAdminUseCaseProvider = Provider<CreateAdminUseCase>((ref) {
+  return CreateAdminUseCase(ref.watch(authRepositoryProvider));
+});
+
 // Main auth provider
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   return AuthNotifier(
@@ -86,6 +91,7 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
     sendPasswordResetUseCase: ref.watch(sendPasswordResetUseCaseProvider),
     logoutUseCase: ref.watch(logoutUseCaseProvider),
     getCurrentUserUseCase: ref.watch(getCurrentUserUseCaseProvider),
+    createAdminUseCase: ref.watch(createAdminUseCaseProvider), // ADD THIS
   );
 });
 

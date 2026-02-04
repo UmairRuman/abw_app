@@ -1,5 +1,6 @@
 // lib/features/auth/presentation/providers/auth_notifier.dart
 
+import 'package:abw_app/features/auth/domain/usecases/create_admin_usecase.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/enums/user_role.dart';
 import '../../domain/entities/customer_entity.dart';
@@ -21,6 +22,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final SendPasswordResetUseCase _sendPasswordResetUseCase;
   final LogoutUseCase _logoutUseCase;
   final GetCurrentUserUseCase _getCurrentUserUseCase;
+  final CreateAdminUseCase _createAdminUseCase; // ADD THIS
 
   AuthNotifier({
     required LoginWithEmailUseCase loginWithEmailUseCase,
@@ -30,6 +32,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required SendPasswordResetUseCase sendPasswordResetUseCase,
     required LogoutUseCase logoutUseCase,
     required GetCurrentUserUseCase getCurrentUserUseCase,
+    required CreateAdminUseCase createAdminUseCase, // ADD THIS
   })  : _loginWithEmailUseCase = loginWithEmailUseCase,
         _loginWithGoogleUseCase = loginWithGoogleUseCase,
         _signUpCustomerUseCase = signUpCustomerUseCase,
@@ -37,10 +40,40 @@ class AuthNotifier extends StateNotifier<AuthState> {
         _sendPasswordResetUseCase = sendPasswordResetUseCase,
         _logoutUseCase = logoutUseCase,
         _getCurrentUserUseCase = getCurrentUserUseCase,
+        _createAdminUseCase = createAdminUseCase, // ADD THIS
         super(const AuthInitial()) {
     _checkAuthStatus();
   }
 
+
+Future<void> createAdmin({
+  required String email,
+  required String password,
+  required String name,
+  required String phone,
+  required String accessKey,
+  List<String> permissions = const [],
+}) async {
+  state = const AuthLoading();
+
+  final result = await _createAdminUseCase(
+    email: email,
+    password: password,
+    name: name,
+    phone: phone,
+    accessKey: accessKey,
+    permissions: permissions,
+  );
+
+  result.fold(
+    (failure) {
+      state = AuthError(failure.message);
+    },
+    (admin) {
+      state = Authenticated(admin);
+    },
+  );
+}
   /// Check current auth status on initialization
   Future<void> _checkAuthStatus() async {
     state = const AuthLoading();

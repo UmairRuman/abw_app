@@ -56,11 +56,16 @@ class AuthRemoteDataSource {
       serverClientId: '295760269875-85dik9jd027e93fqd48hu7pm3jlba0ch.apps.googleusercontent.com',
     );
       // Trigger Google Sign-In flow
-      final GoogleSignInAccount? googleUser = await _googleSignIn.authenticate();
-
+     final GoogleSignInAccount googleUser = await _googleSignIn.authenticate(
+      );
+      
       if (googleUser == null) {
-        throw AuthException(message: 'Google sign-in cancelled by user');
+        throw AuthException(
+          code: 'user-cancelled',
+          message: 'Google sign-in was cancelled',
+        );
       }
+
 
       // Obtain auth details
       final GoogleSignInAuthentication googleAuth =

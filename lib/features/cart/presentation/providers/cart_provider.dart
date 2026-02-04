@@ -1,6 +1,7 @@
 // lib/features/cart/presentation/providers/cart_provider.dart
 
 import 'dart:developer';
+import 'package:abw_app/features/products/data/models/product_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/collections/carts_collection.dart';
 import '../../data/models/cart_model.dart';
@@ -33,22 +34,40 @@ class CartNotifier extends Notifier<CartState> {
   }
 
   /// Add item to cart
-  Future<bool> addToCart(String userId, CartItemModel item) async {
-    try {
-      final success = await _collection.addItemToCart(userId, item);
-      
-      if (success) {
-        await loadCart(userId);
-        return true;
-      }
-      
-      return false;
-    } catch (e) {
-      state = CartError(error: e.toString());
-      log('Error in addToCart: ${e.toString()}');
-      rethrow;
+  Future<void> addToCart(
+  String userId,
+  ProductModel product,  // ✅ Accept ProductModel
+  int quantity,
+) async {
+  try {
+    // Convert ProductModel to CartItemModel
+    final cartItem = CartItemModel(
+      productId: product.id,
+      productName: product.name,
+      productImage: product.thumbnail,
+      storeId: product.storeId,
+      storeName: product.storeName,
+      price: product.price,
+      quantity: quantity,
+      discountedPrice: product.discountedPrice,
+      total: product.discountedPrice * quantity,
+      isAvailable: product.isAvailable,
+      maxQuantity: product.maxOrderQuantity,
+      unit: product.unit,
+    );
+
+    // Add to cart using the collection
+    final success = await _collection.addItemToCart(userId, cartItem);
+
+    if (success) {
+      // Reload cart to get updated state
+      await loadCart(userId);
     }
+  } catch (e) {
+    state = CartError(error: e.toString());
+    log('Error adding to cart: ${e.toString()}');
   }
+}
 
   /// Update item quantity
   Future<bool> updateQuantity(

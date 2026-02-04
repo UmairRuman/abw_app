@@ -31,9 +31,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
   }
 
   Future<void> _loadData() async {
-    await Future.delayed( Duration(milliseconds: 300)); // Small delay for better UX
+    await Future.delayed( const Duration(milliseconds: 300)); // Small delay for better UX
     await Future.wait([
-      ref.read(categoriesProvider.notifier).getActiveCategories(),
+      ref.read(categoriesProvider.notifier).getAllCategories(),
       ref.read(storesProvider.notifier).getAllStores(),
       _loadCart(),
     ]);
@@ -205,7 +205,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
           icon: const Icon(Icons.person_outline),
           color: AppColorsDark.textPrimary,
           onPressed: () {
-            context.go('/customer/profile');
+            context.push('/customer/profile');
           },
         ),
       ],
@@ -268,7 +268,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
           ),
         ),
         SizedBox(
-          height: 110.h,
+          height: 120.h,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: EdgeInsets.symmetric(horizontal: 16.w),
@@ -328,6 +328,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             ),
           ),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
@@ -733,7 +734,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     return Center(
       child: Padding(
         padding: EdgeInsets.all(40.h),
-        child: CircularProgressIndicator(
+        child: const CircularProgressIndicator(
           color: AppColorsDark.primary,
         ),
       ),
@@ -782,7 +783,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
         context.push('/customer/cart');
       },
       backgroundColor: AppColorsDark.primary,
-      icon: Icon(
+      icon: const Icon(
         Icons.shopping_cart,
         color: AppColorsDark.white,
       ),
@@ -795,7 +796,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
               fontWeight: FontWeight.w600,
             ),
           ),
-          Text(
+          const Text(
             ' • ',
             style: TextStyle(color: AppColorsDark.white),
           ),

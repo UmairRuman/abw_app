@@ -1,23 +1,61 @@
 // lib/features/customer/presentation/screens/profile/customer_profile_screen.dart
 
+import 'package:abw_app/features/auth/data/models/customer_model.dart';
+import 'package:abw_app/features/auth/domain/entities/user_entity.dart';
+import 'package:abw_app/features/auth/presentation/providers/auth_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../../core/theme/colors/app_colors_dark.dart';
 import '../../../../../core/theme/text_styles/app_text_styles.dart';
+import '../../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../addresses/presentation/providers/addresses_provider.dart';
 
-class CustomerProfileScreen extends ConsumerWidget {
+class CustomerProfileScreen extends ConsumerStatefulWidget {
   const CustomerProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CustomerProfileScreen> createState() =>
+      _CustomerProfileScreenState();
+}
+
+class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _loadAddresses();
+  }
+
+  Future<void> _loadAddresses() async {
+    await Future.delayed(const Duration(milliseconds: 200)); // Ensure context is available
+    final authState = ref.read(authProvider);
+    if (authState is Authenticated) {
+      await ref.read(addressesProvider.notifier).loadUserAddresses(authState.user.id);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+    final addressesState = ref.watch(addressesProvider);
+
+    if (authState is! Authenticated) {
+      return const Scaffold(
+        body: Center(child: Text('Please login')),
+      );
+    }
+
+    final user = authState.user;
+
     return Scaffold(
+      
       backgroundColor: AppColorsDark.background,
       body: CustomScrollView(
         slivers: [
           _buildAppBar(context),
-          _buildProfileHeader(context),
-          _buildMenuSection(context),
+          _buildProfileHeader(context, user),
+          _buildMenuSection(context, addressesState),
         ],
       ),
     );
@@ -25,6 +63,25 @@ class CustomerProfileScreen extends ConsumerWidget {
 
   Widget _buildAppBar(BuildContext context) {
     return SliverAppBar(
+       leading: IconButton(
+        icon: Container(
+          padding: EdgeInsets.all(8.w),
+          decoration: BoxDecoration(
+            color: AppColorsDark.background.withOpacity(0.8),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            Icons.arrow_back,
+            color: AppColorsDark.white,
+            size: 20.sp,
+          ),
+        ),
+        onPressed: () {
+      //      ref.read(categoriesProvider.notifier).getAllCategories();
+      // ref.read(storesProvider.notifier).getAllStores();
+          context.pop();
+        },
+      ),
       floating: true,
       backgroundColor: AppColorsDark.surface,
       title: Text(
@@ -35,151 +92,81 @@ class CustomerProfileScreen extends ConsumerWidget {
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.settings),
+          icon: const Icon(Icons.edit),
           color: AppColorsDark.textPrimary,
-          onPressed: () {},
+          onPressed: () {
+            // TODO: Edit profile
+          },
         ),
       ],
     );
   }
 
-  Widget _buildProfileHeader(BuildContext context) {
+  Widget _buildProfileHeader(BuildContext context, UserEntity user) {
     return SliverToBoxAdapter(
       child: Container(
         padding: EdgeInsets.all(20.w),
         child: Column(
           children: [
             // Avatar
-            Stack(
-              children: [
-                Container(
-                  width: 100.w,
-                  height: 100.w,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: AppColorsDark.primaryGradient,
-                  ),
-                  child: Center(
-                    child: Text(
-                      'JD',
-                      style: AppTextStyles.headlineLarge().copyWith(
-                        color: AppColorsDark.white,
-                      ),
-                    ),
+            Container(
+              width: 100.w,
+              height: 100.w,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: AppColorsDark.primaryGradient,
+              ),
+              child: Center(
+                child: Text(
+                  user.name.isNotEmpty ? user.name.substring(0, 2).toUpperCase() : 'U',
+                  style: AppTextStyles.headlineLarge().copyWith(
+                    color: AppColorsDark.white,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    padding: EdgeInsets.all(8.w),
-                    decoration: BoxDecoration(
-                      color: AppColorsDark.primary,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppColorsDark.background,
-                        width: 2,
-                      ),
-                    ),
-                    child: Icon(
-                      Icons.edit,
-                      size: 16.sp,
-                      color: AppColorsDark.background,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
 
             SizedBox(height: 16.h),
 
-            // Name
             Text(
-              'John Doe',
+              user.name,
               style: AppTextStyles.headlineMedium().copyWith(
                 color: AppColorsDark.textPrimary,
+                fontWeight: FontWeight.bold,
               ),
             ),
 
             SizedBox(height: 4.h),
 
-            // Email
             Text(
-              'john.doe@example.com',
+              user.email,
               style: AppTextStyles.bodyMedium().copyWith(
                 color: AppColorsDark.textSecondary,
               ),
             ),
 
-            SizedBox(height: 20.h),
-
-            // Stats Row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildStatCard(
-                  icon: Icons.shopping_bag,
-                  label: 'Orders',
-                  value: '24',
+            if (user.phone != null) ...[
+              SizedBox(height: 4.h),
+              Text(
+                user.phone!,
+                style: AppTextStyles.bodyMedium().copyWith(
+                  color: AppColorsDark.textSecondary,
                 ),
-                _buildStatCard(
-                  icon: Icons.favorite,
-                  label: 'Favorites',
-                  value: '12',
-                ),
-                _buildStatCard(
-                  icon: Icons.credit_card,
-                  label: 'Wallet',
-                  value: '\$250',
-                ),
-              ],
-            ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatCard({
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
-      decoration: BoxDecoration(
-        color: AppColorsDark.cardBackground,
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppColorsDark.border),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            icon,
-            color: AppColorsDark.primary,
-            size: 24.sp,
-          ),
-          SizedBox(height: 8.h),
-          Text(
-            value,
-            style: AppTextStyles.titleMedium().copyWith(
-              color: AppColorsDark.textPrimary,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          SizedBox(height: 4.h),
-          Text(
-            label,
-            style: AppTextStyles.bodySmall().copyWith(
-              color: AppColorsDark.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildMenuSection(BuildContext context, AddressesState addressesState) {
+    int addressCount = 0;
+    if (addressesState is AddressesLoaded) {
+      addressCount = addressesState.addresses.length;
+    }
 
-  Widget _buildMenuSection(BuildContext context) {
     return SliverList(
       delegate: SliverChildListDelegate([
         SizedBox(height: 8.h),
@@ -187,83 +174,46 @@ class CustomerProfileScreen extends ConsumerWidget {
           _buildMenuItem(
             icon: Icons.person_outline,
             title: 'Personal Information',
-            onTap: () {},
+            onTap: () {
+              // TODO: Edit personal info
+            },
           ),
           _buildMenuItem(
             icon: Icons.location_on_outlined,
             title: 'Addresses',
-            subtitle: '3 saved addresses',
-            onTap: () {},
-          ),
-          _buildMenuItem(
-            icon: Icons.credit_card,
-            title: 'Payment Methods',
-            onTap: () {},
+            subtitle: '$addressCount saved addresses',
+            onTap: () {
+              context.push('/customer/addresses');
+            },
           ),
         ]),
         _buildSection(context, 'Orders', [
           _buildMenuItem(
             icon: Icons.history,
             title: 'Order History',
-            onTap: () {},
-          ),
-          _buildMenuItem(
-            icon: Icons.favorite_outline,
-            title: 'Favorite Orders',
-            onTap: () {},
-          ),
-        ]),
-        _buildSection(context, 'Preferences', [
-          _buildMenuItem(
-            icon: Icons.notifications_outlined,
-            title: 'Notifications',
-            trailing: Switch(
-              value: true,
-              onChanged: (val) {},
-              activeColor: AppColorsDark.primary,
-            ),
-          ),
-          _buildMenuItem(
-            icon: Icons.dark_mode_outlined,
-            title: 'Dark Mode',
-            trailing: Switch(
-              value: true,
-              onChanged: (val) {},
-              activeColor: AppColorsDark.primary,
-            ),
-          ),
-          _buildMenuItem(
-            icon: Icons.language,
-            title: 'Language',
-            subtitle: 'English',
-            onTap: () {},
-          ),
-        ]),
-        _buildSection(context, 'Support', [
-          _buildMenuItem(
-            icon: Icons.help_outline,
-            title: 'Help & Support',
-            onTap: () {},
-          ),
-          _buildMenuItem(
-            icon: Icons.info_outline,
-            title: 'About',
-            onTap: () {},
-          ),
-          _buildMenuItem(
-            icon: Icons.privacy_tip_outlined,
-            title: 'Privacy Policy',
-            onTap: () {},
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Order history coming in Milestone 2'),
+                  backgroundColor: AppColorsDark.info,
+                ),
+              );
+            },
           ),
         ]),
         SizedBox(height: 16.h),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 16.w),
           child: OutlinedButton(
-            onPressed: () {},
+            onPressed: () async {
+              await ref.read(authProvider.notifier).logout();
+              if (context.mounted) {
+                context.go('/login');
+              }
+            },
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColorsDark.error,
-              side: BorderSide(color: AppColorsDark.error),
+              side: const BorderSide(color: AppColorsDark.error),
               padding: EdgeInsets.symmetric(vertical: 16.h),
             ),
             child: Row(
@@ -281,8 +231,7 @@ class CustomerProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSection(
-      BuildContext context, String title, List<Widget> items) {
+  Widget _buildSection(BuildContext context, String title, List<Widget> items) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -312,8 +261,7 @@ class CustomerProfileScreen extends ConsumerWidget {
     required IconData icon,
     required String title,
     String? subtitle,
-    Widget? trailing,
-    VoidCallback? onTap,
+    required VoidCallback onTap,
   }) {
     return ListTile(
       leading: Container(
@@ -322,11 +270,7 @@ class CustomerProfileScreen extends ConsumerWidget {
           color: AppColorsDark.primaryContainer.withOpacity(0.3),
           borderRadius: BorderRadius.circular(8.r),
         ),
-        child: Icon(
-          icon,
-          color: AppColorsDark.primary,
-          size: 20.sp,
-        ),
+        child: Icon(icon, color: AppColorsDark.primary, size: 20.sp),
       ),
       title: Text(
         title,
@@ -342,12 +286,7 @@ class CustomerProfileScreen extends ConsumerWidget {
               ),
             )
           : null,
-      trailing: trailing ??
-          Icon(
-            Icons.arrow_forward_ios,
-            size: 16.sp,
-            color: AppColorsDark.textTertiary,
-          ),
+      trailing: Icon(Icons.arrow_forward_ios, size: 16.sp),
       onTap: onTap,
     );
   }

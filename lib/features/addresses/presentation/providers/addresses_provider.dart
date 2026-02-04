@@ -146,7 +146,7 @@ class AddressesNotifier extends Notifier<AddressesState> {
     if (address.addressLine1.isEmpty) return false;
     if (address.area.isEmpty) return false;
     if (address.city.isEmpty) return false;
-    if (address.postalCode.isEmpty) return false;
+  
     
     // Validate phone number (simple check)
     if (address.phone.length < 10) return false;
