@@ -23,7 +23,7 @@ class CartNotifier extends Notifier<CartState> {
   /// Load user's cart
   Future<void> loadCart(String userId) async {
     state = CartLoading();
-    
+
     try {
       final cart = await _collection.getCart(userId);
       state = CartLoaded(cart: cart);
@@ -34,40 +34,64 @@ class CartNotifier extends Notifier<CartState> {
   }
 
   /// Add item to cart
-  Future<void> addToCart(
-  String userId,
-  ProductModel product,  // ✅ Accept ProductModel
-  int quantity,
-) async {
-  try {
-    // Convert ProductModel to CartItemModel
-    final cartItem = CartItemModel(
-      productId: product.id,
-      productName: product.name,
-      productImage: product.thumbnail,
-      storeId: product.storeId,
-      storeName: product.storeName,
-      price: product.price,
-      quantity: quantity,
-      discountedPrice: product.discountedPrice,
-      total: product.discountedPrice * quantity,
-      isAvailable: product.isAvailable,
-      maxQuantity: product.maxOrderQuantity,
-      unit: product.unit,
-    );
+  Future<bool> addToCart(
+    String userId,
+    ProductModel product,
+    int quantity,
+  ) async {
+    try {
+      // Convert ProductModel to CartItemModel
+      final cartItem = CartItemModel(
+        productId: product.id,
+        productName: product.name,
+        productImage: product.thumbnail,
+        storeId: product.storeId,
+        storeName: product.storeName,
+        price: product.price,
+        quantity: quantity,
+        discountedPrice: product.discountedPrice,
+        total: product.discountedPrice * quantity,
+        isAvailable: product.isAvailable,
+        maxQuantity: product.maxOrderQuantity,
+        unit: product.unit,
+      );
 
-    // Add to cart using the collection
-    final success = await _collection.addItemToCart(userId, cartItem);
+      // Try to add item
+      final success = await _collection.addItemToCart(userId, cartItem);
 
-    if (success) {
-      // Reload cart to get updated state
+      if (!success) {
+        // Different store detected - return false to show dialog in UI
+        return false;
+      }
+
+      // Success - reload cart
       await loadCart(userId);
+      return true;
+    } catch (e) {
+      state = CartError(error: e.toString());
+      log('Error adding to cart: ${e.toString()}');
+      return false;
     }
-  } catch (e) {
-    state = CartError(error: e.toString());
-    log('Error adding to cart: ${e.toString()}');
   }
-}
+
+  /// Clear cart and add new item from different store
+  Future<bool> clearAndAddToCart(
+    String userId,
+    ProductModel product,
+    int quantity,
+  ) async {
+    try {
+      // Clear existing cart
+      await clearCart(userId);
+
+      // Add new item
+      return await addToCart(userId, product, quantity);
+    } catch (e) {
+      state = CartError(error: e.toString());
+      log('Error clearing and adding to cart: ${e.toString()}');
+      return false;
+    }
+  }
 
   /// Update item quantity
   Future<bool> updateQuantity(
@@ -81,12 +105,12 @@ class CartNotifier extends Notifier<CartState> {
         productId,
         quantity,
       );
-      
+
       if (success) {
         await loadCart(userId);
         return true;
       }
-      
+
       return false;
     } catch (e) {
       state = CartError(error: e.toString());
@@ -108,10 +132,10 @@ class CartNotifier extends Notifier<CartState> {
         final item = cart.items.firstWhere(
           (item) => item.productId == productId,
         );
-        
+
         return await updateQuantity(userId, productId, item.quantity + 1);
       }
-      
+
       return false;
     } catch (e) {
       log('Error in incrementQuantity: ${e.toString()}');
@@ -131,17 +155,17 @@ class CartNotifier extends Notifier<CartState> {
         final item = cart.items.firstWhere(
           (item) => item.productId == productId,
         );
-        
+
         final newQuantity = item.quantity - 1;
-        
+
         if (newQuantity < 1) {
           // Remove item if quantity becomes 0
           return await removeItem(userId, productId);
         }
-        
+
         return await updateQuantity(userId, productId, newQuantity);
       }
-      
+
       return false;
     } catch (e) {
       log('Error in decrementQuantity: ${e.toString()}');
@@ -153,12 +177,12 @@ class CartNotifier extends Notifier<CartState> {
   Future<bool> removeItem(String userId, String productId) async {
     try {
       final success = await _collection.removeItemFromCart(userId, productId);
-      
+
       if (success) {
         await loadCart(userId);
         return true;
       }
-      
+
       return false;
     } catch (e) {
       state = CartError(error: e.toString());
@@ -171,12 +195,12 @@ class CartNotifier extends Notifier<CartState> {
   Future<bool> clearCart(String userId) async {
     try {
       final success = await _collection.clearCart(userId);
-      
+
       if (success) {
         state = CartLoaded(cart: CartModel.empty(userId));
         return true;
       }
-      
+
       return false;
     } catch (e) {
       state = CartError(error: e.toString());
@@ -189,12 +213,12 @@ class CartNotifier extends Notifier<CartState> {
   Future<bool> validateCart(String userId) async {
     try {
       final success = await _collection.validateCart(userId);
-      
+
       if (success) {
         await loadCart(userId);
         return true;
       }
-      
+
       return false;
     } catch (e) {
       log('Error in validateCart: ${e.toString()}');
@@ -216,12 +240,12 @@ class CartNotifier extends Notifier<CartState> {
   Future<bool> updateDeliveryFee(String userId, double fee) async {
     try {
       final success = await _collection.updateDeliveryFee(userId, fee);
-      
+
       if (success) {
         await loadCart(userId);
         return true;
       }
-      
+
       return false;
     } catch (e) {
       log('Error in updateDeliveryFee: ${e.toString()}');
@@ -233,12 +257,12 @@ class CartNotifier extends Notifier<CartState> {
   Future<bool> applyDiscount(String userId, double discount) async {
     try {
       final success = await _collection.applyDiscount(userId, discount);
-      
+
       if (success) {
         await loadCart(userId);
         return true;
       }
-      
+
       return false;
     } catch (e) {
       log('Error in applyDiscount: ${e.toString()}');
@@ -295,12 +319,12 @@ class CartLoading extends CartState {}
 
 class CartLoaded extends CartState {
   final CartModel cart;
-  
+
   CartLoaded({required this.cart});
 }
 
 class CartError extends CartState {
   final String error;
-  
+
   CartError({required this.error});
 }

@@ -39,7 +39,7 @@ class _RestaurantManagementScreenState
   }
 
   Future<void> _loadStores() async {
-     await Future.delayed(const Duration(milliseconds: 500)); 
+    await Future.delayed(const Duration(milliseconds: 500));
     await ref.read(storesProvider.notifier).getAllStores();
   }
 
@@ -86,21 +86,22 @@ class _RestaurantManagementScreenState
                     hintStyle: AppTextStyles.bodyMedium().copyWith(
                       color: AppColorsDark.textTertiary,
                     ),
-                    prefixIcon: Icon(
+                    prefixIcon: const Icon(
                       Icons.search,
                       color: AppColorsDark.textSecondary,
                     ),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: Icon(
-                              Icons.clear,
-                              color: AppColorsDark.textSecondary,
-                            ),
-                            onPressed: () {
-                              setState(() => _searchQuery = '');
-                            },
-                          )
-                        : null,
+                    suffixIcon:
+                        _searchQuery.isNotEmpty
+                            ? IconButton(
+                              icon: const Icon(
+                                Icons.clear,
+                                color: AppColorsDark.textSecondary,
+                              ),
+                              onPressed: () {
+                                setState(() => _searchQuery = '');
+                              },
+                            )
+                            : null,
                     filled: true,
                     fillColor: AppColorsDark.surfaceVariant,
                     border: OutlineInputBorder(
@@ -118,7 +119,7 @@ class _RestaurantManagementScreenState
                 ),
               ),
               SizedBox(height: 12.h),
-              
+
               // Tabs
               TabBar(
                 controller: _tabController,
@@ -139,13 +140,14 @@ class _RestaurantManagementScreenState
           ),
         ),
       ),
-      body: storesState is StoresLoading
-          ? _buildLoadingState()
-          : storesState is StoresError
+      body:
+          storesState is StoresLoading
+              ? _buildLoadingState()
+              : storesState is StoresError
               ? _buildErrorState(storesState.error)
               : storesState is StoresLoaded
-                  ? _buildStoresList(storesState.stores)
-                  : _buildEmptyState(),
+              ? _buildStoresList(storesState.stores)
+              : _buildEmptyState(),
     );
   }
 
@@ -154,9 +156,7 @@ class _RestaurantManagementScreenState
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(
-            color: AppColorsDark.primary,
-          ),
+          const CircularProgressIndicator(color: AppColorsDark.primary),
           SizedBox(height: 16.h),
           Text(
             'Loading stores...',
@@ -174,11 +174,7 @@ class _RestaurantManagementScreenState
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.error_outline,
-            size: 64.sp,
-            color: AppColorsDark.error,
-          ),
+          Icon(Icons.error_outline, size: 64.sp, color: AppColorsDark.error),
           SizedBox(height: 16.h),
           Text(
             'Error loading stores',
@@ -245,9 +241,7 @@ class _RestaurantManagementScreenState
       controller: _tabController,
       children: [
         _buildStoresTab(allStores),
-        _buildStoresTab(
-          allStores.where((s) => !s.isApproved).toList(),
-        ),
+        _buildStoresTab(allStores.where((s) => !s.isApproved).toList()),
         _buildStoresTab(
           allStores.where((s) => s.isApproved && s.isActive).toList(),
         ),
@@ -257,12 +251,15 @@ class _RestaurantManagementScreenState
 
   Widget _buildStoresTab(List<StoreModel> stores) {
     // Filter by search query
-    final filteredStores = stores.where((store) {
-      if (_searchQuery.isEmpty) return true;
-      return store.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          store.city.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          store.type.toLowerCase().contains(_searchQuery.toLowerCase());
-    }).toList();
+    final filteredStores =
+        stores.where((store) {
+          if (_searchQuery.isEmpty) return true;
+          return store.name.toLowerCase().contains(
+                _searchQuery.toLowerCase(),
+              ) ||
+              store.city.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+              store.type.toLowerCase().contains(_searchQuery.toLowerCase());
+        }).toList();
 
     if (filteredStores.isEmpty) {
       return Center(
@@ -276,7 +273,9 @@ class _RestaurantManagementScreenState
             ),
             SizedBox(height: 16.h),
             Text(
-              _searchQuery.isEmpty ? 'No stores in this tab' : 'No results found',
+              _searchQuery.isEmpty
+                  ? 'No stores in this tab'
+                  : 'No results found',
               style: AppTextStyles.titleMedium().copyWith(
                 color: AppColorsDark.textPrimary,
               ),
@@ -310,7 +309,7 @@ class _RestaurantManagementScreenState
         child: Container(
           padding: EdgeInsets.all(16.w),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
+            gradient: const LinearGradient(
               colors: [
                 AppColorsDark.cardBackground,
                 AppColorsDark.surfaceVariant,
@@ -320,9 +319,10 @@ class _RestaurantManagementScreenState
             ),
             borderRadius: BorderRadius.circular(16.r),
             border: Border.all(
-              color: store.isApproved
-                  ? AppColorsDark.border
-                  : AppColorsDark.warning.withOpacity(0.5),
+              color:
+                  store.isApproved
+                      ? AppColorsDark.border
+                      : AppColorsDark.warning.withOpacity(0.5),
               width: 1.5,
             ),
           ),
@@ -347,7 +347,7 @@ class _RestaurantManagementScreenState
                     ),
                   ),
                   SizedBox(width: 12.w),
-                  
+
                   // Store Info
                   Expanded(
                     child: Column(
@@ -382,9 +382,9 @@ class _RestaurantManagementScreenState
                   ),
                 ],
               ),
-              
+
               SizedBox(height: 12.h),
-              
+
               // Stats Row
               Row(
                 children: [
@@ -406,103 +406,130 @@ class _RestaurantManagementScreenState
                     color: AppColorsDark.accent,
                   ),
                   const Spacer(),
-                  
+
                   // Action Menu
                   PopupMenuButton<String>(
-                    icon: Icon(
+                    icon: const Icon(
                       Icons.more_vert,
                       color: AppColorsDark.textSecondary,
                     ),
                     color: AppColorsDark.surface,
                     onSelected: (value) => _handleStoreAction(value, store),
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        value: 'view',
-                        child: Row(
-                          children: [
-                            Icon(Icons.visibility, size: 20.sp),
-                            SizedBox(width: 8.w),
-                            const Text('View Details'),
-                          ],
-                        ),
-                      ),
-                      if (!store.isApproved)
-                        PopupMenuItem(
-                          value: 'approve',
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.check_circle,
-                                size: 20.sp,
-                                color: AppColorsDark.success,
-                              ),
-                              SizedBox(width: 8.w),
-                              Text(
-                                'Approve',
-                                style: TextStyle(
-                                  color: AppColorsDark.success,
-                                ),
-                              ),
-                            ],
+                    itemBuilder:
+                        (context) => [
+                          PopupMenuItem(
+                            value: 'view',
+                            child: Row(
+                              children: [
+                                Icon(Icons.visibility, size: 20.sp),
+                                SizedBox(width: 8.w),
+                                const Text('View Details'),
+                              ],
+                            ),
                           ),
-                        ),
-                      if (!store.isApproved)
-                        PopupMenuItem(
-                          value: 'reject',
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.cancel,
-                                size: 20.sp,
-                                color: AppColorsDark.error,
+                          if (!store.isApproved)
+                            PopupMenuItem(
+                              value: 'approve',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.check_circle,
+                                    size: 20.sp,
+                                    color: AppColorsDark.success,
+                                  ),
+                                  SizedBox(width: 8.w),
+                                  const Text(
+                                    'Approve',
+                                    style: TextStyle(
+                                      color: AppColorsDark.success,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              SizedBox(width: 8.w),
-                              Text(
-                                'Reject',
-                                style: TextStyle(
+                            ),
+                          if (!store.isApproved)
+                            PopupMenuItem(
+                              value: 'reject',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.cancel,
+                                    size: 20.sp,
+                                    color: AppColorsDark.error,
+                                  ),
+                                  SizedBox(width: 8.w),
+                                  const Text(
+                                    'Reject',
+                                    style: TextStyle(
+                                      color: AppColorsDark.error,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          PopupMenuItem(
+                            value: 'toggle-active',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  store.isActive
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                  size: 20.sp,
+                                ),
+                                SizedBox(width: 8.w),
+                                Text(
+                                  store.isActive ? 'Deactivate' : 'Activate',
+                                ),
+                              ],
+                            ),
+                          ),
+                          // ✅ ADD THIS - Toggle Featured
+                          PopupMenuItem(
+                            value: 'toggle-featured',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  store.isFeatured
+                                      ? Icons.star
+                                      : Icons.star_border,
+                                  size: 20.sp,
+                                  color: AppColorsDark.warning,
+                                ),
+                                SizedBox(width: 8.w),
+                                Text(
+                                  store.isFeatured
+                                      ? 'Remove Featured'
+                                      : 'Make Featured',
+                                  style: const TextStyle(
+                                    color: AppColorsDark.warning,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.delete,
+                                  size: 20.sp,
                                   color: AppColorsDark.error,
                                 ),
-                              ),
-                            ],
+                                SizedBox(width: 8.w),
+                                const Text(
+                                  'Delete',
+                                  style: TextStyle(color: AppColorsDark.error),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      PopupMenuItem(
-                        value: 'toggle',
-                        child: Row(
-                          children: [
-                            Icon(
-                              store.isActive
-                                  ? Icons.visibility_off
-                                  : Icons.visibility,
-                              size: 20.sp,
-                            ),
-                            SizedBox(width: 8.w),
-                            Text(store.isActive ? 'Deactivate' : 'Activate'),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.delete,
-                              size: 20.sp,
-                              color: AppColorsDark.error,
-                            ),
-                            SizedBox(width: 8.w),
-                            Text(
-                              'Delete',
-                              style: TextStyle(color: AppColorsDark.error),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                        ],
                   ),
                 ],
               ),
-              
+
               // Pending Approval Warning
               if (!store.isApproved) ...[
                 SizedBox(height: 12.h),
@@ -613,6 +640,8 @@ class _RestaurantManagementScreenState
   }
 
   // Action handlers
+  // In restaurant_management_screen.dart
+
   void _handleStoreAction(String action, StoreModel store) async {
     switch (action) {
       case 'view':
@@ -627,14 +656,112 @@ class _RestaurantManagementScreenState
       case 'toggle':
         await _toggleStoreStatus(store);
         break;
+      case 'toggle-featured': // ✅ ADD THIS
+        await _toggleFeaturedStatus(store);
+        break;
       case 'delete':
         _showDeleteDialog(store);
         break;
     }
   }
 
+  // Add this method to your restaurant_management_screen.dart
+
+  Future<void> _toggleFeaturedStatus(StoreModel store) async {
+    // Show confirmation dialog first
+    final shouldToggle = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: AppColorsDark.surface,
+            title: Row(
+              children: [
+                Icon(
+                  store.isFeatured ? Icons.star : Icons.star_border,
+                  color: AppColorsDark.warning,
+                  size: 24.sp,
+                ),
+                SizedBox(width: 12.w),
+                Expanded(
+                  child: Text(
+                    store.isFeatured ? 'Remove Featured?' : 'Make Featured?',
+                    style: AppTextStyles.titleMedium().copyWith(
+                      color: AppColorsDark.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: Text(
+              store.isFeatured
+                  ? 'Remove "${store.name}" from featured stores?'
+                  : 'Add "${store.name}" to featured stores?\n\nFeatured stores will appear prominently on the customer home screen.',
+              style: AppTextStyles.bodyMedium().copyWith(
+                color: AppColorsDark.textSecondary,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColorsDark.warning,
+                ),
+                child: Text(store.isFeatured ? 'Remove' : 'Make Featured'),
+              ),
+            ],
+          ),
+    );
+
+    if (shouldToggle != true) return;
+
+    // Toggle featured status
+    final success = await ref
+        .read(storesProvider.notifier)
+        .toggleFeaturedStatus(store.id);
+
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(
+                store.isFeatured ? Icons.star_border : Icons.star,
+                color: AppColorsDark.white,
+                size: 20.sp,
+              ),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: Text(
+                  store.isFeatured
+                      ? '${store.name} removed from featured'
+                      : '${store.name} is now featured',
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: AppColorsDark.warning,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } else if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to update featured status'),
+          backgroundColor: AppColorsDark.error,
+        ),
+      );
+    }
+  }
+
   Future<void> _approveStore(StoreModel store) async {
-    final success = await ref.read(storesProvider.notifier).approveStore(
+    final success = await ref
+        .read(storesProvider.notifier)
+        .approveStore(
           store.id,
           'admin-id', // TODO: Get from auth provider
         );
@@ -650,10 +777,9 @@ class _RestaurantManagementScreenState
   }
 
   Future<void> _toggleStoreStatus(StoreModel store) async {
-    final success = await ref.read(storesProvider.notifier).toggleStoreStatus(
-          store.id,
-          !store.isActive,
-        );
+    final success = await ref
+        .read(storesProvider.notifier)
+        .toggleStoreStatus(store.id, !store.isActive);
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -674,149 +800,153 @@ class _RestaurantManagementScreenState
     );
   }
 
- void _showAddStoreDialog() {
-  showDialog(
-    context: context,
-    builder: (context) => const AddEditStoreDialog(),
-  );
-}
+  void _showAddStoreDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => const AddEditStoreDialog(),
+    );
+  }
 
   void _showRejectDialog(StoreModel store) {
     final reasonController = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColorsDark.surface,
-        title: Text(
-          'Reject Store',
-          style: AppTextStyles.titleMedium().copyWith(
-            color: AppColorsDark.textPrimary,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Store: ${store.name}',
-              style: AppTextStyles.bodyMedium().copyWith(
-                color: AppColorsDark.textSecondary,
-              ),
-            ),
-            SizedBox(height: 16.h),
-            TextField(
-              controller: reasonController,
-              style: AppTextStyles.bodyMedium().copyWith(
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: AppColorsDark.surface,
+            title: Text(
+              'Reject Store',
+              style: AppTextStyles.titleMedium().copyWith(
                 color: AppColorsDark.textPrimary,
               ),
-              decoration: InputDecoration(
-                hintText: 'Reason for rejection',
-                hintStyle: AppTextStyles.bodyMedium().copyWith(
-                  color: AppColorsDark.textTertiary,
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Store: ${store.name}',
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textSecondary,
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                TextField(
+                  controller: reasonController,
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textPrimary,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Reason for rejection',
+                    hintStyle: AppTextStyles.bodyMedium().copyWith(
+                      color: AppColorsDark.textTertiary,
+                    ),
+                  ),
+                  maxLines: 3,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Cancel',
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textSecondary,
+                  ),
                 ),
               ),
-              maxLines: 3,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: AppTextStyles.bodyMedium().copyWith(
-                color: AppColorsDark.textSecondary,
+              ElevatedButton(
+                onPressed: () async {
+                  if (reasonController.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please provide a reason'),
+                        backgroundColor: AppColorsDark.error,
+                      ),
+                    );
+                    return;
+                  }
+
+                  await ref
+                      .read(storesProvider.notifier)
+                      .rejectStore(
+                        store.id,
+                        'admin-id', // TODO: Get from auth provider
+                        reasonController.text,
+                      );
+
+                  Navigator.pop(context);
+
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('${store.name} rejected'),
+                        backgroundColor: AppColorsDark.error,
+                      ),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColorsDark.error,
+                ),
+                child: const Text('Reject'),
               ),
-            ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () async {
-              if (reasonController.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Please provide a reason'),
-                    backgroundColor: AppColorsDark.error,
-                  ),
-                );
-                return;
-              }
-
-              await ref.read(storesProvider.notifier).rejectStore(
-                    store.id,
-                    'admin-id', // TODO: Get from auth provider
-                    reasonController.text,
-                  );
-
-              Navigator.pop(context);
-
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('${store.name} rejected'),
-                    backgroundColor: AppColorsDark.error,
-                  ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColorsDark.error,
-            ),
-            child: const Text('Reject'),
-          ),
-        ],
-      ),
     );
   }
 
   void _showDeleteDialog(StoreModel store) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColorsDark.surface,
-        title: Text(
-          'Delete Store',
-          style: AppTextStyles.titleMedium().copyWith(
-            color: AppColorsDark.error,
-          ),
-        ),
-        content: Text(
-          'Are you sure you want to delete "${store.name}"? This action cannot be undone.',
-          style: AppTextStyles.bodyMedium().copyWith(
-            color: AppColorsDark.textSecondary,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: AppColorsDark.surface,
+            title: Text(
+              'Delete Store',
+              style: AppTextStyles.titleMedium().copyWith(
+                color: AppColorsDark.error,
+              ),
+            ),
+            content: Text(
+              'Are you sure you want to delete "${store.name}"? This action cannot be undone.',
               style: AppTextStyles.bodyMedium().copyWith(
                 color: AppColorsDark.textSecondary,
               ),
             ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await ref.read(storesProvider.notifier).deleteStore(store.id);
-              Navigator.pop(context);
-
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('${store.name} deleted'),
-                    backgroundColor: AppColorsDark.error,
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Cancel',
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textSecondary,
                   ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColorsDark.error,
-            ),
-            child: const Text('Delete'),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  await ref.read(storesProvider.notifier).deleteStore(store.id);
+                  Navigator.pop(context);
+
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('${store.name} deleted'),
+                        backgroundColor: AppColorsDark.error,
+                      ),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColorsDark.error,
+                ),
+                child: const Text('Delete'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 }

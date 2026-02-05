@@ -736,11 +736,63 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
       return;
     }
 
-    await ref
+    final success = await ref
         .read(cartProvider.notifier)
         .addToCart(authState.user.id, product, 1);
 
-    if (mounted) {
+    if (!success && mounted) {
+      // Different store detected - show confirmation dialog
+      final shouldClear = await showDialog<bool>(
+        context: context,
+        builder:
+            (context) => AlertDialog(
+              backgroundColor: AppColorsDark.surface,
+              title: Text(
+                'Replace Cart Items?',
+                style: AppTextStyles.titleMedium().copyWith(
+                  color: AppColorsDark.textPrimary,
+                ),
+              ),
+              content: Text(
+                'Your cart contains items from another store. Do you want to clear the cart and add items from this store?',
+                style: AppTextStyles.bodyMedium().copyWith(
+                  color: AppColorsDark.textSecondary,
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColorsDark.primary,
+                  ),
+                  child: const Text('Replace Cart'),
+                ),
+              ],
+            ),
+      );
+
+      if (shouldClear == true && mounted) {
+        // Clear and add new item
+        final cleared = await ref
+            .read(cartProvider.notifier)
+            .clearAndAddToCart(authState.user.id, product, 1);
+
+        if (cleared && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${product.name} added to cart'),
+              backgroundColor: AppColorsDark.success,
+              duration: const Duration(seconds: 1),
+            ),
+          );
+        }
+      }
+    } else if (success && mounted) {
+      // Same store - show success
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${product.name} added to cart'),

@@ -8,13 +8,14 @@ class StoresCollection {
   // Singleton pattern
   static final StoresCollection instance = StoresCollection._internal();
   StoresCollection._internal();
-  
+
   factory StoresCollection() {
     return instance;
   }
 
-  static final _storesCollection = 
-      FirebaseFirestore.instance.collection('stores');
+  static final _storesCollection = FirebaseFirestore.instance.collection(
+    'stores',
+  );
 
   /// Add new store
   Future<bool> addStore(StoreModel store) async {
@@ -35,11 +36,9 @@ class StoresCollection {
   Future<bool> updateStore(StoreModel store) async {
     try {
       final updatedStore = store.copyWith(updatedAt: DateTime.now());
-      
-      await _storesCollection
-          .doc(store.id)
-          .update(updatedStore.toJson());
-      
+
+      await _storesCollection.doc(store.id).update(updatedStore.toJson());
+
       log('Store updated successfully: ${store.id}');
       return true;
     } on FirebaseException catch (e) {
@@ -70,11 +69,11 @@ class StoresCollection {
   Future<StoreModel?> getStore(String storeId) async {
     try {
       final snapshot = await _storesCollection.doc(storeId).get();
-      
+
       if (snapshot.exists && snapshot.data() != null) {
         return StoreModel.fromJson(snapshot.data()!);
       }
-      
+
       log('Store not found: $storeId');
       return null;
     } on FirebaseException catch (e) {
@@ -89,18 +88,17 @@ class StoresCollection {
   /// Get all stores
   Future<List<StoreModel>> getAllStores() async {
     List<StoreModel> stores = [];
-    
+
     try {
-      final snapshot = await _storesCollection
-          .orderBy('createdAt', descending: true)
-          .get();
-      
+      final snapshot =
+          await _storesCollection.orderBy('createdAt', descending: true).get();
+
       for (var doc in snapshot.docs) {
         if (doc.data() != null) {
           stores.add(StoreModel.fromJson(doc.data()));
         }
       }
-      
+
       log('Fetched ${stores.length} stores');
       return stores;
     } on FirebaseException catch (e) {
@@ -115,25 +113,28 @@ class StoresCollection {
   /// Get stores by category
   Future<List<StoreModel>> getStoresByCategory(String categoryId) async {
     List<StoreModel> stores = [];
-    
+
     try {
-      final snapshot = await _storesCollection
-          .where('categoryId', isEqualTo: categoryId)
-          .where('isApproved', isEqualTo: true)
-          .where('isActive', isEqualTo: true)
-          .orderBy('rating', descending: true)
-          .get();
-      
+      final snapshot =
+          await _storesCollection
+              .where('categoryId', isEqualTo: categoryId)
+              .where('isApproved', isEqualTo: true)
+              .where('isActive', isEqualTo: true)
+              .orderBy('rating', descending: true)
+              .get();
+
       for (var doc in snapshot.docs) {
         if (doc.data() != null) {
           stores.add(StoreModel.fromJson(doc.data()));
         }
       }
-      
+
       log('Fetched ${stores.length} stores for category: $categoryId');
       return stores;
     } on FirebaseException catch (e) {
-      log('Firebase Error getting stores by category: ${e.code} - ${e.message}');
+      log(
+        'Firebase Error getting stores by category: ${e.code} - ${e.message}',
+      );
       return [];
     } catch (e) {
       log('Error getting stores by category: ${e.toString()}');
@@ -144,19 +145,20 @@ class StoresCollection {
   /// Get pending stores (for admin approval)
   Future<List<StoreModel>> getPendingStores() async {
     List<StoreModel> stores = [];
-    
+
     try {
-      final snapshot = await _storesCollection
-          .where('isApproved', isEqualTo: false)
-          .orderBy('createdAt', descending: true)
-          .get();
-      
+      final snapshot =
+          await _storesCollection
+              .where('isApproved', isEqualTo: false)
+              .orderBy('createdAt', descending: true)
+              .get();
+
       for (var doc in snapshot.docs) {
         if (doc.data() != null) {
           stores.add(StoreModel.fromJson(doc.data()));
         }
       }
-      
+
       log('Fetched ${stores.length} pending stores');
       return stores;
     } on FirebaseException catch (e) {
@@ -171,20 +173,21 @@ class StoresCollection {
   /// Get approved stores
   Future<List<StoreModel>> getApprovedStores() async {
     List<StoreModel> stores = [];
-    
+
     try {
-      final snapshot = await _storesCollection
-          .where('isApproved', isEqualTo: true)
-          .where('isActive', isEqualTo: true)
-          .orderBy('rating', descending: true)
-          .get();
-      
+      final snapshot =
+          await _storesCollection
+              .where('isApproved', isEqualTo: true)
+              .where('isActive', isEqualTo: true)
+              .orderBy('rating', descending: true)
+              .get();
+
       for (var doc in snapshot.docs) {
         if (doc.data() != null) {
           stores.add(StoreModel.fromJson(doc.data()));
         }
       }
-      
+
       log('Fetched ${stores.length} approved stores');
       return stores;
     } on FirebaseException catch (e) {
@@ -199,22 +202,23 @@ class StoresCollection {
   /// Get featured stores
   Future<List<StoreModel>> getFeaturedStores() async {
     List<StoreModel> stores = [];
-    
+
     try {
-      final snapshot = await _storesCollection
-          .where('isFeatured', isEqualTo: true)
-          .where('isApproved', isEqualTo: true)
-          .where('isActive', isEqualTo: true)
-          .orderBy('rating', descending: true)
-          .limit(10)
-          .get();
-      
+      final snapshot =
+          await _storesCollection
+              .where('isFeatured', isEqualTo: true)
+              .where('isApproved', isEqualTo: true)
+              .where('isActive', isEqualTo: true)
+              .orderBy('rating', descending: true)
+              .limit(10)
+              .get();
+
       for (var doc in snapshot.docs) {
         if (doc.data() != null) {
           stores.add(StoreModel.fromJson(doc.data()));
         }
       }
-      
+
       log('Fetched ${stores.length} featured stores');
       return stores;
     } on FirebaseException catch (e) {
@@ -236,7 +240,7 @@ class StoresCollection {
         'rejectionReason': null,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      
+
       log('Store approved: $storeId by admin: $adminId');
       return true;
     } on FirebaseException catch (e) {
@@ -262,7 +266,7 @@ class StoresCollection {
         'rejectionReason': reason,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      
+
       log('Store rejected: $storeId by admin: $adminId. Reason: $reason');
       return true;
     } on FirebaseException catch (e) {
@@ -281,7 +285,7 @@ class StoresCollection {
         'isActive': isActive,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      
+
       log('Store status toggled: $storeId -> $isActive');
       return true;
     } on FirebaseException catch (e) {
@@ -294,18 +298,22 @@ class StoresCollection {
   }
 
   /// Toggle featured status
-  Future<bool> toggleFeaturedStatus(String storeId, bool isFeatured) async {
+  Future<bool> toggleFeaturedStatus(String storeId) async {
     try {
+      final storeDoc = await _storesCollection.doc(storeId).get();
+
+      if (!storeDoc.exists) {
+        return false;
+      }
+
+      final currentStatus = storeDoc.data()?['isFeatured'] as bool? ?? false;
+
       await _storesCollection.doc(storeId).update({
-        'isFeatured': isFeatured,
+        'isFeatured': !currentStatus,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      
-      log('Store featured status toggled: $storeId -> $isFeatured');
+
       return true;
-    } on FirebaseException catch (e) {
-      log('Firebase Error toggling featured status: ${e.code} - ${e.message}');
-      return false;
     } catch (e) {
       log('Error toggling featured status: ${e.toString()}');
       return false;
@@ -315,16 +323,17 @@ class StoresCollection {
   /// Search stores by name
   Future<List<StoreModel>> searchStores(String query) async {
     List<StoreModel> stores = [];
-    
+
     if (query.isEmpty) return stores;
-    
+
     try {
       // Get all approved stores (Firestore doesn't support case-insensitive search)
-      final snapshot = await _storesCollection
-          .where('isApproved', isEqualTo: true)
-          .where('isActive', isEqualTo: true)
-          .get();
-      
+      final snapshot =
+          await _storesCollection
+              .where('isApproved', isEqualTo: true)
+              .where('isActive', isEqualTo: true)
+              .get();
+
       // Filter locally
       final lowerQuery = query.toLowerCase();
       for (var doc in snapshot.docs) {
@@ -335,7 +344,7 @@ class StoresCollection {
           }
         }
       }
-      
+
       log('Found ${stores.length} stores matching: $query');
       return stores;
     } on FirebaseException catch (e) {
@@ -350,19 +359,20 @@ class StoresCollection {
   /// Get stores by owner
   Future<List<StoreModel>> getStoresByOwner(String ownerId) async {
     List<StoreModel> stores = [];
-    
+
     try {
-      final snapshot = await _storesCollection
-          .where('ownerId', isEqualTo: ownerId)
-          .orderBy('createdAt', descending: true)
-          .get();
-      
+      final snapshot =
+          await _storesCollection
+              .where('ownerId', isEqualTo: ownerId)
+              .orderBy('createdAt', descending: true)
+              .get();
+
       for (var doc in snapshot.docs) {
         if (doc.data() != null) {
           stores.add(StoreModel.fromJson(doc.data()));
         }
       }
-      
+
       log('Fetched ${stores.length} stores for owner: $ownerId');
       return stores;
     } on FirebaseException catch (e) {
@@ -386,8 +396,10 @@ class StoresCollection {
         'totalReviews': totalReviews,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      
-      log('Store rating updated: $storeId -> $newRating ($totalReviews reviews)');
+
+      log(
+        'Store rating updated: $storeId -> $newRating ($totalReviews reviews)',
+      );
       return true;
     } on FirebaseException catch (e) {
       log('Firebase Error updating store rating: ${e.code} - ${e.message}');
@@ -405,7 +417,7 @@ class StoresCollection {
         'totalOrders': FieldValue.increment(1),
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      
+
       log('Store total orders incremented: $storeId');
       return true;
     } on FirebaseException catch (e) {

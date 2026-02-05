@@ -9,50 +9,50 @@ class StoreModel {
   final String categoryId;
   final String categoryName;
   final String type;
-  
+
   // Owner info
   final String ownerId;
   final String ownerName;
   final String ownerEmail;
   final String ownerPhone;
-  
+
   // Images
   final List<String> images;
   final String logoUrl;
   final String bannerUrl;
-  
+
   // Location
   final String address;
   final String city;
   final String area;
   final double latitude;
   final double longitude;
-  
+
   // Ratings & Stats
   final double rating;
   final int totalReviews;
   final int totalOrders;
-  
+
   // Delivery info
   final int deliveryTime;
   final double deliveryFee;
   final double minimumOrder;
-  
+
   // Status flags
   final bool isActive;
   final bool isApproved;
   final bool isFeatured;
   final bool isOpen;
-  
+
   // Operating hours
   final String openingTime;
   final String closingTime;
   final List<String> workingDays;
-  
+
   // Additional info
   final List<String> cuisines;
   final List<String> tags;
-  
+
   // Timestamps
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -177,17 +177,17 @@ class StoreModel {
       openingTime: json['openingTime'] as String,
       closingTime: json['closingTime'] as String,
       workingDays: List<String>.from(json['workingDays'] as List),
-      cuisines: json['cuisines'] != null 
-          ? List<String>.from(json['cuisines'] as List)
-          : [],
-      tags: json['tags'] != null 
-          ? List<String>.from(json['tags'] as List)
-          : [],
+      cuisines:
+          json['cuisines'] != null
+              ? List<String>.from(json['cuisines'] as List)
+              : [],
+      tags: json['tags'] != null ? List<String>.from(json['tags'] as List) : [],
       createdAt: (json['createdAt'] as Timestamp).toDate(),
       updatedAt: (json['updatedAt'] as Timestamp).toDate(),
-      approvedAt: json['approvedAt'] != null
-          ? (json['approvedAt'] as Timestamp).toDate()
-          : null,
+      approvedAt:
+          json['approvedAt'] != null
+              ? (json['approvedAt'] as Timestamp).toDate()
+              : null,
       approvedBy: json['approvedBy'] as String?,
       rejectionReason: json['rejectionReason'] as String?,
     );

@@ -9,23 +9,24 @@ class CartsCollection {
   // Singleton pattern
   static final CartsCollection instance = CartsCollection._internal();
   CartsCollection._internal();
-  
+
   factory CartsCollection() {
     return instance;
   }
 
-  static final _cartsCollection = 
-      FirebaseFirestore.instance.collection('carts');
+  static final _cartsCollection = FirebaseFirestore.instance.collection(
+    'carts',
+  );
 
   /// Get user's cart (or return empty cart)
   Future<CartModel> getCart(String userId) async {
     try {
       final snapshot = await _cartsCollection.doc(userId).get();
-      
+
       if (snapshot.exists && snapshot.data() != null) {
         return CartModel.fromJson(snapshot.data()!);
       }
-      
+
       // Return empty cart if doesn't exist
       log('Cart not found for user: $userId, returning empty cart');
       return CartModel.empty(userId);
@@ -38,78 +39,77 @@ class CartsCollection {
     }
   }
 
-  /// Add item to cart
   Future<bool> addItemToCart(String userId, CartItemModel item) async {
     try {
-      final cart = await getCart(userId);
-      
-      // VALIDATION 1: Check if cart has items from different store
-      if (cart.items.isNotEmpty && cart.storeId != null) {
-        if (cart.storeId != item.storeId) {
-          log('Cannot add item from different store. Current store: ${cart.storeId}, New store: ${item.storeId}');
-          throw Exception('Cannot add items from different stores. Clear cart first.');
-        }
-      }
+      final cartDoc = await _cartsCollection.doc(userId).get();
 
-      // VALIDATION 2: Check if item already exists
-      final existingItemIndex = cart.items.indexWhere(
-        (cartItem) => cartItem.productId == item.productId,
-      );
+      if (cartDoc.exists) {
+        final cartData = cartDoc.data()!;
+        final currentStoreId = cartData['storeId'] as String?;
 
-      List<CartItemModel> updatedItems = List.from(cart.items);
-
-      if (existingItemIndex != -1) {
-        // Item exists, increment quantity
-        final existingItem = updatedItems[existingItemIndex];
-        final newQuantity = existingItem.quantity + 1;
-
-        // VALIDATION 3: Check max quantity
-        if (newQuantity > item.maxQuantity) {
-          log('Cannot add more. Max quantity reached: ${item.maxQuantity}');
-          throw Exception('Maximum quantity limit reached');
+        // ✅ CHECK IF DIFFERENT STORE
+        if (currentStoreId != null && currentStoreId != item.storeId) {
+          // Don't throw exception, return false to handle in provider
+          return false;
         }
 
-        // Update quantity and total
-        updatedItems[existingItemIndex] = existingItem.copyWith(
-          quantity: newQuantity,
-          total: existingItem.calculateTotal(),
+        // Same store or empty cart - proceed
+        final items = List<Map<String, dynamic>>.from(
+          cartData['items'] as List? ?? [],
         );
+
+        // Check if item already exists
+        final existingIndex = items.indexWhere(
+          (i) => i['productId'] == item.productId,
+        );
+
+        if (existingIndex >= 0) {
+          // Update quantity
+          items[existingIndex]['quantity'] =
+              (items[existingIndex]['quantity'] as int) + item.quantity;
+          items[existingIndex]['total'] =
+              items[existingIndex]['quantity'] * item.discountedPrice;
+        } else {
+          // Add new item
+          items.add(item.toJson());
+        }
+
+        // Calculate totals
+        double subtotal = 0;
+        int totalItems = 0;
+        for (var item in items) {
+          subtotal += (item['total'] as num).toDouble();
+          totalItems += (item['quantity'] as int);
+        }
+
+        await _cartsCollection.doc(userId).update({
+          'items': items,
+          'subtotal': subtotal,
+          'total': subtotal + (cartData['deliveryFee'] as num).toDouble(),
+          'totalItems': totalItems,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        return true;
       } else {
-        // New item, add to cart
-        updatedItems.add(item);
+        // Create new cart
+        final cart = CartModel(
+          userId: userId,
+          storeId: item.storeId,
+          storeName: item.storeName,
+          items: [item],
+          subtotal: item.total,
+          deliveryFee: 50.0, // TODO: Get from store
+          discount: 0,
+          total: item.total + 50.0,
+          totalItems: item.quantity,
+
+          updatedAt: DateTime.now(),
+        );
+
+        await _cartsCollection.doc(userId).set(cart.toJson());
+        return true;
       }
-
-      // Calculate new totals
-      final newSubtotal = updatedItems.fold<double>(
-        0.0,
-        (sum, item) => sum + item.total,
-      );
-      final newTotalItems = updatedItems.fold<int>(
-        0,
-        (sum, item) => sum + item.quantity,
-      );
-
-      // Update cart
-      final updatedCart = CartModel(
-        userId: userId,
-        items: updatedItems,
-        totalItems: newTotalItems,
-        subtotal: newSubtotal,
-        deliveryFee: cart.deliveryFee,
-        discount: cart.discount,
-        total: newSubtotal + cart.deliveryFee - cart.discount,
-        storeId: item.storeId,
-        storeName: item.storeName,
-        updatedAt: DateTime.now(),
-      );
-
-      await _cartsCollection.doc(userId).set(updatedCart.toJson());
-      
-      log('Item added to cart: ${item.productName}');
-      return true;
-    } on FirebaseException catch (e) {
-      log('Firebase Error adding item to cart: ${e.code} - ${e.message}');
-      return false;
     } catch (e) {
       log('Error adding item to cart: ${e.toString()}');
       rethrow;
@@ -124,7 +124,7 @@ class CartsCollection {
   ) async {
     try {
       final cart = await getCart(userId);
-      
+
       if (cart.isEmpty) {
         log('Cart is empty');
         return false;
@@ -155,7 +155,9 @@ class CartsCollection {
       List<CartItemModel> updatedItems = List.from(cart.items);
       updatedItems[itemIndex] = item.copyWith(
         quantity: newQuantity,
-        total: (item.discountedPrice > 0 ? item.discountedPrice : item.price) * newQuantity,
+        total:
+            (item.discountedPrice > 0 ? item.discountedPrice : item.price) *
+            newQuantity,
       );
 
       // Recalculate totals
@@ -177,7 +179,7 @@ class CartsCollection {
       );
 
       await _cartsCollection.doc(userId).update(updatedCart.toJson());
-      
+
       log('Item quantity updated: $productId -> $newQuantity');
       return true;
     } on FirebaseException catch (e) {
@@ -193,16 +195,15 @@ class CartsCollection {
   Future<bool> removeItemFromCart(String userId, String productId) async {
     try {
       final cart = await getCart(userId);
-      
+
       if (cart.isEmpty) {
         log('Cart is empty');
         return false;
       }
 
       // Remove item
-      final updatedItems = cart.items
-          .where((item) => item.productId != productId)
-          .toList();
+      final updatedItems =
+          cart.items.where((item) => item.productId != productId).toList();
 
       if (updatedItems.length == cart.items.length) {
         log('Item not found in cart: $productId');
@@ -235,7 +236,7 @@ class CartsCollection {
       );
 
       await _cartsCollection.doc(userId).update(updatedCart.toJson());
-      
+
       log('Item removed from cart: $productId');
       return true;
     } on FirebaseException catch (e) {
@@ -277,7 +278,7 @@ class CartsCollection {
   Future<bool> validateCart(String userId) async {
     try {
       final cart = await getCart(userId);
-      
+
       if (cart.isEmpty) return true;
 
       bool needsUpdate = false;
@@ -289,7 +290,7 @@ class CartsCollection {
         // 1. Is it still available?
         // 2. Has the price changed?
         // 3. Is there enough stock?
-        
+
         // For now, we'll assume validation passes
         // In production, fetch product and validate
         validItems.add(item);
@@ -329,7 +330,7 @@ class CartsCollection {
   Future<bool> updateDeliveryFee(String userId, double deliveryFee) async {
     try {
       final cart = await getCart(userId);
-      
+
       final updatedCart = cart.copyWith(
         deliveryFee: deliveryFee,
         total: cart.subtotal + deliveryFee - cart.discount,
@@ -349,7 +350,7 @@ class CartsCollection {
   Future<bool> applyDiscount(String userId, double discount) async {
     try {
       final cart = await getCart(userId);
-      
+
       final updatedCart = cart.copyWith(
         discount: discount,
         total: cart.subtotal + cart.deliveryFee - discount,
