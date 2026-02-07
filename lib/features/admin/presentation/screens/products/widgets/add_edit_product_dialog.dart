@@ -1,6 +1,8 @@
 // lib/features/admin/presentation/screens/products/widgets/add_edit_product_dialog.dart
 
 import 'dart:io';
+import 'package:abw_app/features/admin/presentation/screens/products/widgets/helper_classes.dart';
+import 'package:abw_app/features/products/domain/entities/product_variant.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -16,10 +18,7 @@ import '../../../../../products/data/models/product_model.dart';
 class AddEditProductDialog extends ConsumerStatefulWidget {
   final ProductModel? product; // null for add, populated for edit
 
-  const AddEditProductDialog({
-    super.key,
-    this.product,
-  });
+  const AddEditProductDialog({super.key, this.product});
 
   @override
   ConsumerState<AddEditProductDialog> createState() =>
@@ -39,6 +38,11 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
   final _minOrderController = TextEditingController();
   final _maxOrderController = TextEditingController();
   final _prepTimeController = TextEditingController();
+  // Controllers for adding variants/addons
+  final _variantNameController = TextEditingController();
+  final _variantPriceController = TextEditingController();
+  final _addonNameController = TextEditingController();
+  final _addonPriceController = TextEditingController();
 
   String _selectedCategory = '';
   String _selectedStore = '';
@@ -52,6 +56,11 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
   bool _isVegetarian = false;
   bool _isVegan = false;
   bool _isSpicy = false;
+
+  // ✅ ADD THESE
+  bool _hasVariants = false;
+  final List<ProductVariantInput> _variants = [];
+  final List<ProductAddonInput> _addons = [];
 
   // Tags
   final List<String> _availableTags = [
@@ -95,6 +104,16 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
     _isVegan = product.isVegan;
     _isSpicy = product.isSpicy;
     _selectedTags.addAll(product.tags);
+
+    _hasVariants = product.hasVariants;
+    if (product.variants.isNotEmpty) {
+      _variants.addAll(
+        product.variants.map((v) => ProductVariantInput.fromVariant(v)),
+      );
+    }
+    if (product.addons.isNotEmpty) {
+      _addons.addAll(product.addons.map((a) => ProductAddonInput.fromAddon(a)));
+    }
   }
 
   Future<void> _loadData() async {
@@ -118,6 +137,11 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
     _minOrderController.dispose();
     _maxOrderController.dispose();
     _prepTimeController.dispose();
+    // Disposing the new controllers for variants/addons
+    _variantNameController.dispose();
+    _variantPriceController.dispose();
+    _addonNameController.dispose();
+    _addonPriceController.dispose();
     super.dispose();
   }
 
@@ -157,8 +181,8 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
                         controller: _nameController,
                         label: 'Product Name',
                         hint: 'e.g., Margherita Pizza',
-                        validator: (v) =>
-                            v?.isEmpty ?? true ? 'Required' : null,
+                        validator:
+                            (v) => v?.isEmpty ?? true ? 'Required' : null,
                       ),
                       SizedBox(height: 16.h),
                       _buildTextField(
@@ -166,8 +190,8 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
                         label: 'Short Description',
                         hint: 'Brief tagline',
                         maxLines: 2,
-                        validator: (v) =>
-                            v?.isEmpty ?? true ? 'Required' : null,
+                        validator:
+                            (v) => v?.isEmpty ?? true ? 'Required' : null,
                       ),
                       SizedBox(height: 16.h),
                       _buildTextField(
@@ -175,31 +199,31 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
                         label: 'Full Description',
                         hint: 'Detailed description',
                         maxLines: 4,
-                        validator: (v) =>
-                            v?.isEmpty ?? true ? 'Required' : null,
+                        validator:
+                            (v) => v?.isEmpty ?? true ? 'Required' : null,
                       ),
                       SizedBox(height: 16.h),
 
                       // Category & Store
-                   LayoutBuilder(
-  builder: (context, constraints) {
-    final fieldWidth = (constraints.maxWidth - 12.w) / 2;
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final fieldWidth = (constraints.maxWidth - 12.w) / 2;
 
-    return Row(
-      children: [
-        SizedBox(
-          width: fieldWidth,
-          child: _buildCategoryDropdown(categoriesState),
-        ),
-        SizedBox(width: 12.w),
-        SizedBox(
-          width: fieldWidth,
-          child: _buildStoreDropdown(storesState),
-        ),
-      ],
-    );
-  },
-),
+                          return Row(
+                            children: [
+                              SizedBox(
+                                width: fieldWidth,
+                                child: _buildCategoryDropdown(categoriesState),
+                              ),
+                              SizedBox(width: 12.w),
+                              SizedBox(
+                                width: fieldWidth,
+                                child: _buildStoreDropdown(storesState),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
 
                       SizedBox(height: 24.h),
 
@@ -213,8 +237,8 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
                               controller: _priceController,
                               label: 'Price (PKR)',
                               keyboardType: TextInputType.number,
-                              validator: (v) =>
-                                  v?.isEmpty ?? true ? 'Required' : null,
+                              validator:
+                                  (v) => v?.isEmpty ?? true ? 'Required' : null,
                             ),
                           ),
                           SizedBox(width: 12.w),
@@ -268,8 +292,8 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
                               controller: _quantityController,
                               label: 'Stock Quantity',
                               keyboardType: TextInputType.number,
-                              validator: (v) =>
-                                  v?.isEmpty ?? true ? 'Required' : null,
+                              validator:
+                                  (v) => v?.isEmpty ?? true ? 'Required' : null,
                             ),
                           ),
                           SizedBox(width: 12.w),
@@ -278,8 +302,8 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
                               controller: _unitController,
                               label: 'Unit',
                               hint: 'kg, piece, liter',
-                              validator: (v) =>
-                                  v?.isEmpty ?? true ? 'Required' : null,
+                              validator:
+                                  (v) => v?.isEmpty ?? true ? 'Required' : null,
                             ),
                           ),
                         ],
@@ -317,23 +341,87 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
                         keyboardType: TextInputType.number,
                         hint: 'Optional',
                       ),
+
+                      // ✅ ADD THIS SECTION AFTER "Additional Information"
                       SizedBox(height: 24.h),
+
+                      // Variants Toggle
+                      _buildSectionTitle('Product Variations (Optional)'),
+                      SizedBox(height: 8.h),
+                      Text(
+                        'Enable this for products with different sizes (e.g., Small, Medium, Large pizza)',
+                        style: AppTextStyles.bodySmall().copyWith(
+                          color: AppColorsDark.textSecondary,
+                        ),
+                      ),
+                      SizedBox(height: 12.h),
+                      SwitchListTile(
+                        title: Text(
+                          'This product has size variants',
+                          style: AppTextStyles.bodyMedium().copyWith(
+                            color: AppColorsDark.textPrimary,
+                          ),
+                        ),
+                        value: _hasVariants,
+                        onChanged: (value) {
+                          setState(() => _hasVariants = value);
+                        },
+                        contentPadding: EdgeInsets.zero,
+                      ),
+
+                      // Variants List (if enabled)
+                      if (_hasVariants) ...[
+                        SizedBox(height: 16.h),
+                        _buildVariantsSection(),
+                      ],
+
+                      SizedBox(height: 24.h),
+
+                      // Addons Section
+                      _buildSectionTitle('Add-ons / Extra Toppings (Optional)'),
+                      SizedBox(height: 8.h),
+                      Text(
+                        'Add extra items customers can add (e.g., Extra Cheese, Olives)',
+                        style: AppTextStyles.bodySmall().copyWith(
+                          color: AppColorsDark.textSecondary,
+                        ),
+                      ),
+                      SizedBox(height: 12.h),
+                      _buildAddonsSection(),
 
                       // Properties
                       _buildSectionTitle('Properties'),
                       SizedBox(height: 12.h),
-                      _buildCheckboxTile('Available for Sale', _isAvailable,
-                          (v) => setState(() => _isAvailable = v ?? true)),
-                      _buildCheckboxTile('Featured Product', _isFeatured,
-                          (v) => setState(() => _isFeatured = v ?? false)),
-                      _buildCheckboxTile('Popular Product', _isPopular,
-                          (v) => setState(() => _isPopular = v ?? false)),
-                      _buildCheckboxTile('Vegetarian', _isVegetarian,
-                          (v) => setState(() => _isVegetarian = v ?? false)),
-                      _buildCheckboxTile('Vegan', _isVegan,
-                          (v) => setState(() => _isVegan = v ?? false)),
-                      _buildCheckboxTile('Spicy', _isSpicy,
-                          (v) => setState(() => _isSpicy = v ?? false)),
+                      _buildCheckboxTile(
+                        'Available for Sale',
+                        _isAvailable,
+                        (v) => setState(() => _isAvailable = v ?? true),
+                      ),
+                      _buildCheckboxTile(
+                        'Featured Product',
+                        _isFeatured,
+                        (v) => setState(() => _isFeatured = v ?? false),
+                      ),
+                      _buildCheckboxTile(
+                        'Popular Product',
+                        _isPopular,
+                        (v) => setState(() => _isPopular = v ?? false),
+                      ),
+                      _buildCheckboxTile(
+                        'Vegetarian',
+                        _isVegetarian,
+                        (v) => setState(() => _isVegetarian = v ?? false),
+                      ),
+                      _buildCheckboxTile(
+                        'Vegan',
+                        _isVegan,
+                        (v) => setState(() => _isVegan = v ?? false),
+                      ),
+                      _buildCheckboxTile(
+                        'Spicy',
+                        _isSpicy,
+                        (v) => setState(() => _isSpicy = v ?? false),
+                      ),
                       SizedBox(height: 24.h),
 
                       // Tags
@@ -366,11 +454,7 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.inventory,
-            color: AppColorsDark.white,
-            size: 24.sp,
-          ),
+          Icon(Icons.inventory, color: AppColorsDark.white, size: 24.sp),
           SizedBox(width: 12.w),
           Expanded(
             child: Text(
@@ -416,10 +500,7 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
       style: AppTextStyles.bodyMedium().copyWith(
         color: AppColorsDark.textPrimary,
       ),
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-      ),
+      decoration: InputDecoration(labelText: label, hintText: hint),
       validator: validator,
       onChanged: (value) {
         // Recalculate discounted price on discount change
@@ -442,19 +523,21 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
       );
     }
 
-    return DropdownButtonFormField<String>(isExpanded: true,
+    return DropdownButtonFormField<String>(
+      isExpanded: true,
       value: _selectedCategory.isEmpty ? null : _selectedCategory,
       decoration: InputDecoration(labelText: 'Category'),
-      items: state.categories.map((category) {
-        return DropdownMenuItem(
-          value: category.id,
-          child: Text(
-      category.name,
-      overflow: TextOverflow.ellipsis,
-      maxLines: 1,
-    ),
-        );
-      }).toList(),
+      items:
+          state.categories.map((category) {
+            return DropdownMenuItem(
+              value: category.id,
+              child: Text(
+                category.name,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            );
+          }).toList(),
       onChanged: (value) {
         setState(() => _selectedCategory = value ?? '');
       },
@@ -474,19 +557,21 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
       );
     }
 
-    return DropdownButtonFormField<String>(isExpanded: true,
+    return DropdownButtonFormField<String>(
+      isExpanded: true,
       value: _selectedStore.isEmpty ? null : _selectedStore,
       decoration: InputDecoration(labelText: 'Store'),
-      items: state.stores.map((store) {
-        return DropdownMenuItem(
-          value: store.id,
-          child:Text(
-      store.name,
-      overflow: TextOverflow.ellipsis,
-      maxLines: 1,
-    ),
-        );
-      }).toList(),
+      items:
+          state.stores.map((store) {
+            return DropdownMenuItem(
+              value: store.id,
+              child: Text(
+                store.name,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            );
+          }).toList(),
       onChanged: (value) {
         setState(() => _selectedStore = value ?? '');
       },
@@ -518,24 +603,25 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
     return Wrap(
       spacing: 8.w,
       runSpacing: 8.h,
-      children: _availableTags.map((tag) {
-        final isSelected = _selectedTags.contains(tag);
-        return FilterChip(
-          label: Text(tag),
-          selected: isSelected,
-          onSelected: (selected) {
-            setState(() {
-              if (selected) {
-                _selectedTags.add(tag);
-              } else {
-                _selectedTags.remove(tag);
-              }
-            });
-          },
-          selectedColor: AppColorsDark.primary.withOpacity(0.3),
-          checkmarkColor: AppColorsDark.primary,
-        );
-      }).toList(),
+      children:
+          _availableTags.map((tag) {
+            final isSelected = _selectedTags.contains(tag);
+            return FilterChip(
+              label: Text(tag),
+              selected: isSelected,
+              onSelected: (selected) {
+                setState(() {
+                  if (selected) {
+                    _selectedTags.add(tag);
+                  } else {
+                    _selectedTags.remove(tag);
+                  }
+                });
+              },
+              selectedColor: AppColorsDark.primary.withOpacity(0.3),
+              checkmarkColor: AppColorsDark.primary,
+            );
+          }).toList(),
     );
   }
 
@@ -634,7 +720,7 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
                         },
                         child: Container(
                           padding: EdgeInsets.all(4.w),
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             color: AppColorsDark.error,
                             shape: BoxShape.circle,
                           ),
@@ -658,10 +744,8 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
   Widget _buildActions() {
     return Container(
       padding: EdgeInsets.all(20.w),
-      decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(color: AppColorsDark.border, width: 1),
-        ),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColorsDark.border, width: 1)),
       ),
       child: Row(
         children: [
@@ -675,16 +759,17 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
           Expanded(
             child: ElevatedButton(
               onPressed: _isLoading ? null : _handleSubmit,
-              child: _isLoading
-                  ? SizedBox(
-                      height: 20.h,
-                      width: 20.w,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColorsDark.white,
-                      ),
-                    )
-                  : Text(widget.product == null ? 'Add Product' : 'Update'),
+              child:
+                  _isLoading
+                      ? SizedBox(
+                        height: 20.h,
+                        width: 20.w,
+                        child: const CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColorsDark.white,
+                        ),
+                      )
+                      : Text(widget.product == null ? 'Add Product' : 'Update'),
             ),
           ),
         ],
@@ -718,7 +803,7 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('Please fill all required fields'),
           backgroundColor: AppColorsDark.error,
         ),
@@ -733,7 +818,8 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
       List<String> imageUrls = widget.product?.images ?? [];
       String thumbnailUrl = widget.product?.thumbnail ?? '';
 
-      final productId = widget.product?.id ??
+      final productId =
+          widget.product?.id ??
           DateTime.now().millisecondsSinceEpoch.toString();
 
       if (_productImages.isNotEmpty) {
@@ -741,10 +827,14 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
             .read(imageUploadProvider.notifier)
             .uploadProductImages(_productImages, productId);
 
-        imageUrls = publicIds
-            .map((id) =>
-                ref.read(imageUploadProvider.notifier).getOptimizedUrl(id))
-            .toList();
+        imageUrls =
+            publicIds
+                .map(
+                  (id) => ref
+                      .read(imageUploadProvider.notifier)
+                      .getOptimizedUrl(id),
+                )
+                .toList();
 
         // First image is thumbnail
         if (publicIds.isNotEmpty) {
@@ -754,6 +844,33 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
         }
       }
 
+      // ✅ CONVERT VARIANTS & ADDONS
+      final variants =
+          _variants
+              .map(
+                (v) => ProductVariant(
+                  id: v.id,
+                  name: v.name,
+                  price: v.price,
+                  isAvailable: v.isAvailable,
+                  sortOrder: v.sortOrder,
+                ),
+              )
+              .toList();
+
+      final addons =
+          _addons
+              .map(
+                (a) => ProductAddon(
+                  id: a.id,
+                  name: a.name,
+                  price: a.price,
+                  isAvailable: a.isAvailable,
+                  maxQuantity: a.maxQuantity,
+                ),
+              )
+              .toList();
+
       // Get category and store names
       final categoriesState = ref.read(categoriesProvider);
       final storesState = ref.read(storesProvider);
@@ -762,14 +879,16 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
       String storeName = '';
 
       if (categoriesState is CategoriesLoaded) {
-        final category = categoriesState.categories
-            .firstWhere((c) => c.id == _selectedCategory);
+        final category = categoriesState.categories.firstWhere(
+          (c) => c.id == _selectedCategory,
+        );
         categoryName = category.name;
       }
 
       if (storesState is StoresLoaded) {
-        final store =
-            storesState.stores.firstWhere((s) => s.id == _selectedStore);
+        final store = storesState.stores.firstWhere(
+          (s) => s.id == _selectedStore,
+        );
         storeName = store.name;
       }
 
@@ -809,12 +928,19 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
         createdAt: widget.product?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
         createdBy: 'admin-id', // TODO: Get from auth
+        hasVariants: _hasVariants, // ✅ ADD
+        variants: variants, // ✅ ADD
+        addons: addons, // ✅ ADD
+        specialInstructions: null,
       );
 
       // Save to database
-      final success = widget.product == null
-          ? await ref.read(productsProvider.notifier).addProduct(product)
-          : await ref.read(productsProvider.notifier).updateProduct(product);
+      final success =
+          widget.product == null
+              ? await ref.read(productsProvider.notifier).addProduct(product)
+              : await ref
+                  .read(productsProvider.notifier)
+                  .updateProduct(product);
 
       if (success && mounted) {
         Navigator.pop(context);
@@ -843,5 +969,311 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  // ✅ ADD THESE METHODS
+
+  Widget _buildVariantsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Existing Variants
+        if (_variants.isNotEmpty) ...[
+          Container(
+            padding: EdgeInsets.all(12.w),
+            decoration: BoxDecoration(
+              color: AppColorsDark.surfaceVariant,
+              borderRadius: BorderRadius.circular(8.r),
+            ),
+            child: Column(
+              children:
+                  _variants.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final variant = entry.value;
+                    return _buildVariantItem(variant, index);
+                  }).toList(),
+            ),
+          ),
+          SizedBox(height: 12.h),
+        ],
+
+        // Add Variant Button
+        OutlinedButton.icon(
+          onPressed: _showAddVariantDialog,
+          icon: Icon(Icons.add, size: 18.sp),
+          label: const Text('Add Size Variant'),
+          style: OutlinedButton.styleFrom(
+            minimumSize: Size(double.infinity, 44.h),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVariantItem(ProductVariantInput variant, int index) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 8.h),
+      padding: EdgeInsets.all(12.w),
+      decoration: BoxDecoration(
+        color: AppColorsDark.cardBackground,
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: AppColorsDark.border),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  variant.name,
+                  style: AppTextStyles.titleSmall().copyWith(
+                    color: AppColorsDark.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: 4.h),
+                Text(
+                  'PKR ${variant.price.toInt()}',
+                  style: AppTextStyles.bodySmall().copyWith(
+                    color: AppColorsDark.primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: Icon(Icons.delete, color: AppColorsDark.error, size: 20.sp),
+            onPressed: () {
+              setState(() => _variants.removeAt(index));
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddVariantDialog() {
+    _variantNameController.clear();
+    _variantPriceController.clear();
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: AppColorsDark.surface,
+            title: Text(
+              'Add Size Variant',
+              style: AppTextStyles.titleMedium().copyWith(
+                color: AppColorsDark.textPrimary,
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: _variantNameController,
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textPrimary,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Size Name',
+                    hintText: 'e.g., Small, Medium, Large',
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                TextField(
+                  controller: _variantPriceController,
+                  keyboardType: TextInputType.number,
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textPrimary,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Additional Price (PKR)',
+                    hintText: 'e.g., 0, 200, 400',
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (_variantNameController.text.trim().isNotEmpty &&
+                      _variantPriceController.text.trim().isNotEmpty) {
+                    setState(() {
+                      _variants.add(
+                        ProductVariantInput(
+                          id: DateTime.now().millisecondsSinceEpoch.toString(),
+                          name: _variantNameController.text.trim(),
+                          price: double.parse(_variantPriceController.text),
+                          isAvailable: true,
+                          sortOrder: _variants.length,
+                        ),
+                      );
+                    });
+                    Navigator.pop(context);
+                  }
+                },
+                child: const Text('Add'),
+              ),
+            ],
+          ),
+    );
+  }
+
+  Widget _buildAddonsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Existing Addons
+        if (_addons.isNotEmpty) ...[
+          Container(
+            padding: EdgeInsets.all(12.w),
+            decoration: BoxDecoration(
+              color: AppColorsDark.surfaceVariant,
+              borderRadius: BorderRadius.circular(8.r),
+            ),
+            child: Column(
+              children:
+                  _addons.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final addon = entry.value;
+                    return _buildAddonItem(addon, index);
+                  }).toList(),
+            ),
+          ),
+          SizedBox(height: 12.h),
+        ],
+
+        // Add Addon Button
+        OutlinedButton.icon(
+          onPressed: _showAddAddonDialog,
+          icon: Icon(Icons.add, size: 18.sp),
+          label: const Text('Add Extra Topping'),
+          style: OutlinedButton.styleFrom(
+            minimumSize: Size(double.infinity, 44.h),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAddonItem(ProductAddonInput addon, int index) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 8.h),
+      padding: EdgeInsets.all(12.w),
+      decoration: BoxDecoration(
+        color: AppColorsDark.cardBackground,
+        borderRadius: BorderRadius.circular(8.r),
+        border: Border.all(color: AppColorsDark.border),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  addon.name,
+                  style: AppTextStyles.titleSmall().copyWith(
+                    color: AppColorsDark.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: 4.h),
+                Text(
+                  '+PKR ${addon.price.toInt()}',
+                  style: AppTextStyles.bodySmall().copyWith(
+                    color: AppColorsDark.success,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: Icon(Icons.delete, color: AppColorsDark.error, size: 20.sp),
+            onPressed: () {
+              setState(() => _addons.removeAt(index));
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddAddonDialog() {
+    _addonNameController.clear();
+    _addonPriceController.clear();
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: AppColorsDark.surface,
+            title: Text(
+              'Add Extra Topping',
+              style: AppTextStyles.titleMedium().copyWith(
+                color: AppColorsDark.textPrimary,
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: _addonNameController,
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textPrimary,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Topping Name',
+                    hintText: 'e.g., Extra Cheese, Olives',
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                TextField(
+                  controller: _addonPriceController,
+                  keyboardType: TextInputType.number,
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textPrimary,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Additional Price (PKR)',
+                    hintText: 'e.g., 50, 100, 150',
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (_addonNameController.text.trim().isNotEmpty &&
+                      _addonPriceController.text.trim().isNotEmpty) {
+                    setState(() {
+                      _addons.add(
+                        ProductAddonInput(
+                          id: DateTime.now().millisecondsSinceEpoch.toString(),
+                          name: _addonNameController.text.trim(),
+                          price: double.parse(_addonPriceController.text),
+                          isAvailable: true,
+                          maxQuantity: 1,
+                        ),
+                      );
+                    });
+                    Navigator.pop(context);
+                  }
+                },
+                child: const Text('Add'),
+              ),
+            ],
+          ),
+    );
   }
 }

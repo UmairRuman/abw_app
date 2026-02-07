@@ -1,5 +1,6 @@
 // lib/features/products/data/models/product_model.dart
 
+import 'package:abw_app/features/products/domain/entities/product_variant.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ProductModel {
@@ -8,28 +9,28 @@ class ProductModel {
   final String storeName;
   final String categoryId;
   final String categoryName;
-  
+
   // Basic info
   final String name;
   final String description;
   final String shortDescription;
-  
+
   // Images
   final List<String> images;
   final String thumbnail;
-  
+
   // Pricing
   final double price;
   final double originalPrice;
   final double discount;
   final double discountedPrice;
-  
+
   // Inventory
   final String unit;
   final int quantity;
   final int minOrderQuantity;
   final int maxOrderQuantity;
-  
+
   // Status
   final bool isAvailable;
   final bool isFeatured;
@@ -37,25 +38,30 @@ class ProductModel {
   final bool isVegetarian;
   final bool isVegan;
   final bool isSpicy;
-  
+
   // Additional info
   final int preparationTime;
   final List<String> tags;
   final List<String> allergens;
   final List<String> ingredients;
-  
+
   // Stats
   final double rating;
   final int totalReviews;
   final int totalSold;
-  
+
   // Nutrition
   final Map<String, dynamic>? nutritionInfo;
-  
+
   // Timestamps
   final DateTime createdAt;
   final DateTime updatedAt;
   final String createdBy;
+
+  final bool hasVariants;
+  final List<ProductVariant> variants;
+  final List<ProductAddon> addons;
+  final String? specialInstructions;
 
   ProductModel({
     required this.id,
@@ -93,6 +99,11 @@ class ProductModel {
     required this.createdAt,
     required this.updatedAt,
     required this.createdBy,
+    // new parameters
+    this.hasVariants = false,
+    this.variants = const [],
+    this.addons = const [],
+    this.specialInstructions,
   });
 
   /// Calculate discounted price
@@ -140,10 +151,66 @@ class ProductModel {
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
       'createdBy': createdBy,
+      'hasVariants': hasVariants,
+      'variants':
+          variants
+              .map(
+                (v) => {
+                  'id': v.id,
+                  'name': v.name,
+                  'price': v.price,
+                  'isAvailable': v.isAvailable,
+                  'sortOrder': v.sortOrder,
+                },
+              )
+              .toList(),
+      'addons':
+          addons
+              .map(
+                (a) => {
+                  'id': a.id,
+                  'name': a.name,
+                  'price': a.price,
+                  'isAvailable': a.isAvailable,
+                  'maxQuantity': a.maxQuantity,
+                },
+              )
+              .toList(),
+      'specialInstructions': specialInstructions,
     };
   }
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
+    // Parse variants
+    final variantsList = json['variants'] as List? ?? [];
+    final variants =
+        variantsList
+            .map(
+              (v) => ProductVariant(
+                id: v['id'] as String,
+                name: v['name'] as String,
+                price: (v['price'] as num).toDouble(),
+                isAvailable: v['isAvailable'] as bool? ?? true,
+                sortOrder: v['sortOrder'] as int?,
+              ),
+            )
+            .toList();
+
+    // Parse addons
+    final addonsList = json['addons'] as List? ?? [];
+    final addons =
+        addonsList
+            .map(
+              (a) => ProductAddon(
+                id: a['id'] as String,
+                name: a['name'] as String,
+                price: (a['price'] as num).toDouble(),
+                isAvailable: a['isAvailable'] as bool? ?? true,
+                maxQuantity: a['maxQuantity'] as int? ?? 1,
+              ),
+            )
+            .toList();
+
     return ProductModel(
       id: json['id'] as String,
       storeId: json['storeId'] as String,
@@ -170,15 +237,15 @@ class ProductModel {
       isVegan: json['isVegan'] as bool? ?? false,
       isSpicy: json['isSpicy'] as bool? ?? false,
       preparationTime: json['preparationTime'] as int? ?? 0,
-      tags: json['tags'] != null 
-          ? List<String>.from(json['tags'] as List)
-          : [],
-      allergens: json['allergens'] != null 
-          ? List<String>.from(json['allergens'] as List)
-          : [],
-      ingredients: json['ingredients'] != null 
-          ? List<String>.from(json['ingredients'] as List)
-          : [],
+      tags: json['tags'] != null ? List<String>.from(json['tags'] as List) : [],
+      allergens:
+          json['allergens'] != null
+              ? List<String>.from(json['allergens'] as List)
+              : [],
+      ingredients:
+          json['ingredients'] != null
+              ? List<String>.from(json['ingredients'] as List)
+              : [],
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
       totalReviews: json['totalReviews'] as int? ?? 0,
       totalSold: json['totalSold'] as int? ?? 0,
@@ -186,6 +253,10 @@ class ProductModel {
       createdAt: (json['createdAt'] as Timestamp).toDate(),
       updatedAt: (json['updatedAt'] as Timestamp).toDate(),
       createdBy: json['createdBy'] as String,
+      hasVariants: json['hasVariants'] as bool? ?? false,
+      variants: variants,
+      addons: addons,
+      specialInstructions: json['specialInstructions'] as String?,
     );
   }
 

@@ -1,5 +1,6 @@
 // lib/features/auth/presentation/screens/signup/customer_signup_screen.dart
 
+import 'package:abw_app/core/utils/validators.dart';
 import 'package:abw_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:abw_app/features/auth/presentation/providers/auth_state.dart';
 import 'package:flutter/material.dart';
@@ -42,7 +43,6 @@ class _CustomerSignupScreenState extends ConsumerState<CustomerSignupScreen>
   String _passwordStrengthText = '';
   Color _passwordStrengthColor = AppColorsDark.error;
 
- 
   void _setupAnimations() {
     _slideController = AnimationController(
       vsync: this,
@@ -57,10 +57,9 @@ class _CustomerSignupScreenState extends ConsumerState<CustomerSignupScreen>
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.3),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOutCubic,
-    ));
+    ).animate(
+      CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+    );
 
     _fadeAnimation = Tween<double>(
       begin: 0.0,
@@ -71,28 +70,23 @@ class _CustomerSignupScreenState extends ConsumerState<CustomerSignupScreen>
     _fadeController.forward();
   }
 
- @override
-void initState() {
-  super.initState();
-  _setupAnimations();
-  
+  @override
+  void initState() {
+    super.initState();
+    _setupAnimations();
+  }
 
-}
-
-
-
-@override
-void dispose() {
- 
-  _slideController.dispose();
-  _fadeController.dispose();
-  _nameController.dispose();
-  _emailController.dispose();
-  _phoneController.dispose();
-  _passwordController.dispose();
-  _confirmPasswordController.dispose();
-  super.dispose();
-}
+  @override
+  void dispose() {
+    _slideController.dispose();
+    _fadeController.dispose();
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
 
   void _calculatePasswordStrength(String password) {
     double strength = 0.0;
@@ -143,73 +137,74 @@ void dispose() {
     });
   }
 
-Future<void> _handleSignup() async {
-  if (!_formKey.currentState!.validate()) return;
+  Future<void> _handleSignup() async {
+    if (!_formKey.currentState!.validate()) return;
 
-  if (!_agreeToTerms) {
-    _showSnackBar('Please agree to Terms & Conditions', isError: true);
-    return;
-  }
-
-  setState(() => _isLoading = true);
-
-  // Call signup
-  await ref.read(authProvider.notifier).signUpCustomer(
-    email: _emailController.text.trim(),
-    password: _passwordController.text.trim(),
-    name: _nameController.text.trim(),
-    phone: _phoneController.text.trim(),
-  );
-
-  if (mounted) {
-    setState(() => _isLoading = false);
-  }
-
-  // Check result
-  final authState = ref.read(authProvider);
-  
-  if (authState is AuthError) {
-    if (mounted) {
-      _showSnackBar(authState.message, isError: true);
+    if (!_agreeToTerms) {
+      _showSnackBar('Please agree to Terms & Conditions', isError: true);
+      return;
     }
-  } else if (authState is Authenticated) {
+
+    setState(() => _isLoading = true);
+
+    // Call signup
+    await ref
+        .read(authProvider.notifier)
+        .signUpCustomer(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+          name: _nameController.text.trim(),
+          phone: _phoneController.text.trim(),
+        );
+
     if (mounted) {
-      _showSnackBar('Account created successfully!', isError: false);
-      // Wait a bit for user to see success message
-      await Future.delayed(const Duration(milliseconds: 500));
+      setState(() => _isLoading = false);
+    }
+
+    // Check result
+    final authState = ref.read(authProvider);
+
+    if (authState is AuthError) {
       if (mounted) {
-        context.go('/customer/home');
+        _showSnackBar(authState.message, isError: true);
+      }
+    } else if (authState is Authenticated) {
+      if (mounted) {
+        _showSnackBar('Account created successfully!', isError: false);
+        // Wait a bit for user to see success message
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
+          context.go('/customer/home');
+        }
       }
     }
   }
-}
 
-Future<void> _handleGoogleSignup() async {
-  setState(() => _isLoading = true);
+  Future<void> _handleGoogleSignup() async {
+    setState(() => _isLoading = true);
 
-  await ref.read(authProvider.notifier).loginWithGoogle();
+    await ref.read(authProvider.notifier).loginWithGoogle();
 
-  if (mounted) {
-    setState(() => _isLoading = false);
-  }
-
-  final authState = ref.read(authProvider);
-  
-  if (authState is AuthError) {
     if (mounted) {
-      _showSnackBar(authState.message, isError: true);
+      setState(() => _isLoading = false);
     }
-  } else if (authState is Authenticated) {
-    if (mounted) {
-      _showSnackBar('Welcome!', isError: false);
-      await Future.delayed(const Duration(milliseconds: 500));
+
+    final authState = ref.read(authProvider);
+
+    if (authState is AuthError) {
       if (mounted) {
-        context.go('/customer/home');
+        _showSnackBar(authState.message, isError: true);
+      }
+    } else if (authState is Authenticated) {
+      if (mounted) {
+        _showSnackBar('Welcome!', isError: false);
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
+          context.go('/customer/home');
+        }
       }
     }
   }
-}
-
 
   void _showSnackBar(String message, {required bool isError}) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -245,7 +240,7 @@ Future<void> _handleGoogleSignup() async {
               floating: true,
               backgroundColor: AppColorsDark.surface,
               elevation: 0,
-              
+
               title: Text(
                 'Sign Up',
                 style: AppTextStyles.titleLarge().copyWith(
@@ -310,8 +305,9 @@ Future<void> _handleGoogleSignup() async {
                               if (value == null || value.isEmpty) {
                                 return 'Email is required';
                               }
-                              if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                                  .hasMatch(value)) {
+                              if (!RegExp(
+                                r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                              ).hasMatch(value)) {
                                 return 'Invalid email address';
                               }
                               return null;
@@ -327,19 +323,7 @@ Future<void> _handleGoogleSignup() async {
                             hint: 'Enter your phone number',
                             icon: Icons.phone_outlined,
                             keyboardType: TextInputType.phone,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              LengthLimitingTextInputFormatter(11),
-                            ],
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Phone number is required';
-                              }
-                              if (value.length < 10) {
-                                return 'Invalid phone number';
-                              }
-                              return null;
-                            },
+                            validator: Validators.validatePakistaniPhone,
                           ),
 
                           SizedBox(height: 16.h),
@@ -358,8 +342,11 @@ Future<void> _handleGoogleSignup() async {
                             isPassword: true,
                             obscureText: _obscureConfirmPassword,
                             onToggleVisibility: () {
-                              setState(() => _obscureConfirmPassword =
-                                  !_obscureConfirmPassword);
+                              setState(
+                                () =>
+                                    _obscureConfirmPassword =
+                                        !_obscureConfirmPassword,
+                              );
                             },
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -422,9 +409,7 @@ Future<void> _handleGoogleSignup() async {
           ],
         ),
         borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(
-          color: AppColorsDark.primary.withOpacity(0.3),
-        ),
+        border: Border.all(color: AppColorsDark.primary.withOpacity(0.3)),
       ),
       child: Row(
         children: [
@@ -516,16 +501,17 @@ Future<void> _handleGoogleSignup() async {
         labelText: label,
         hintText: hint,
         prefixIcon: Icon(icon),
-        suffixIcon: isPassword
-            ? IconButton(
-                icon: Icon(
-                  obscureText
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
-                ),
-                onPressed: onToggleVisibility,
-              )
-            : null,
+        suffixIcon:
+            isPassword
+                ? IconButton(
+                  icon: Icon(
+                    obscureText
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                  onPressed: onToggleVisibility,
+                )
+                : null,
       ),
       validator: validator,
     );
@@ -585,8 +571,9 @@ Future<void> _handleGoogleSignup() async {
                     value: _passwordStrength,
                     minHeight: 4.h,
                     backgroundColor: AppColorsDark.surfaceVariant,
-                    valueColor:
-                        AlwaysStoppedAnimation<Color>(_passwordStrengthColor),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      _passwordStrengthColor,
+                    ),
                   ),
                 ),
               ),
@@ -615,9 +602,7 @@ Future<void> _handleGoogleSignup() async {
           color: AppColorsDark.surfaceVariant.withOpacity(0.5),
           borderRadius: BorderRadius.circular(8.r),
           border: Border.all(
-            color: _agreeToTerms
-                ? AppColorsDark.primary
-                : AppColorsDark.border,
+            color: _agreeToTerms ? AppColorsDark.primary : AppColorsDark.border,
             width: 1,
           ),
         ),
@@ -677,26 +662,25 @@ Future<void> _handleGoogleSignup() async {
       height: 56.h,
       child: ElevatedButton(
         onPressed: _isLoading ? null : _handleSignup,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColorsDark.primary,
-        ),
-        child: _isLoading
-            ? SizedBox(
-                width: 24.w,
-                height: 24.w,
-                child: const CircularProgressIndicator(
-                  color: AppColorsDark.background,
-                  strokeWidth: 2,
+        style: ElevatedButton.styleFrom(backgroundColor: AppColorsDark.primary),
+        child:
+            _isLoading
+                ? SizedBox(
+                  width: 24.w,
+                  height: 24.w,
+                  child: const CircularProgressIndicator(
+                    color: AppColorsDark.background,
+                    strokeWidth: 2,
+                  ),
+                )
+                : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.person_add),
+                    SizedBox(width: 8.w),
+                    const Text('Create Account'),
+                  ],
                 ),
-              )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.person_add),
-                  SizedBox(width: 8.w),
-                  const Text('Create Account'),
-                ],
-              ),
       ),
     );
   }
@@ -704,9 +688,7 @@ Future<void> _handleGoogleSignup() async {
   Widget _buildDivider() {
     return Row(
       children: [
-        Expanded(
-          child: Divider(color: AppColorsDark.border),
-        ),
+        Expanded(child: Divider(color: AppColorsDark.border)),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 16.w),
           child: Text(
@@ -716,9 +698,7 @@ Future<void> _handleGoogleSignup() async {
             ),
           ),
         ),
-        Expanded(
-          child: Divider(color: AppColorsDark.border),
-        ),
+        Expanded(child: Divider(color: AppColorsDark.border)),
       ],
     );
   }

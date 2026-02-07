@@ -2,6 +2,8 @@
 
 import 'package:abw_app/features/auth/presentation/providers/auth_state.dart';
 import 'package:abw_app/features/categories/presentation/providers/categories_provider.dart';
+import 'package:abw_app/features/customer/presentation/screens/store/widgets/product_customization_dialog.dart';
+import 'package:abw_app/features/products/domain/entities/product_variant.dart';
 import 'package:abw_app/features/stores/data/models/store_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -878,12 +880,52 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
   }
 
   void _showProductDetails(ProductModel product) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _buildProductDetailsSheet(product),
-    );
+    // ✅ CHECK IF PRODUCT HAS CUSTOMIZATION
+    if (product.hasVariants || product.addons.isNotEmpty) {
+      // Show customization dialog
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder:
+            (context) => ProductCustomizationDialog(
+              product: product,
+              onAddToCart: (product, variantId, selectedAddons, instructions) {
+                _addToCartWithCustomization(
+                  product,
+                  variantId,
+                  selectedAddons,
+                  instructions,
+                );
+              },
+            ),
+      );
+    } else {
+      // Show simple details (existing code)
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => _buildProductDetailsSheet(product),
+      );
+    }
+  }
+
+  // ✅ ADD NEW METHOD
+  Future<void> _addToCartWithCustomization(
+    ProductModel product,
+    String? variantId,
+    List<ProductAddon> selectedAddons,
+    String? instructions,
+  ) async {
+    final authState = ref.read(authProvider);
+    if (authState is! Authenticated) {
+      return;
+    }
+
+    // TODO: Update cart to support variants & addons
+    // For now, just add basic product
+    await _addToCart(product);
   }
 
   Widget _buildProductDetailsSheet(ProductModel product) {

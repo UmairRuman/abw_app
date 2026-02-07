@@ -23,7 +23,7 @@ class CartScreen extends ConsumerWidget {
     final authState = ref.read(authProvider);
 
     if (authState is! Authenticated) {
-      return Scaffold(
+      return const Scaffold(
         body: Center(child: Text('Please login to view cart')),
       );
     }
@@ -44,17 +44,25 @@ class CartScreen extends ConsumerWidget {
               onPressed: () {
                 _showClearCartDialog(context, ref, authState.user.id);
               },
-              child: Text('Clear All'),
+              child: const Text('Clear All'),
             ),
         ],
       ),
-      body: cartState is CartLoading
-          ? Center(child: CircularProgressIndicator(color: AppColorsDark.primary))
-          : cartState is CartLoaded
+      body:
+          cartState is CartLoading
+              ? const Center(
+                child: CircularProgressIndicator(color: AppColorsDark.primary),
+              )
+              : cartState is CartLoaded
               ? cartState.cart.isEmpty
                   ? _buildEmptyCart(context)
-                  : _buildCartContent(context, ref, cartState, authState.user.id)
-              : Center(child: Text('Error loading cart')),
+                  : _buildCartContent(
+                    context,
+                    ref,
+                    cartState,
+                    authState.user.id,
+                  )
+              : const Center(child: Text('Error loading cart')),
     );
   }
 
@@ -85,7 +93,6 @@ class CartScreen extends ConsumerWidget {
           SizedBox(height: 32.h),
           ElevatedButton(
             onPressed: () {
-             
               context.go('/customer/home');
             },
             child: const Text('Browse Stores'),
@@ -109,7 +116,7 @@ class CartScreen extends ConsumerWidget {
           color: AppColorsDark.surface,
           child: Row(
             children: [
-              Icon(Icons.store, color: AppColorsDark.primary),
+              const Icon(Icons.store, color: AppColorsDark.primary),
               SizedBox(width: 12.w),
               Expanded(
                 child: Column(
@@ -170,15 +177,19 @@ class CartScreen extends ConsumerWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image
+          // ✅ FIXED: Show actual product image
           ClipRRect(
             borderRadius: BorderRadius.circular(8.r),
-            child: Container(
-              width: 70.w,
-              height: 70.w,
-              color: AppColorsDark.surfaceContainer,
-              child: Icon(Icons.fastfood, size: 30.sp),
-            ),
+            child:
+                item.productImage.isNotEmpty
+                    ? Image.network(
+                      item.productImage,
+                      width: 70.w,
+                      height: 70.w,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _buildImagePlaceholder(),
+                    )
+                    : _buildImagePlaceholder(),
           ),
 
           SizedBox(width: 12.w),
@@ -242,10 +253,9 @@ class CartScreen extends ConsumerWidget {
                   icon: Icon(Icons.add, size: 18.sp),
                   color: AppColorsDark.primary,
                   onPressed: () {
-                    ref.read(cartProvider.notifier).incrementQuantity(
-                          userId,
-                          item.productId,
-                        );
+                    ref
+                        .read(cartProvider.notifier)
+                        .incrementQuantity(userId, item.productId);
                   },
                   constraints: BoxConstraints(minWidth: 36.w, minHeight: 36.h),
                   padding: EdgeInsets.zero,
@@ -265,15 +275,15 @@ class CartScreen extends ConsumerWidget {
                     item.quantity > 1 ? Icons.remove : Icons.delete_outline,
                     size: 18.sp,
                   ),
-                  color: item.quantity > 1
-                      ? AppColorsDark.primary
-                      : AppColorsDark.error,
+                  color:
+                      item.quantity > 1
+                          ? AppColorsDark.primary
+                          : AppColorsDark.error,
                   onPressed: () {
                     if (item.quantity > 1) {
-                      ref.read(cartProvider.notifier).decrementQuantity(
-                            userId,
-                            item.productId,
-                          );
+                      ref
+                          .read(cartProvider.notifier)
+                          .decrementQuantity(userId, item.productId);
                     } else {
                       _showRemoveItemDialog(context, ref, userId, item);
                     }
@@ -285,6 +295,20 @@ class CartScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // Add this helper method:
+  Widget _buildImagePlaceholder() {
+    return Container(
+      width: 70.w,
+      height: 70.w,
+      color: AppColorsDark.surfaceContainer,
+      child: Icon(
+        Icons.fastfood,
+        size: 30.sp,
+        color: AppColorsDark.textTertiary,
       ),
     );
   }
@@ -312,8 +336,11 @@ class CartScreen extends ConsumerWidget {
             _buildSummaryRow('Subtotal', state.cart.subtotal),
             _buildSummaryRow('Delivery Fee', state.cart.deliveryFee),
             if (state.cart.discount > 0)
-              _buildSummaryRow('Discount', -state.cart.discount,
-                  color: AppColorsDark.success),
+              _buildSummaryRow(
+                'Discount',
+                -state.cart.discount,
+                color: AppColorsDark.success,
+              ),
             Divider(height: 24.h),
             _buildSummaryRow('Total', state.cart.total, isTotal: true),
             SizedBox(height: 16.h),
@@ -330,7 +357,7 @@ class CartScreen extends ConsumerWidget {
               style: ElevatedButton.styleFrom(
                 minimumSize: Size(double.infinity, 56.h),
               ),
-              child: Text('Proceed to Checkout'),
+              child: const Text('Proceed to Checkout'),
             ),
           ],
         ),
@@ -338,8 +365,12 @@ class CartScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSummaryRow(String label, double amount,
-      {bool isTotal = false, Color? color}) {
+  Widget _buildSummaryRow(
+    String label,
+    double amount, {
+    bool isTotal = false,
+    Color? color,
+  }) {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 6.h),
       child: Row(
@@ -351,9 +382,9 @@ class CartScreen extends ConsumerWidget {
                     ? AppTextStyles.titleMedium()
                     : AppTextStyles.bodyMedium())
                 .copyWith(
-              color: color ?? AppColorsDark.textPrimary,
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-            ),
+                  color: color ?? AppColorsDark.textPrimary,
+                  fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+                ),
           ),
           Text(
             'PKR ${amount.toInt()}',
@@ -361,9 +392,9 @@ class CartScreen extends ConsumerWidget {
                     ? AppTextStyles.titleMedium()
                     : AppTextStyles.bodyMedium())
                 .copyWith(
-              color: color ?? AppColorsDark.textPrimary,
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-            ),
+                  color: color ?? AppColorsDark.textPrimary,
+                  fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+                ),
           ),
         ],
       ),
@@ -378,30 +409,30 @@ class CartScreen extends ConsumerWidget {
   ) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColorsDark.surface,
-        title: Text('Remove Item?'),
-        content: Text('Remove ${item.productName} from cart?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: AppColorsDark.surface,
+            title: const Text('Remove Item?'),
+            content: Text('Remove ${item.productName} from cart?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  ref
+                      .read(cartProvider.notifier)
+                      .removeItem(userId, item.productId);
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColorsDark.error,
+                ),
+                child: const Text('Remove'),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              ref.read(cartProvider.notifier).removeItem(
-                    userId,
-                    item.productId,
-                  );
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColorsDark.error,
-            ),
-            child: Text('Remove'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -412,27 +443,28 @@ class CartScreen extends ConsumerWidget {
   ) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColorsDark.surface,
-        title: Text('Clear Cart?'),
-        content: Text('Remove all items from cart?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: AppColorsDark.surface,
+            title: const Text('Clear Cart?'),
+            content: const Text('Remove all items from cart?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  ref.read(cartProvider.notifier).clearCart(userId);
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColorsDark.error,
+                ),
+                child: const Text('Clear'),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              ref.read(cartProvider.notifier).clearCart(userId);
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColorsDark.error,
-            ),
-            child: Text('Clear'),
-          ),
-        ],
-      ),
     );
   }
 }

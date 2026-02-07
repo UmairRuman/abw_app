@@ -1,6 +1,6 @@
 //  lib/features/auth/presentation/screens/signup/rider_signup_screen.dart
 
-
+import 'package:abw_app/core/utils/validators.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -58,9 +58,7 @@ class _RiderSignupScreenState extends ConsumerState<RiderSignupScreen> {
             children: [
               const Icon(Icons.error_outline, color: Colors.white),
               SizedBox(width: 12.w),
-              const Expanded(
-                child: Text('Please agree to Terms & Conditions'),
-              ),
+              const Expanded(child: Text('Please agree to Terms & Conditions')),
             ],
           ),
           backgroundColor: AppColorsDark.error,
@@ -72,16 +70,19 @@ class _RiderSignupScreenState extends ConsumerState<RiderSignupScreen> {
 
     setState(() => _isLoading = true);
 
-    await ref.read(authProvider.notifier).signUpRider(
+    await ref
+        .read(authProvider.notifier)
+        .signUpRider(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
           name: _nameController.text.trim(),
           phone: _phoneController.text.trim(),
           vehicleType: _selectedVehicleType,
           vehicleNumber: _vehicleNumberController.text.trim(),
-          licenseNumber: _licenseController.text.trim().isEmpty
-              ? null
-              : _licenseController.text.trim(),
+          licenseNumber:
+              _licenseController.text.trim().isEmpty
+                  ? null
+                  : _licenseController.text.trim(),
         );
 
     if (mounted) {
@@ -226,8 +227,9 @@ class _RiderSignupScreenState extends ConsumerState<RiderSignupScreen> {
                   hint: 'Enter your full name',
                   icon: Icons.person_outline,
                   textCapitalization: TextCapitalization.words,
-                  validator: (value) =>
-                      value?.isEmpty ?? true ? 'Name is required' : null,
+                  validator:
+                      (value) =>
+                          value?.isEmpty ?? true ? 'Name is required' : null,
                 ),
 
                 SizedBox(height: 16.h),
@@ -253,18 +255,16 @@ class _RiderSignupScreenState extends ConsumerState<RiderSignupScreen> {
                   hint: 'Enter your phone number',
                   icon: Icons.phone_outlined,
                   keyboardType: TextInputType.phone,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(11),
-                  ],
-                  validator: (value) =>
-                      value?.isEmpty ?? true ? 'Phone is required' : null,
+                  validator: Validators.validatePakistaniPhone,
                 ),
 
                 SizedBox(height: 32.h),
 
                 // Vehicle Information Section
-                _buildSectionHeader('Vehicle Information', Icons.delivery_dining),
+                _buildSectionHeader(
+                  'Vehicle Information',
+                  Icons.delivery_dining,
+                ),
                 SizedBox(height: 16.h),
 
                 // Vehicle Type Dropdown
@@ -281,12 +281,10 @@ class _RiderSignupScreenState extends ConsumerState<RiderSignupScreen> {
                       color: AppColorsDark.accent,
                     ),
                   ),
-                  items: _vehicleTypes.map((type) {
-                    return DropdownMenuItem(
-                      value: type,
-                      child: Text(type),
-                    );
-                  }).toList(),
+                  items:
+                      _vehicleTypes.map((type) {
+                        return DropdownMenuItem(value: type, child: Text(type));
+                      }).toList(),
                   onChanged: (value) {
                     setState(() => _selectedVehicleType = value!);
                   },
@@ -300,8 +298,11 @@ class _RiderSignupScreenState extends ConsumerState<RiderSignupScreen> {
                   hint: 'e.g., ABC-1234',
                   icon: Icons.confirmation_number_outlined,
                   textCapitalization: TextCapitalization.characters,
-                  validator: (value) =>
-                      value?.isEmpty ?? true ? 'Vehicle number required' : null,
+                  validator:
+                      (value) =>
+                          value?.isEmpty ?? true
+                              ? 'Vehicle number required'
+                              : null,
                 ),
 
                 SizedBox(height: 16.h),
@@ -348,8 +349,9 @@ class _RiderSignupScreenState extends ConsumerState<RiderSignupScreen> {
                   isPassword: true,
                   obscureText: _obscureConfirmPassword,
                   onToggleVisibility: () {
-                    setState(() =>
-                        _obscureConfirmPassword = !_obscureConfirmPassword);
+                    setState(
+                      () => _obscureConfirmPassword = !_obscureConfirmPassword,
+                    );
                   },
                   validator: (value) {
                     if (value != _passwordController.text) {
@@ -375,23 +377,24 @@ class _RiderSignupScreenState extends ConsumerState<RiderSignupScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColorsDark.accent,
                     ),
-                    child: _isLoading
-                        ? SizedBox(
-                            width: 24.w,
-                            height: 24.w,
-                            child: const CircularProgressIndicator(
-                              color: AppColorsDark.white,
-                              strokeWidth: 2,
+                    child:
+                        _isLoading
+                            ? SizedBox(
+                              width: 24.w,
+                              height: 24.w,
+                              child: const CircularProgressIndicator(
+                                color: AppColorsDark.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                            : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.delivery_dining),
+                                SizedBox(width: 8.w),
+                                const Text('Register as Rider'),
+                              ],
                             ),
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.delivery_dining),
-                              SizedBox(width: 8.w),
-                              const Text('Register as Rider'),
-                            ],
-                          ),
                   ),
                 ),
 
@@ -438,11 +441,7 @@ class _RiderSignupScreenState extends ConsumerState<RiderSignupScreen> {
             color: AppColorsDark.accent.withOpacity(0.2),
             borderRadius: BorderRadius.circular(8.r),
           ),
-          child: Icon(
-            icon,
-            color: AppColorsDark.accent,
-            size: 20.sp,
-          ),
+          child: Icon(icon, color: AppColorsDark.accent, size: 20.sp),
         ),
         SizedBox(width: 12.w),
         Text(
@@ -482,16 +481,17 @@ class _RiderSignupScreenState extends ConsumerState<RiderSignupScreen> {
         labelText: label,
         hintText: hint,
         prefixIcon: Icon(icon, color: AppColorsDark.accent),
-        suffixIcon: isPassword
-            ? IconButton(
-                icon: Icon(
-                  obscureText
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
-                ),
-                onPressed: onToggleVisibility,
-              )
-            : null,
+        suffixIcon:
+            isPassword
+                ? IconButton(
+                  icon: Icon(
+                    obscureText
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                  onPressed: onToggleVisibility,
+                )
+                : null,
       ),
       validator: validator,
     );
@@ -507,9 +507,7 @@ class _RiderSignupScreenState extends ConsumerState<RiderSignupScreen> {
           color: AppColorsDark.surfaceVariant.withOpacity(0.5),
           borderRadius: BorderRadius.circular(12.r),
           border: Border.all(
-            color: _agreeToTerms
-                ? AppColorsDark.accent
-                : AppColorsDark.border,
+            color: _agreeToTerms ? AppColorsDark.accent : AppColorsDark.border,
           ),
         ),
         child: Row(

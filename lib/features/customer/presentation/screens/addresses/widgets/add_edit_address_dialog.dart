@@ -1,5 +1,6 @@
 // lib/features/customer/presentation/screens/addresses/widgets/add_edit_address_dialog.dart
 
+import 'package:abw_app/core/utils/validators.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -12,11 +13,7 @@ class AddEditAddressDialog extends ConsumerStatefulWidget {
   final String userId;
   final AddressModel? address;
 
-  const AddEditAddressDialog({
-    super.key,
-    required this.userId,
-    this.address,
-  });
+  const AddEditAddressDialog({super.key, required this.userId, this.address});
 
   @override
   ConsumerState<AddEditAddressDialog> createState() =>
@@ -106,8 +103,8 @@ class _AddEditAddressDialogState extends ConsumerState<AddEditAddressDialog> {
                               controller: _labelController,
                               label: 'Label',
                               hint: 'e.g., Home, Office',
-                              validator: (v) =>
-                                  v?.isEmpty ?? true ? 'Required' : null,
+                              validator:
+                                  (v) => v?.isEmpty ?? true ? 'Required' : null,
                             ),
                           ),
                           SizedBox(width: 12.w),
@@ -120,14 +117,18 @@ class _AddEditAddressDialogState extends ConsumerState<AddEditAddressDialog> {
                       _buildTextField(
                         controller: _nameController,
                         label: 'Full Name',
-                        validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
+                        validator:
+                            (v) => v?.isEmpty ?? true ? 'Required' : null,
                       ),
                       SizedBox(height: 16.h),
                       _buildTextField(
                         controller: _phoneController,
                         label: 'Phone Number',
+                        hint: '03001234567',
                         keyboardType: TextInputType.phone,
-                        validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
+                        validator:
+                            Validators
+                                .validatePakistaniPhone, // ✅ USE VALIDATOR
                       ),
                       SizedBox(height: 16.h),
 
@@ -136,7 +137,8 @@ class _AddEditAddressDialogState extends ConsumerState<AddEditAddressDialog> {
                         controller: _addressLine1Controller,
                         label: 'Address Line 1',
                         hint: 'House/Flat No, Building',
-                        validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
+                        validator:
+                            (v) => v?.isEmpty ?? true ? 'Required' : null,
                       ),
                       SizedBox(height: 16.h),
                       _buildTextField(
@@ -153,8 +155,8 @@ class _AddEditAddressDialogState extends ConsumerState<AddEditAddressDialog> {
                             child: _buildTextField(
                               controller: _areaController,
                               label: 'Area',
-                              validator: (v) =>
-                                  v?.isEmpty ?? true ? 'Required' : null,
+                              validator:
+                                  (v) => v?.isEmpty ?? true ? 'Required' : null,
                             ),
                           ),
                           SizedBox(width: 12.w),
@@ -162,8 +164,8 @@ class _AddEditAddressDialogState extends ConsumerState<AddEditAddressDialog> {
                             child: _buildTextField(
                               controller: _cityController,
                               label: 'City',
-                              validator: (v) =>
-                                  v?.isEmpty ?? true ? 'Required' : null,
+                              validator:
+                                  (v) => v?.isEmpty ?? true ? 'Required' : null,
                             ),
                           ),
                         ],
@@ -225,11 +227,7 @@ class _AddEditAddressDialogState extends ConsumerState<AddEditAddressDialog> {
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.location_on,
-            color: AppColorsDark.white,
-            size: 24.sp,
-          ),
+          Icon(Icons.location_on, color: AppColorsDark.white, size: 24.sp),
           SizedBox(width: 12.w),
           Expanded(
             child: Text(
@@ -263,10 +261,7 @@ class _AddEditAddressDialogState extends ConsumerState<AddEditAddressDialog> {
       style: AppTextStyles.bodyMedium().copyWith(
         color: AppColorsDark.textPrimary,
       ),
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-      ),
+      decoration: InputDecoration(labelText: label, hintText: hint),
       validator: validator,
     );
   }
@@ -275,12 +270,13 @@ class _AddEditAddressDialogState extends ConsumerState<AddEditAddressDialog> {
     return DropdownButtonFormField<String>(
       value: _selectedType,
       decoration: const InputDecoration(labelText: 'Type'),
-      items: _addressTypes.map((type) {
-        return DropdownMenuItem(
-          value: type,
-          child: Text(type.toUpperCase()),
-        );
-      }).toList(),
+      items:
+          _addressTypes.map((type) {
+            return DropdownMenuItem(
+              value: type,
+              child: Text(type.toUpperCase()),
+            );
+          }).toList(),
       onChanged: (value) {
         setState(() => _selectedType = value ?? 'home');
       },
@@ -291,9 +287,7 @@ class _AddEditAddressDialogState extends ConsumerState<AddEditAddressDialog> {
     return Container(
       padding: EdgeInsets.all(20.w),
       decoration: const BoxDecoration(
-        border: Border(
-          top: BorderSide(color: AppColorsDark.border, width: 1),
-        ),
+        border: Border(top: BorderSide(color: AppColorsDark.border, width: 1)),
       ),
       child: Row(
         children: [
@@ -307,16 +301,17 @@ class _AddEditAddressDialogState extends ConsumerState<AddEditAddressDialog> {
           Expanded(
             child: ElevatedButton(
               onPressed: _isLoading ? null : _handleSubmit,
-              child: _isLoading
-                  ? SizedBox(
-                      height: 20.h,
-                      width: 20.w,
-                      child: const CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColorsDark.white,
-                      ),
-                    )
-                  : Text(widget.address == null ? 'Add' : 'Update'),
+              child:
+                  _isLoading
+                      ? SizedBox(
+                        height: 20.h,
+                        width: 20.w,
+                        child: const CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColorsDark.white,
+                        ),
+                      )
+                      : Text(widget.address == null ? 'Add' : 'Update'),
             ),
           ),
         ],
@@ -325,77 +320,82 @@ class _AddEditAddressDialogState extends ConsumerState<AddEditAddressDialog> {
   }
 
   Future<void> _handleSubmit() async {
-  if (!_formKey.currentState!.validate()) {
-    return;
-  }
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
-  setState(() => _isLoading = true);
+    setState(() => _isLoading = true);
 
-  try {
-    final address = AddressModel(
-      id: widget.address?.id ??
-          DateTime.now().millisecondsSinceEpoch.toString(),
-      userId: widget.userId,
-      label: _labelController.text.trim(),
-      name: _nameController.text.trim(),
-      phone: _phoneController.text.trim(),
-      addressLine1: _addressLine1Controller.text.trim(),
-      addressLine2: _addressLine2Controller.text.trim().isEmpty
-          ? null
-          : _addressLine2Controller.text.trim(),
-      area: _areaController.text.trim(),
-      city: _cityController.text.trim(),
-      state: 'Punjab', // TODO: Add state selector
-      postalCode: _postalCodeController.text.trim().isEmpty
-          ? '' // ✅ FIXED: Use empty string instead of null
-          : _postalCodeController.text.trim(),
-      country: 'Pakistan',
-      latitude: 0.0, // TODO: Get from map
-      longitude: 0.0,
-      isDefault: _isDefault,
-      addressType: _selectedType,
-      landmark: _landmarkController.text.trim().isEmpty
-          ? null
-          : _landmarkController.text.trim(),
-      createdAt: widget.address?.createdAt ?? DateTime.now(),
-      updatedAt: DateTime.now(),
-    );
+    try {
+      final address = AddressModel(
+        id:
+            widget.address?.id ??
+            DateTime.now().millisecondsSinceEpoch.toString(),
+        userId: widget.userId,
+        label: _labelController.text.trim(),
+        name: _nameController.text.trim(),
+        phone: _phoneController.text.trim(),
+        addressLine1: _addressLine1Controller.text.trim(),
+        addressLine2:
+            _addressLine2Controller.text.trim().isEmpty
+                ? null
+                : _addressLine2Controller.text.trim(),
+        area: _areaController.text.trim(),
+        city: _cityController.text.trim(),
+        state: 'Punjab', // TODO: Add state selector
+        postalCode:
+            _postalCodeController.text.trim().isEmpty
+                ? '' // ✅ FIXED: Use empty string instead of null
+                : _postalCodeController.text.trim(),
+        country: 'Pakistan',
+        latitude: 0.0, // TODO: Get from map
+        longitude: 0.0,
+        isDefault: _isDefault,
+        addressType: _selectedType,
+        landmark:
+            _landmarkController.text.trim().isEmpty
+                ? null
+                : _landmarkController.text.trim(),
+        createdAt: widget.address?.createdAt ?? DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
 
-    // ✅ FIXED: Remove userId parameter, just pass the address
-    final success = widget.address == null
-        ? await ref
-            .read(addressesProvider.notifier)
-            .addAddress(address)  // ✅ Only pass address
-        : await ref
-            .read(addressesProvider.notifier)
-            .updateAddress(address);  // ✅ Only pass address
+      // ✅ FIXED: Remove userId parameter, just pass the address
+      final success =
+          widget.address == null
+              ? await ref
+                  .read(addressesProvider.notifier)
+                  .addAddress(address) // ✅ Only pass address
+              : await ref
+                  .read(addressesProvider.notifier)
+                  .updateAddress(address); // ✅ Only pass address
 
-    if (success && mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            widget.address == null
-                ? 'Address added successfully'
-                : 'Address updated successfully',
+      if (success && mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              widget.address == null
+                  ? 'Address added successfully'
+                  : 'Address updated successfully',
+            ),
+            backgroundColor: AppColorsDark.success,
           ),
-          backgroundColor: AppColorsDark.success,
-        ),
-      );
-    }
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: AppColorsDark.error,
-        ),
-      );
-    }
-  } finally {
-    if (mounted) {
-      setState(() => _isLoading = false);
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: AppColorsDark.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
-}
 }
