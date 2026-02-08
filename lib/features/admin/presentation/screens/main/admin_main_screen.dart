@@ -8,7 +8,7 @@ import '../../../../../core/theme/colors/app_colors_dark.dart';
 import '../../../../../core/theme/text_styles/app_text_styles.dart';
 import '../dashboard/admin_dashboard_screen.dart';
 import '../riders/rider_approval_screen.dart';
-import '../restaurants/restaurant_management_screen.dart';
+import '../restaurants/store_management_screen.dart';
 import '../products/product_management_screen.dart';
 import '../users/users_list_screen.dart';
 import '../categories/category_management_dialog.dart';
@@ -40,7 +40,6 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      
       body: _screens[_selectedIndex],
       drawer: _buildDrawer(),
       bottomNavigationBar: _buildBottomNav(),
@@ -117,9 +116,9 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
                     title: 'Users',
                     index: 3,
                   ),
-                  
+
                   const Divider(),
-                  
+
                   // Additional Actions
                   ListTile(
                     leading: const Icon(
@@ -137,7 +136,7 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
                       _showCategoryManagement();
                     },
                   ),
-                  
+
                   ListTile(
                     leading: const Icon(
                       Icons.delivery_dining,
@@ -168,9 +167,9 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
                       // TODO: Show rider approvals
                     },
                   ),
-                  
+
                   const Divider(),
-                  
+
                   ListTile(
                     leading: const Icon(
                       Icons.logout,
@@ -186,34 +185,36 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
                       // TODO: Implement logout
                       final shouldLogout = await showDialog<bool>(
                         context: context,
-                        builder: (context) => AlertDialog(
-                          backgroundColor: AppColorsDark.surface,
-                          title: Text(
-                            'Logout',
-                            style: AppTextStyles.titleMedium().copyWith(
-                              color: AppColorsDark.textPrimary,
-                            ),
-                          ),
-                          content: Text(
-                            'Are you sure you want to logout?',
-                            style: AppTextStyles.bodyMedium().copyWith(
-                              color: AppColorsDark.textSecondary,
-                            ),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, false),
-                              child: const Text('Cancel'),
-                            ),
-                            ElevatedButton(
-                              onPressed: () => Navigator.pop(context, true),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColorsDark.error,
+                        builder:
+                            (context) => AlertDialog(
+                              backgroundColor: AppColorsDark.surface,
+                              title: Text(
+                                'Logout',
+                                style: AppTextStyles.titleMedium().copyWith(
+                                  color: AppColorsDark.textPrimary,
+                                ),
                               ),
-                              child: const Text('Logout'),
+                              content: Text(
+                                'Are you sure you want to logout?',
+                                style: AppTextStyles.bodyMedium().copyWith(
+                                  color: AppColorsDark.textSecondary,
+                                ),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed:
+                                      () => Navigator.pop(context, false),
+                                  child: const Text('Cancel'),
+                                ),
+                                ElevatedButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColorsDark.error,
+                                  ),
+                                  child: const Text('Logout'),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
                       );
 
                       if (shouldLogout == true && mounted) {
@@ -246,17 +247,13 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
       title: Text(
         title,
         style: AppTextStyles.bodyMedium().copyWith(
-          color: isSelected
-              ? AppColorsDark.primary
-              : AppColorsDark.textPrimary,
+          color: isSelected ? AppColorsDark.primary : AppColorsDark.textPrimary,
           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
         ),
       ),
       selected: isSelected,
       selectedTileColor: AppColorsDark.primaryContainer.withOpacity(0.2),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8.r),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.r)),
       onTap: () {
         setState(() => _selectedIndex = index);
         Navigator.pop(context);
@@ -327,9 +324,10 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
         decoration: BoxDecoration(
-          color: isSelected
-              ? AppColorsDark.primaryContainer.withOpacity(0.3)
-              : Colors.transparent,
+          color:
+              isSelected
+                  ? AppColorsDark.primaryContainer.withOpacity(0.3)
+                  : Colors.transparent,
           borderRadius: BorderRadius.circular(12.r),
         ),
         child: Column(
@@ -337,18 +335,20 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
           children: [
             Icon(
               isSelected ? activeIcon : icon,
-              color: isSelected
-                  ? AppColorsDark.primary
-                  : AppColorsDark.textSecondary,
+              color:
+                  isSelected
+                      ? AppColorsDark.primary
+                      : AppColorsDark.textSecondary,
               size: 24.sp,
             ),
             SizedBox(height: 4.h),
             Text(
               label,
               style: AppTextStyles.labelSmall().copyWith(
-                color: isSelected
-                    ? AppColorsDark.primary
-                    : AppColorsDark.textSecondary,
+                color:
+                    isSelected
+                        ? AppColorsDark.primary
+                        : AppColorsDark.textSecondary,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
             ),

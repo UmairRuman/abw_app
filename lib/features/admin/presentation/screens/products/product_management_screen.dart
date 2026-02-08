@@ -35,7 +35,7 @@ class _ProductManagementScreenState
   }
 
   Future<void> _loadData() async {
-     await Future.delayed(const Duration(milliseconds: 500)); 
+    await Future.delayed(const Duration(milliseconds: 500));
     await Future.wait([
       ref.read(productsProvider.notifier).getAllProducts(),
       ref.read(categoriesProvider.notifier).getAllCategories(),
@@ -77,16 +77,17 @@ class _ProductManagementScreenState
         children: [
           // Search and Filters
           _buildSearchAndFilters(categoriesState, storesState),
-          
+
           // Products List
           Expanded(
-            child: productsState is ProductsLoading
-                ? _buildLoadingState()
-                : productsState is ProductsError
+            child:
+                productsState is ProductsLoading
+                    ? _buildLoadingState()
+                    : productsState is ProductsError
                     ? _buildErrorState(productsState.error)
                     : productsState is ProductsLoaded
-                        ? _buildProductsList(productsState.products)
-                        : _buildEmptyState(),
+                    ? _buildProductsList(productsState.products)
+                    : _buildEmptyState(),
           ),
         ],
       ),
@@ -116,17 +117,18 @@ class _ProductManagementScreenState
                 Icons.search,
                 color: AppColorsDark.textSecondary,
               ),
-              suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(
-                        Icons.clear,
-                        color: AppColorsDark.textSecondary,
-                      ),
-                      onPressed: () {
-                        setState(() => _searchQuery = '');
-                      },
-                    )
-                  : null,
+              suffixIcon:
+                  _searchQuery.isNotEmpty
+                      ? IconButton(
+                        icon: const Icon(
+                          Icons.clear,
+                          color: AppColorsDark.textSecondary,
+                        ),
+                        onPressed: () {
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                      : null,
               filled: true,
               fillColor: AppColorsDark.surfaceVariant,
               border: OutlineInputBorder(
@@ -142,9 +144,9 @@ class _ProductManagementScreenState
               setState(() => _searchQuery = value);
             },
           ),
-          
+
           SizedBox(height: 12.h),
-          
+
           // Filters Row
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -152,32 +154,35 @@ class _ProductManagementScreenState
               children: [
                 // Category Filter
                 _buildFilterChip(
-                  label: _selectedCategory == 'all'
-                      ? 'All Categories'
-                      : _getCategoryName(categoriesState),
+                  label:
+                      _selectedCategory == 'all'
+                          ? 'All Categories'
+                          : _getCategoryName(categoriesState),
                   icon: Icons.category,
                   onTap: () => _showCategoryFilter(categoriesState),
                 ),
-                
+
                 SizedBox(width: 8.w),
-                
+
                 // Store Filter
                 _buildFilterChip(
-                  label: _selectedStore == 'all'
-                      ? 'All Stores'
-                      : _getStoreName(storesState),
+                  label:
+                      _selectedStore == 'all'
+                          ? 'All Stores'
+                          : _getStoreName(storesState),
                   icon: Icons.store,
                   onTap: () => _showStoreFilter(storesState),
                 ),
-                
+
                 SizedBox(width: 8.w),
-                
+
                 // Available Only Toggle
                 _buildFilterChip(
                   label: 'Available Only',
-                  icon: _showAvailableOnly
-                      ? Icons.check_box
-                      : Icons.check_box_outline_blank,
+                  icon:
+                      _showAvailableOnly
+                          ? Icons.check_box
+                          : Icons.check_box_outline_blank,
                   isActive: _showAvailableOnly,
                   onTap: () {
                     setState(() => _showAvailableOnly = !_showAvailableOnly);
@@ -203,14 +208,13 @@ class _ProductManagementScreenState
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
         decoration: BoxDecoration(
-          color: isActive
-              ? AppColorsDark.primary.withOpacity(0.2)
-              : AppColorsDark.surfaceVariant,
+          color:
+              isActive
+                  ? AppColorsDark.primary.withOpacity(0.2)
+                  : AppColorsDark.surfaceVariant,
           borderRadius: BorderRadius.circular(20.r),
           border: Border.all(
-            color: isActive
-                ? AppColorsDark.primary
-                : AppColorsDark.border,
+            color: isActive ? AppColorsDark.primary : AppColorsDark.border,
           ),
         ),
         child: Row(
@@ -219,17 +223,19 @@ class _ProductManagementScreenState
             Icon(
               icon,
               size: 16.sp,
-              color: isActive
-                  ? AppColorsDark.primary
-                  : AppColorsDark.textSecondary,
+              color:
+                  isActive
+                      ? AppColorsDark.primary
+                      : AppColorsDark.textSecondary,
             ),
             SizedBox(width: 6.w),
             Text(
               label,
               style: AppTextStyles.bodySmall().copyWith(
-                color: isActive
-                    ? AppColorsDark.primary
-                    : AppColorsDark.textSecondary,
+                color:
+                    isActive
+                        ? AppColorsDark.primary
+                        : AppColorsDark.textSecondary,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
@@ -262,11 +268,7 @@ class _ProductManagementScreenState
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.error_outline,
-            size: 64.sp,
-            color: AppColorsDark.error,
-          ),
+          Icon(Icons.error_outline, size: 64.sp, color: AppColorsDark.error),
           SizedBox(height: 16.h),
           Text(
             'Error loading products',
@@ -330,34 +332,35 @@ class _ProductManagementScreenState
 
   Widget _buildProductsList(List<ProductModel> allProducts) {
     // Apply filters
-    var filteredProducts = allProducts.where((product) {
-      // Search filter
-      if (_searchQuery.isNotEmpty) {
-        final query = _searchQuery.toLowerCase();
-        if (!product.name.toLowerCase().contains(query) &&
-            !product.description.toLowerCase().contains(query)) {
-          return false;
-        }
-      }
+    var filteredProducts =
+        allProducts.where((product) {
+          // Search filter
+          if (_searchQuery.isNotEmpty) {
+            final query = _searchQuery.toLowerCase();
+            if (!product.name.toLowerCase().contains(query) &&
+                !product.description.toLowerCase().contains(query)) {
+              return false;
+            }
+          }
 
-      // Category filter
-      if (_selectedCategory != 'all' &&
-          product.categoryId != _selectedCategory) {
-        return false;
-      }
+          // Category filter
+          if (_selectedCategory != 'all' &&
+              product.categoryId != _selectedCategory) {
+            return false;
+          }
 
-      // Store filter
-      if (_selectedStore != 'all' && product.storeId != _selectedStore) {
-        return false;
-      }
+          // Store filter
+          if (_selectedStore != 'all' && product.storeId != _selectedStore) {
+            return false;
+          }
 
-      // Available filter
-      if (_showAvailableOnly && !product.isAvailable) {
-        return false;
-      }
+          // Available filter
+          if (_showAvailableOnly && !product.isAvailable) {
+            return false;
+          }
 
-      return true;
-    }).toList();
+          return true;
+        }).toList();
 
     if (filteredProducts.isEmpty) {
       return Center(
@@ -398,7 +401,7 @@ class _ProductManagementScreenState
           crossAxisCount: 2,
           mainAxisSpacing: 12.h,
           crossAxisSpacing: 12.w,
-           mainAxisExtent: 280.h,
+          mainAxisExtent: 280.h,
         ),
         itemCount: filteredProducts.length,
         itemBuilder: (context, index) {
@@ -409,49 +412,69 @@ class _ProductManagementScreenState
     );
   }
 
+  // lib/features/admin/presentation/screens/products/product_management_screen.dart
+
   Widget _buildProductCard(ProductModel product) {
     return InkWell(
       onTap: () => _showProductDetails(product),
       borderRadius: BorderRadius.circular(16.r),
       child: Container(
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [
-              AppColorsDark.cardBackground,
-              AppColorsDark.surfaceVariant,
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          color: AppColorsDark.cardBackground,
           borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(
-            color: AppColorsDark.border,
-          ),
+          border: Border.all(color: AppColorsDark.border),
+          boxShadow: const [
+            BoxShadow(
+              color: AppColorsDark.shadow,
+              blurRadius: 8,
+              offset: Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Product Image
+            // ✅ FIXED: Product Image
             Stack(
               children: [
-                Container(
-                  height: 140.h,
-                  decoration: BoxDecoration(
-                    color: AppColorsDark.surfaceContainer,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(16.r),
-                      topRight: Radius.circular(16.r),
-                    ),
+                ClipRRect(
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(16.r),
+                    topRight: Radius.circular(16.r),
                   ),
-                  child: Center(
-                    child: Icon(
-                      Icons.fastfood,
-                      size: 48.sp,
-                      color: AppColorsDark.textTertiary,
-                    ),
-                  ),
+                  child:
+                      product.thumbnail.isNotEmpty
+                          ? Image.network(
+                            product.thumbnail,
+                            height: 140.h,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Container(
+                                height: 140.h,
+                                color: AppColorsDark.surfaceContainer,
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    color: AppColorsDark.primary,
+                                    value:
+                                        loadingProgress.expectedTotalBytes !=
+                                                null
+                                            ? loadingProgress
+                                                    .cumulativeBytesLoaded /
+                                                loadingProgress
+                                                    .expectedTotalBytes!
+                                            : null,
+                                  ),
+                                ),
+                              );
+                            },
+                            errorBuilder:
+                                (_, __, ___) => _buildImagePlaceholder(),
+                          )
+                          : _buildImagePlaceholder(),
                 ),
-                
+
                 // Availability Badge
                 Positioned(
                   top: 8.h,
@@ -462,21 +485,30 @@ class _ProductManagementScreenState
                       vertical: 4.h,
                     ),
                     decoration: BoxDecoration(
-                      color: product.isAvailable
-                          ? AppColorsDark.success
-                          : AppColorsDark.error,
+                      color:
+                          product.isAvailable
+                              ? AppColorsDark.success
+                              : AppColorsDark.error,
                       borderRadius: BorderRadius.circular(6.r),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 4,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Text(
                       product.isAvailable ? 'Available' : 'Unavailable',
                       style: AppTextStyles.labelSmall().copyWith(
                         color: AppColorsDark.white,
                         fontSize: 10.sp,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
                 ),
-                
+
                 // Discount Badge
                 if (product.discount > 0)
                   Positioned(
@@ -488,8 +520,20 @@ class _ProductManagementScreenState
                         vertical: 4.h,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColorsDark.error,
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColorsDark.error,
+                            AppColorsDark.error.withOpacity(0.8),
+                          ],
+                        ),
                         borderRadius: BorderRadius.circular(6.r),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: Text(
                         '${product.discount.toInt()}% OFF',
@@ -501,164 +545,265 @@ class _ProductManagementScreenState
                       ),
                     ),
                   ),
+
+                // Featured Badge
+                if (product.isFeatured)
+                  Positioned(
+                    bottom: 8.h,
+                    left: 8.w,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 8.w,
+                        vertical: 4.h,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: AppColorsDark.primaryGradient,
+                        borderRadius: BorderRadius.circular(6.r),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.star,
+                            size: 12.sp,
+                            color: AppColorsDark.white,
+                          ),
+                          SizedBox(width: 2.w),
+                          Text(
+                            'FEATURED',
+                            style: AppTextStyles.labelSmall().copyWith(
+                              color: AppColorsDark.white,
+                              fontSize: 9.sp,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
             ),
-            
+
             // Product Info
             Padding(
-                padding: EdgeInsets.all(12.w),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Product Name
-                    Text(
-                      product.name,
-                      style: AppTextStyles.titleSmall().copyWith(
-                        color: AppColorsDark.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+              padding: EdgeInsets.all(12.w),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Product Name
+                  Text(
+                    product.name,
+                    style: AppTextStyles.titleSmall().copyWith(
+                      color: AppColorsDark.textPrimary,
+                      fontWeight: FontWeight.w600,
                     ),
-                    
-                    SizedBox(height: 4.h),
-                    
-                    // Store Name
-                    Text(
-                      product.storeName,
-                      style: AppTextStyles.bodySmall().copyWith(
-                        color: AppColorsDark.textSecondary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+
+                  SizedBox(height: 4.h),
+
+                  // Store Name
+                  Text(
+                    product.storeName,
+                    style: AppTextStyles.bodySmall().copyWith(
+                      color: AppColorsDark.textSecondary,
                     ),
-                    
-                   
-                    
-                    // Price Row
-                    Row(
-                      children: [
-                        if (product.discount > 0) ...[
-                          Text(
-                            'PKR ${product.price.toInt()}',
-                            style: AppTextStyles.bodySmall().copyWith(
-                              color: AppColorsDark.textTertiary,
-                              decoration: TextDecoration.lineThrough,
-                            ),
-                          ),
-                          SizedBox(width: 4.w),
-                        ],
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+
+                  SizedBox(height: 8.h),
+
+                  // Price Row
+                  Row(
+                    children: [
+                      if (product.discount > 0) ...[
                         Text(
-                          'PKR ${product.discountedPrice.toInt()}',
-                          style: AppTextStyles.titleSmall().copyWith(
-                            color: AppColorsDark.primary,
-                            fontWeight: FontWeight.bold,
+                          'PKR ${product.price.toInt()}',
+                          style: AppTextStyles.bodySmall().copyWith(
+                            color: AppColorsDark.textTertiary,
+                            decoration: TextDecoration.lineThrough,
                           ),
-                        ),
-                      ],
-                    ),
-                    
-                    SizedBox(height: 5.h),
-                    
-                    // Stock Info
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.inventory_2,
-                          size: 14.sp,
-                          color: product.quantity > 0
-                              ? AppColorsDark.success
-                              : AppColorsDark.error,
                         ),
                         SizedBox(width: 4.w),
-                       Text(
-        'Stock: ${product.quantity}',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: AppTextStyles.bodySmall().copyWith(
-          color: product.quantity > 0
-              ? AppColorsDark.success
-              : AppColorsDark.error,
-        ),
-      ),
-                        const Spacer(),
-                        
-                        // More Options
-                        PopupMenuButton<String>(
-                          icon: Icon(
-                            Icons.more_vert,
-                            size: 18.sp,
-                            color: AppColorsDark.textSecondary,
+                      ],
+                      Text(
+                        'PKR ${product.discountedPrice.toInt()}',
+                        style: AppTextStyles.titleSmall().copyWith(
+                          color: AppColorsDark.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // SizedBox(height: 8.h),
+
+                  // Stock & Actions Row
+                  Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 8.w,
+                          vertical: 4.h,
+                        ),
+                        decoration: BoxDecoration(
+                          color:
+                              product.quantity > 0
+                                  ? AppColorsDark.success.withOpacity(0.1)
+                                  : AppColorsDark.error.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6.r),
+                          border: Border.all(
+                            color:
+                                product.quantity > 0
+                                    ? AppColorsDark.success
+                                    : AppColorsDark.error,
                           ),
-                          color: AppColorsDark.surface,
-                          onSelected: (value) =>
-                              _handleProductAction(value, product),
-                          itemBuilder: (context) => [
-                            PopupMenuItem(
-                              value: 'view',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.visibility, size: 18.sp),
-                                  SizedBox(width: 8.w),
-                                  const Text('View'),
-                                ],
-                              ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.inventory_2,
+                              size: 12.sp,
+                              color:
+                                  product.quantity > 0
+                                      ? AppColorsDark.success
+                                      : AppColorsDark.error,
                             ),
-                            PopupMenuItem(
-                              value: 'edit',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.edit, size: 18.sp),
-                                  SizedBox(width: 8.w),
-                                  const Text('Edit'),
-                                ],
-                              ),
-                            ),
-                            PopupMenuItem(
-                              value: 'toggle',
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    product.isAvailable
-                                        ? Icons.visibility_off
-                                        : Icons.visibility,
-                                    size: 18.sp,
-                                  ),
-                                  SizedBox(width: 8.w),
-                                  Text(product.isAvailable
-                                      ? 'Mark Unavailable'
-                                      : 'Mark Available'),
-                                ],
-                              ),
-                            ),
-                            PopupMenuItem(
-                              value: 'delete',
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.delete,
-                                    size: 18.sp,
-                                    color: AppColorsDark.error,
-                                  ),
-                                  SizedBox(width: 8.w),
-                                  const Text(
-                                    'Delete',
-                                    style: TextStyle(
-                                      color: AppColorsDark.error,
-                                    ),
-                                  ),
-                                ],
+                            SizedBox(width: 4.w),
+                            Text(
+                              '${product.quantity}',
+                              style: AppTextStyles.labelSmall().copyWith(
+                                color:
+                                    product.quantity > 0
+                                        ? AppColorsDark.success
+                                        : AppColorsDark.error,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                  ],
-                ),
+                      ),
+
+                      const Spacer(),
+
+                      // More Options
+                      PopupMenuButton<String>(
+                        icon: Icon(
+                          Icons.more_vert,
+                          size: 18.sp,
+                          color: AppColorsDark.textSecondary,
+                        ),
+                        color: AppColorsDark.surface,
+                        onSelected:
+                            (value) => _handleProductAction(value, product),
+                        itemBuilder:
+                            (context) => [
+                              PopupMenuItem(
+                                value: 'view',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.visibility, size: 18.sp),
+                                    SizedBox(width: 8.w),
+                                    const Text('View'),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'edit',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.edit, size: 18.sp),
+                                    SizedBox(width: 8.w),
+                                    const Text('Edit'),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'toggle',
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      product.isAvailable
+                                          ? Icons.visibility_off
+                                          : Icons.visibility,
+                                      size: 18.sp,
+                                    ),
+                                    SizedBox(width: 8.w),
+                                    Text(
+                                      product.isAvailable
+                                          ? 'Mark Unavailable'
+                                          : 'Mark Available',
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const PopupMenuDivider(),
+                              PopupMenuItem(
+                                value: 'delete',
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.delete,
+                                      size: 18.sp,
+                                      color: AppColorsDark.error,
+                                    ),
+                                    SizedBox(width: 8.w),
+                                    const Text(
+                                      'Delete',
+                                      style: TextStyle(
+                                        color: AppColorsDark.error,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // ✅ ADD THIS HELPER METHOD
+  Widget _buildImagePlaceholder() {
+    return Container(
+      height: 140.h,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [
+            AppColorsDark.surfaceContainer,
+            AppColorsDark.surfaceVariant,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(16.r),
+          topRight: Radius.circular(16.r),
+        ),
+      ),
+      child: Center(
+        child: Icon(
+          Icons.fastfood,
+          size: 48.sp,
+          color: AppColorsDark.textTertiary,
         ),
       ),
     );
@@ -667,8 +812,10 @@ class _ProductManagementScreenState
   // Helper methods
   String _getCategoryName(CategoriesState state) {
     if (state is CategoriesLoaded) {
-      final category = state.categories
-          .firstWhere((c) => c.id == _selectedCategory, orElse: () => state.categories.first);
+      final category = state.categories.firstWhere(
+        (c) => c.id == _selectedCategory,
+        orElse: () => state.categories.first,
+      );
       return category.name;
     }
     return 'Category';
@@ -676,8 +823,10 @@ class _ProductManagementScreenState
 
   String _getStoreName(StoresState state) {
     if (state is StoresLoaded) {
-      final store = state.stores
-          .firstWhere((s) => s.id == _selectedStore, orElse: () => state.stores.first);
+      final store = state.stores.firstWhere(
+        (s) => s.id == _selectedStore,
+        orElse: () => state.stores.first,
+      );
       return store.name;
     }
     return 'Store';
@@ -692,43 +841,55 @@ class _ProductManagementScreenState
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
-      builder: (context) => Container(
-        padding: EdgeInsets.all(20.w),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Filter by Category',
-              style: AppTextStyles.titleMedium().copyWith(
-                color: AppColorsDark.textPrimary,
-                fontWeight: FontWeight.bold,
-              ),
+      builder:
+          (context) => Container(
+            padding: EdgeInsets.all(20.w),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Filter by Category',
+                  style: AppTextStyles.titleMedium().copyWith(
+                    color: AppColorsDark.textPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                ListTile(
+                  leading: const Icon(
+                    Icons.all_inclusive,
+                    color: AppColorsDark.primary,
+                  ),
+                  title: const Text('All Categories'),
+                  selected: _selectedCategory == 'all',
+                  selectedTileColor: AppColorsDark.primaryContainer.withOpacity(
+                    0.2,
+                  ),
+                  onTap: () {
+                    setState(() => _selectedCategory = 'all');
+                    Navigator.pop(context);
+                  },
+                ),
+                ...state.categories.map(
+                  (category) => ListTile(
+                    leading: const Icon(
+                      Icons.category,
+                      color: AppColorsDark.accent,
+                    ),
+                    title: Text(category.name),
+                    selected: _selectedCategory == category.id,
+                    selectedTileColor: AppColorsDark.primaryContainer
+                        .withOpacity(0.2),
+                    onTap: () {
+                      setState(() => _selectedCategory = category.id);
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+              ],
             ),
-            SizedBox(height: 16.h),
-            ListTile(
-              leading: const Icon(Icons.all_inclusive, color: AppColorsDark.primary),
-              title: const Text('All Categories'),
-              selected: _selectedCategory == 'all',
-              selectedTileColor: AppColorsDark.primaryContainer.withOpacity(0.2),
-              onTap: () {
-                setState(() => _selectedCategory = 'all');
-                Navigator.pop(context);
-              },
-            ),
-            ...state.categories.map((category) => ListTile(
-              leading: const Icon(Icons.category, color: AppColorsDark.accent),
-              title: Text(category.name),
-              selected: _selectedCategory == category.id,
-              selectedTileColor: AppColorsDark.primaryContainer.withOpacity(0.2),
-              onTap: () {
-                setState(() => _selectedCategory = category.id);
-                Navigator.pop(context);
-              },
-            )),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
@@ -741,43 +902,55 @@ class _ProductManagementScreenState
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
-      builder: (context) => Container(
-        padding: EdgeInsets.all(20.w),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Filter by Store',
-              style: AppTextStyles.titleMedium().copyWith(
-                color: AppColorsDark.textPrimary,
-                fontWeight: FontWeight.bold,
-              ),
+      builder:
+          (context) => Container(
+            padding: EdgeInsets.all(20.w),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Filter by Store',
+                  style: AppTextStyles.titleMedium().copyWith(
+                    color: AppColorsDark.textPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                ListTile(
+                  leading: const Icon(
+                    Icons.all_inclusive,
+                    color: AppColorsDark.primary,
+                  ),
+                  title: const Text('All Stores'),
+                  selected: _selectedStore == 'all',
+                  selectedTileColor: AppColorsDark.primaryContainer.withOpacity(
+                    0.2,
+                  ),
+                  onTap: () {
+                    setState(() => _selectedStore = 'all');
+                    Navigator.pop(context);
+                  },
+                ),
+                ...state.stores.map(
+                  (store) => ListTile(
+                    leading: const Icon(
+                      Icons.store,
+                      color: AppColorsDark.success,
+                    ),
+                    title: Text(store.name),
+                    selected: _selectedStore == store.id,
+                    selectedTileColor: AppColorsDark.primaryContainer
+                        .withOpacity(0.2),
+                    onTap: () {
+                      setState(() => _selectedStore = store.id);
+                      Navigator.pop(context);
+                    },
+                  ),
+                ),
+              ],
             ),
-            SizedBox(height: 16.h),
-            ListTile(
-              leading: const Icon(Icons.all_inclusive, color: AppColorsDark.primary),
-              title: const Text('All Stores'),
-              selected: _selectedStore == 'all',
-              selectedTileColor: AppColorsDark.primaryContainer.withOpacity(0.2),
-              onTap: () {
-                setState(() => _selectedStore = 'all');
-                Navigator.pop(context);
-              },
-            ),
-            ...state.stores.map((store) => ListTile(
-              leading: const Icon(Icons.store, color: AppColorsDark.success),
-              title: Text(store.name),
-              selected: _selectedStore == store.id,
-              selectedTileColor: AppColorsDark.primaryContainer.withOpacity(0.2),
-              onTap: () {
-                setState(() => _selectedStore = store.id);
-                Navigator.pop(context);
-              },
-            )),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
@@ -800,11 +973,9 @@ class _ProductManagementScreenState
   }
 
   Future<void> _toggleProductAvailability(ProductModel product) async {
-    final success = await ref.read(productsProvider.notifier).toggleAvailability(
-          product.id,
-          product.storeId,
-          !product.isAvailable,
-        );
+    final success = await ref
+        .read(productsProvider.notifier)
+        .toggleAvailability(product.id, product.storeId, !product.isAvailable);
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -825,71 +996,71 @@ class _ProductManagementScreenState
     );
   }
 
-void _showAddProductDialog() {
-  showDialog(
-    context: context,
-    builder: (context) => const AddEditProductDialog(),
-  );
-}
+  void _showAddProductDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => const AddEditProductDialog(),
+    );
+  }
 
- void _showEditProductDialog(ProductModel product) {
-  showDialog(
-    context: context,
-    builder: (context) => AddEditProductDialog(product: product),
-  );
-}
+  void _showEditProductDialog(ProductModel product) {
+    showDialog(
+      context: context,
+      builder: (context) => AddEditProductDialog(product: product),
+    );
+  }
 
   void _showDeleteDialog(ProductModel product) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColorsDark.surface,
-        title: Text(
-          'Delete Product',
-          style: AppTextStyles.titleMedium().copyWith(
-            color: AppColorsDark.error,
-          ),
-        ),
-        content: Text(
-          'Are you sure you want to delete "${product.name}"? This action cannot be undone.',
-          style: AppTextStyles.bodyMedium().copyWith(
-            color: AppColorsDark.textSecondary,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: AppColorsDark.surface,
+            title: Text(
+              'Delete Product',
+              style: AppTextStyles.titleMedium().copyWith(
+                color: AppColorsDark.error,
+              ),
+            ),
+            content: Text(
+              'Are you sure you want to delete "${product.name}"? This action cannot be undone.',
               style: AppTextStyles.bodyMedium().copyWith(
                 color: AppColorsDark.textSecondary,
               ),
             ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await ref.read(productsProvider.notifier).deleteProduct(
-                    product.id,
-                    product.storeId,
-                  );
-              Navigator.pop(context);
-
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('${product.name} deleted'),
-                    backgroundColor: AppColorsDark.error,
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Cancel',
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textSecondary,
                   ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColorsDark.error,
-            ),
-            child: const Text('Delete'),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  await ref
+                      .read(productsProvider.notifier)
+                      .deleteProduct(product.id, product.storeId);
+                  Navigator.pop(context);
+
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('${product.name} deleted'),
+                        backgroundColor: AppColorsDark.error,
+                      ),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColorsDark.error,
+                ),
+                child: const Text('Delete'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 }

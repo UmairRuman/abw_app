@@ -1,5 +1,8 @@
 // lib/features/admin/presentation/screens/users/users_list_screen.dart
 
+import 'package:abw_app/features/auth/presentation/providers/auth_provider.dart';
+import 'package:abw_app/features/auth/presentation/providers/auth_state.dart';
+import 'package:abw_app/features/blocked_numbers/presentation/providers/blocked_numbers_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -37,7 +40,7 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen>
   }
 
   Future<void> _loadUsers() async {
-     await Future.delayed(const Duration(milliseconds: 500)); 
+    await Future.delayed(const Duration(milliseconds: 500));
     await Future.wait([
       ref.read(usersProvider.notifier).loadCustomers(),
       ref.read(usersProvider.notifier).loadRiders(),
@@ -76,21 +79,22 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen>
                     hintStyle: AppTextStyles.bodyMedium().copyWith(
                       color: AppColorsDark.textTertiary,
                     ),
-                    prefixIcon: Icon(
+                    prefixIcon: const Icon(
                       Icons.search,
                       color: AppColorsDark.textSecondary,
                     ),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: Icon(
-                              Icons.clear,
-                              color: AppColorsDark.textSecondary,
-                            ),
-                            onPressed: () {
-                              setState(() => _searchQuery = '');
-                            },
-                          )
-                        : null,
+                    suffixIcon:
+                        _searchQuery.isNotEmpty
+                            ? IconButton(
+                              icon: const Icon(
+                                Icons.clear,
+                                color: AppColorsDark.textSecondary,
+                              ),
+                              onPressed: () {
+                                setState(() => _searchQuery = '');
+                              },
+                            )
+                            : null,
                     filled: true,
                     fillColor: AppColorsDark.surfaceVariant,
                     border: OutlineInputBorder(
@@ -178,13 +182,14 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen>
           ),
         ),
       ),
-      body: usersState is UsersLoading
-          ? _buildLoadingState()
-          : usersState is UsersError
+      body:
+          usersState is UsersLoading
+              ? _buildLoadingState()
+              : usersState is UsersError
               ? _buildErrorState(usersState.error)
               : usersState is UsersLoaded
-                  ? _buildUsersTabs(usersState)
-                  : _buildEmptyState(),
+              ? _buildUsersTabs(usersState)
+              : _buildEmptyState(),
     );
   }
 
@@ -193,7 +198,7 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(color: AppColorsDark.primary),
+          const CircularProgressIndicator(color: AppColorsDark.primary),
           SizedBox(height: 16.h),
           Text(
             'Loading users...',
@@ -211,11 +216,7 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.error_outline,
-            size: 64.sp,
-            color: AppColorsDark.error,
-          ),
+          Icon(Icons.error_outline, size: 64.sp, color: AppColorsDark.error),
           SizedBox(height: 16.h),
           Text(
             'Error loading users',
@@ -282,12 +283,14 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen>
   }
 
   Widget _buildCustomersList(List<CustomerModel> customers) {
-    final filteredCustomers = customers.where((customer) {
-      if (_searchQuery.isEmpty) return true;
-      final query = _searchQuery.toLowerCase();
-      return customer.name.toLowerCase().contains(query) ||
-          customer.email.toLowerCase().contains(query);
-    }).toList();
+    final filteredCustomers =
+        customers.where((customer) {
+          if (_searchQuery.isEmpty) return true;
+          final query = _searchQuery.toLowerCase();
+          return customer.name.toLowerCase().contains(query) ||
+              customer.email.toLowerCase().contains(query) ||
+              customer.phone.toLowerCase().contains(query); // ADD THIS LINE
+        }).toList();
 
     if (filteredCustomers.isEmpty) {
       return _buildEmptySearchState('No customers found');
@@ -309,13 +312,14 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen>
   }
 
   Widget _buildRidersList(List<RiderModel> riders) {
-    final filteredRiders = riders.where((rider) {
-      if (_searchQuery.isEmpty) return true;
-      final query = _searchQuery.toLowerCase();
-      return rider.name.toLowerCase().contains(query) ||
-          rider.email.toLowerCase().contains(query) ||
-          (rider.vehicleNumber?.toLowerCase().contains(query) ?? false);
-    }).toList();
+    final filteredRiders =
+        riders.where((rider) {
+          if (_searchQuery.isEmpty) return true;
+          final query = _searchQuery.toLowerCase();
+          return rider.name.toLowerCase().contains(query) ||
+              rider.email.toLowerCase().contains(query) ||
+              (rider.vehicleNumber?.toLowerCase().contains(query) ?? false);
+        }).toList();
 
     if (filteredRiders.isEmpty) {
       return _buildEmptySearchState('No riders found');
@@ -374,7 +378,7 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen>
         child: Container(
           padding: EdgeInsets.all(16.w),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
+            gradient: const LinearGradient(
               colors: [
                 AppColorsDark.cardBackground,
                 AppColorsDark.surfaceVariant,
@@ -444,7 +448,7 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen>
                         ),
                       ],
                     ),
-                    if (customer.phone != null) ...[
+                    if (customer.phone.isNotEmpty) ...[
                       SizedBox(height: 4.h),
                       Row(
                         children: [
@@ -455,7 +459,7 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen>
                           ),
                           SizedBox(width: 4.w),
                           Text(
-                            customer.phone!,
+                            customer.phone,
                             style: AppTextStyles.bodySmall().copyWith(
                               color: AppColorsDark.textSecondary,
                             ),
@@ -465,6 +469,22 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen>
                     ],
                   ],
                 ),
+              ),
+
+              // ADD BLOCK BUTTON
+              IconButton(
+                icon: Icon(
+                  Icons.block,
+                  color: AppColorsDark.error,
+                  size: 20.sp,
+                ),
+                onPressed:
+                    () => _showBlockOptions(
+                      customer.phone,
+                      customer.id,
+                      customer.name,
+                    ),
+                tooltip: 'Block Number',
               ),
 
               // Stats Badge
@@ -506,6 +526,117 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen>
     );
   }
 
+  void _showBlockOptions(String phoneNumber, String userId, String userName) {
+    final reasonController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: AppColorsDark.surface,
+            title: Text(
+              'Block Phone Number',
+              style: AppTextStyles.titleMedium().copyWith(
+                color: AppColorsDark.textPrimary,
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'User: $userName',
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textPrimary,
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                Text(
+                  'Phone: $phoneNumber',
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textSecondary,
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                TextField(
+                  controller: reasonController,
+                  maxLines: 3,
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textPrimary,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Reason for blocking',
+                    hintText: 'Enter reason...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: AppColorsDark.textSecondary),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (reasonController.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please enter a reason'),
+                        backgroundColor: AppColorsDark.error,
+                      ),
+                    );
+                    return;
+                  }
+
+                  final authState = ref.read(authProvider);
+                  if (authState is! Authenticated) return;
+
+                  final success = await ref
+                      .read(blockedNumbersProvider.notifier)
+                      .blockNumber(
+                        phoneNumber: phoneNumber,
+                        blockedBy: authState.user.id,
+                        blockedByName: authState.user.name,
+                        reason: reasonController.text.trim(),
+                        userId: userId,
+                      );
+
+                  if (context.mounted) {
+                    Navigator.pop(context);
+
+                    if (success) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Number blocked successfully'),
+                          backgroundColor: AppColorsDark.success,
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Failed to block number'),
+                          backgroundColor: AppColorsDark.error,
+                        ),
+                      );
+                    }
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColorsDark.error,
+                ),
+                child: const Text('Block Number'),
+              ),
+            ],
+          ),
+    );
+  }
+
   Widget _buildRiderCard(RiderModel rider) {
     return Padding(
       padding: EdgeInsets.only(bottom: 12.h),
@@ -515,7 +646,7 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen>
         child: Container(
           padding: EdgeInsets.all(16.w),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
+            gradient: const LinearGradient(
               colors: [
                 AppColorsDark.cardBackground,
                 AppColorsDark.surfaceVariant,
@@ -577,17 +708,21 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen>
                                 vertical: 4.h,
                               ),
                               decoration: BoxDecoration(
-                                color: rider.isApproved
-                                    ? AppColorsDark.success.withOpacity(0.2)
-                                    : AppColorsDark.warning.withOpacity(0.2),
+                                color:
+                                    rider.isApproved
+                                        ? AppColorsDark.success.withOpacity(0.2)
+                                        : AppColorsDark.warning.withOpacity(
+                                          0.2,
+                                        ),
                                 borderRadius: BorderRadius.circular(6.r),
                               ),
                               child: Text(
                                 rider.isApproved ? 'Active' : 'Pending',
                                 style: AppTextStyles.labelSmall().copyWith(
-                                  color: rider.isApproved
-                                      ? AppColorsDark.success
-                                      : AppColorsDark.warning,
+                                  color:
+                                      rider.isApproved
+                                          ? AppColorsDark.success
+                                          : AppColorsDark.warning,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -682,10 +817,7 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen>
   void _showUserDetails(dynamic user, UserRole role) {
     showDialog(
       context: context,
-      builder: (context) => UserDetailsDialog(
-        user: user,
-        role: role,
-      ),
+      builder: (context) => UserDetailsDialog(user: user, role: role),
     );
   }
 }

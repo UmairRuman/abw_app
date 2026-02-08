@@ -16,9 +16,10 @@ import '../../../../../products/presentation/providers/products_provider.dart';
 import '../../../../../products/data/models/product_model.dart';
 
 class AddEditProductDialog extends ConsumerStatefulWidget {
-  final ProductModel? product; // null for add, populated for edit
+  final ProductModel? product;
+  final String? storeId; // null for add, populated for edit
 
-  const AddEditProductDialog({super.key, this.product});
+  const AddEditProductDialog({super.key, this.product, this.storeId});
 
   @override
   ConsumerState<AddEditProductDialog> createState() =>
@@ -117,11 +118,35 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
   }
 
   Future<void> _loadData() async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    // ✅ FIXED: Handle null case properly
+    String? storeId = widget.product?.storeId ?? widget.storeId;
+
+    // If no storeId, just load categories and all stores
+    if (storeId == null) {
+      await Future.wait([
+        ref.read(categoriesProvider.notifier).getAllCategories(),
+        ref.read(storesProvider.notifier).getAllStores(),
+      ]);
+      return;
+    }
+
+    // If we have storeId, load specific store
     await Future.wait([
       ref.read(categoriesProvider.notifier).getAllCategories(),
-      ref.read(storesProvider.notifier).getAllStores(),
+      ref.read(storesProvider.notifier).getStore(storeId),
     ]);
+
+    // Set initial store selection
+    if (mounted) {
+      final storesState = ref.read(storesProvider);
+      if (storesState is StoreSingleLoaded) {
+        setState(() {
+          _selectedStore = storesState.store.id;
+        });
+      }
+    }
   }
 
   @override
@@ -467,7 +492,7 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
           ),
           if (!_isLoading)
             IconButton(
-              icon: Icon(Icons.close, color: AppColorsDark.white),
+              icon: const Icon(Icons.close, color: AppColorsDark.white),
               onPressed: () => Navigator.pop(context),
             ),
         ],
@@ -519,14 +544,14 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
           color: AppColorsDark.surfaceVariant,
           borderRadius: BorderRadius.circular(12.r),
         ),
-        child: Text('Loading...'),
+        child: const Text('Loading...'),
       );
     }
 
     return DropdownButtonFormField<String>(
       isExpanded: true,
       value: _selectedCategory.isEmpty ? null : _selectedCategory,
-      decoration: InputDecoration(labelText: 'Category'),
+      decoration: const InputDecoration(labelText: 'Category'),
       items:
           state.categories.map((category) {
             return DropdownMenuItem(
@@ -545,7 +570,58 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
     );
   }
 
+  // ✅ UPDATE _buildStoreDropdown to handle both cases:
+
   Widget _buildStoreDropdown(StoresState state) {
+    // ✅ If storeId is provided (from Store Products screen), show fixed store
+    if (widget.storeId != null && widget.product == null) {
+      String storeName = 'Loading...';
+
+      if (state is StoreSingleLoaded) {
+        storeName = state.store.name;
+      }
+
+      return Container(
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+        decoration: BoxDecoration(
+          color: AppColorsDark.surfaceVariant,
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(color: AppColorsDark.border),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.store, color: AppColorsDark.primary, size: 20.sp),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Store',
+                    style: AppTextStyles.bodySmall().copyWith(
+                      color: AppColorsDark.textSecondary,
+                    ),
+                  ),
+                  SizedBox(height: 4.h),
+                  Text(
+                    storeName,
+                    style: AppTextStyles.bodyMedium().copyWith(
+                      color: AppColorsDark.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // ✅ Normal dropdown for general product management
     if (state is! StoresLoaded) {
       return Container(
         padding: EdgeInsets.all(12.w),
@@ -553,14 +629,14 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
           color: AppColorsDark.surfaceVariant,
           borderRadius: BorderRadius.circular(12.r),
         ),
-        child: Text('Loading...'),
+        child: const Text('Loading...'),
       );
     }
 
     return DropdownButtonFormField<String>(
       isExpanded: true,
       value: _selectedStore.isEmpty ? null : _selectedStore,
-      decoration: InputDecoration(labelText: 'Store'),
+      decoration: const InputDecoration(labelText: 'Store'),
       items:
           state.stores.map((store) {
             return DropdownMenuItem(
@@ -805,6 +881,16 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please fill all required fields'),
+          backgroundColor: AppColorsDark.error,
+        ),
+      );
+      return;
+    }
+
+    if (_selectedStore == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a store'),
           backgroundColor: AppColorsDark.error,
         ),
       );
@@ -1076,7 +1162,7 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
                   style: AppTextStyles.bodyMedium().copyWith(
                     color: AppColorsDark.textPrimary,
                   ),
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Size Name',
                     hintText: 'e.g., Small, Medium, Large',
                   ),
@@ -1088,7 +1174,7 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
                   style: AppTextStyles.bodyMedium().copyWith(
                     color: AppColorsDark.textPrimary,
                   ),
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Additional Price (PKR)',
                     hintText: 'e.g., 0, 200, 400',
                   ),
@@ -1228,7 +1314,7 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
                   style: AppTextStyles.bodyMedium().copyWith(
                     color: AppColorsDark.textPrimary,
                   ),
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Topping Name',
                     hintText: 'e.g., Extra Cheese, Olives',
                   ),
@@ -1240,7 +1326,7 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
                   style: AppTextStyles.bodyMedium().copyWith(
                     color: AppColorsDark.textPrimary,
                   ),
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Additional Price (PKR)',
                     hintText: 'e.g., 50, 100, 150',
                   ),

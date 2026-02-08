@@ -300,23 +300,17 @@ class _RestaurantManagementScreenState
     );
   }
 
+  // lib/features/admin/presentation/screens/restaurants/restaurant_management_screen.dart
+
   Widget _buildStoreCard(StoreModel store) {
     return Padding(
-      padding: EdgeInsets.only(bottom: 12.h),
+      padding: EdgeInsets.only(bottom: 16.h),
       child: InkWell(
         onTap: () => _showStoreDetails(store),
         borderRadius: BorderRadius.circular(16.r),
         child: Container(
-          padding: EdgeInsets.all(16.w),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [
-                AppColorsDark.cardBackground,
-                AppColorsDark.surfaceVariant,
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: AppColorsDark.cardBackground,
             borderRadius: BorderRadius.circular(16.r),
             border: Border.all(
               color:
@@ -325,246 +319,462 @@ class _RestaurantManagementScreenState
                       : AppColorsDark.warning.withOpacity(0.5),
               width: 1.5,
             ),
+            boxShadow: const [
+              BoxShadow(
+                color: AppColorsDark.shadow,
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header Row
-              Row(
+              // ✅ HEADER WITH BANNER IMAGE
+              Stack(
                 children: [
-                  // Store Icon/Image
-                  Container(
-                    width: 60.w,
-                    height: 60.w,
-                    decoration: BoxDecoration(
-                      gradient: AppColorsDark.primaryGradient,
-                      borderRadius: BorderRadius.circular(12.r),
+                  // Banner Image
+                  ClipRRect(
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(16.r),
+                      topRight: Radius.circular(16.r),
                     ),
-                    child: Icon(
-                      Icons.store,
-                      color: AppColorsDark.white,
-                      size: 30.sp,
+                    child:
+                        store.bannerUrl.isNotEmpty
+                            ? Image.network(
+                              store.bannerUrl,
+                              height: 120.h,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (
+                                context,
+                                child,
+                                loadingProgress,
+                              ) {
+                                if (loadingProgress == null) return child;
+                                return Container(
+                                  height: 120.h,
+                                  color: AppColorsDark.surfaceContainer,
+                                  child: const Center(
+                                    child: CircularProgressIndicator(
+                                      color: AppColorsDark.primary,
+                                    ),
+                                  ),
+                                );
+                              },
+                              errorBuilder:
+                                  (_, __, ___) => _buildBannerPlaceholder(),
+                            )
+                            : _buildBannerPlaceholder(),
+                  ),
+
+                  // Gradient Overlay
+                  Container(
+                    height: 120.h,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          AppColorsDark.cardBackground.withOpacity(0.8),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(16.r),
+                        topRight: Radius.circular(16.r),
+                      ),
                     ),
                   ),
-                  SizedBox(width: 12.w),
 
-                  // Store Info
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                store.name,
-                                style: AppTextStyles.titleMedium().copyWith(
-                                  color: AppColorsDark.textPrimary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                  // Status Badge
+                  Positioned(
+                    top: 12.h,
+                    right: 12.w,
+                    child: _buildStatusBadge(store),
+                  ),
+
+                  // Featured Badge
+                  if (store.isFeatured)
+                    Positioned(
+                      top: 12.h,
+                      left: 12.w,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 10.w,
+                          vertical: 6.h,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: AppColorsDark.primaryGradient,
+                          borderRadius: BorderRadius.circular(8.r),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
                             ),
-                            // Status Badge
-                            _buildStatusBadge(store),
                           ],
                         ),
-                        SizedBox(height: 4.h),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.star,
+                              size: 14.sp,
+                              color: AppColorsDark.white,
+                            ),
+                            SizedBox(width: 4.w),
+                            Text(
+                              'FEATURED',
+                              style: AppTextStyles.labelSmall().copyWith(
+                                color: AppColorsDark.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                  // Logo
+                  Positioned(
+                    bottom: 12.h,
+                    left: 16.w,
+                    child: Container(
+                      width: 70.w,
+                      height: 70.w,
+                      decoration: BoxDecoration(
+                        color: AppColorsDark.white,
+                        borderRadius: BorderRadius.circular(12.r),
+                        border: Border.all(
+                          color: AppColorsDark.white,
+                          width: 3,
+                        ),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(9.r),
+                        child:
+                            store.logoUrl.isNotEmpty
+                                ? Image.network(
+                                  store.logoUrl,
+                                  fit: BoxFit.cover,
+                                  errorBuilder:
+                                      (_, __, ___) => _buildLogoPlaceholder(),
+                                )
+                                : _buildLogoPlaceholder(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              // Store Info
+              Padding(
+                padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 12.h),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Name & Action Menu
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            store.name,
+                            style: AppTextStyles.titleMedium().copyWith(
+                              color: AppColorsDark.textPrimary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        PopupMenuButton<String>(
+                          icon: Icon(
+                            Icons.more_vert,
+                            color: AppColorsDark.textSecondary,
+                            size: 20.sp,
+                          ),
+                          color: AppColorsDark.surface,
+                          onSelected:
+                              (value) => _handleStoreAction(value, store),
+                          itemBuilder:
+                              (context) => [
+                                // ... your existing menu items ...
+                                PopupMenuItem(
+                                  value: 'view',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.visibility, size: 20.sp),
+                                      SizedBox(width: 8.w),
+                                      const Text('View Details'),
+                                    ],
+                                  ),
+                                ),
+
+                                // ✅ ADD EDIT OPTION
+                                PopupMenuItem(
+                                  value: 'edit',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.edit, size: 20.sp),
+                                      SizedBox(width: 8.w),
+                                      const Text('Edit'),
+                                    ],
+                                  ),
+                                ),
+                                if (!store.isApproved)
+                                  PopupMenuItem(
+                                    value: 'approve',
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.check_circle,
+                                          size: 20.sp,
+                                          color: AppColorsDark.success,
+                                        ),
+                                        SizedBox(width: 8.w),
+                                        const Text(
+                                          'Approve',
+                                          style: TextStyle(
+                                            color: AppColorsDark.success,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                if (!store.isApproved)
+                                  PopupMenuItem(
+                                    value: 'reject',
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.cancel,
+                                          size: 20.sp,
+                                          color: AppColorsDark.error,
+                                        ),
+                                        SizedBox(width: 8.w),
+                                        const Text(
+                                          'Reject',
+                                          style: TextStyle(
+                                            color: AppColorsDark.error,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                PopupMenuItem(
+                                  value: 'toggle-active',
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        store.isActive
+                                            ? Icons.visibility_off
+                                            : Icons.visibility,
+                                        size: 20.sp,
+                                      ),
+                                      SizedBox(width: 8.w),
+                                      Text(
+                                        store.isActive
+                                            ? 'Deactivate'
+                                            : 'Activate',
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                // ✅ ADD THIS - Toggle Featured
+                                PopupMenuItem(
+                                  value: 'toggle-featured',
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        store.isFeatured
+                                            ? Icons.star
+                                            : Icons.star_border,
+                                        size: 20.sp,
+                                        color: AppColorsDark.warning,
+                                      ),
+                                      SizedBox(width: 8.w),
+                                      Text(
+                                        store.isFeatured
+                                            ? 'Remove Featured'
+                                            : 'Make Featured',
+                                        style: const TextStyle(
+                                          color: AppColorsDark.warning,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.delete,
+                                        size: 20.sp,
+                                        color: AppColorsDark.error,
+                                      ),
+                                      SizedBox(width: 8.w),
+                                      const Text(
+                                        'Delete',
+                                        style: TextStyle(
+                                          color: AppColorsDark.error,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                        ),
+                      ],
+                    ),
+
+                    SizedBox(height: 4.h),
+
+                    // Type & Location
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.restaurant_menu,
+                          size: 14.sp,
+                          color: AppColorsDark.textSecondary,
+                        ),
+                        SizedBox(width: 4.w),
                         Text(
-                          '${store.type} • ${store.city}',
+                          store.type,
                           style: AppTextStyles.bodySmall().copyWith(
                             color: AppColorsDark.textSecondary,
                           ),
                         ),
+                        SizedBox(width: 8.w),
+                        Icon(
+                          Icons.location_on,
+                          size: 14.sp,
+                          color: AppColorsDark.textSecondary,
+                        ),
+                        SizedBox(width: 4.w),
+                        Expanded(
+                          child: Text(
+                            '${store.area}, ${store.city}',
+                            style: AppTextStyles.bodySmall().copyWith(
+                              color: AppColorsDark.textSecondary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ],
                     ),
-                  ),
-                ],
-              ),
 
-              SizedBox(height: 12.h),
+                    SizedBox(height: 12.h),
 
-              // Stats Row
-              Row(
-                children: [
-                  _buildStatChip(
-                    icon: Icons.star,
-                    label: store.rating.toStringAsFixed(1),
-                    color: AppColorsDark.warning,
-                  ),
-                  SizedBox(width: 8.w),
-                  _buildStatChip(
-                    icon: Icons.shopping_bag,
-                    label: '${store.totalOrders}',
-                    color: AppColorsDark.info,
-                  ),
-                  SizedBox(width: 8.w),
-                  _buildStatChip(
-                    icon: Icons.rate_review,
-                    label: '${store.totalReviews}',
-                    color: AppColorsDark.accent,
-                  ),
-                  const Spacer(),
-
-                  // Action Menu
-                  PopupMenuButton<String>(
-                    icon: const Icon(
-                      Icons.more_vert,
-                      color: AppColorsDark.textSecondary,
+                    // Stats Row
+                    Row(
+                      children: [
+                        _buildStatChip(
+                          icon: Icons.star,
+                          label: store.rating.toStringAsFixed(1),
+                          color: AppColorsDark.warning,
+                        ),
+                        SizedBox(width: 8.w),
+                        _buildStatChip(
+                          icon: Icons.shopping_bag,
+                          label: '${store.totalOrders}',
+                          color: AppColorsDark.info,
+                        ),
+                        SizedBox(width: 8.w),
+                        _buildStatChip(
+                          icon: Icons.rate_review,
+                          label: '${store.totalReviews}',
+                          color: AppColorsDark.accent,
+                        ),
+                      ],
                     ),
-                    color: AppColorsDark.surface,
-                    onSelected: (value) => _handleStoreAction(value, store),
-                    itemBuilder:
-                        (context) => [
-                          PopupMenuItem(
-                            value: 'view',
-                            child: Row(
-                              children: [
-                                Icon(Icons.visibility, size: 20.sp),
-                                SizedBox(width: 8.w),
-                                const Text('View Details'),
-                              ],
-                            ),
+
+                    // Pending Approval Warning
+                    if (!store.isApproved) ...[
+                      SizedBox(height: 12.h),
+                      Container(
+                        padding: EdgeInsets.all(12.w),
+                        decoration: BoxDecoration(
+                          color: AppColorsDark.warning.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8.r),
+                          border: Border.all(
+                            color: AppColorsDark.warning.withOpacity(0.3),
                           ),
-                          if (!store.isApproved)
-                            PopupMenuItem(
-                              value: 'approve',
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.check_circle,
-                                    size: 20.sp,
-                                    color: AppColorsDark.success,
-                                  ),
-                                  SizedBox(width: 8.w),
-                                  const Text(
-                                    'Approve',
-                                    style: TextStyle(
-                                      color: AppColorsDark.success,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.pending,
+                              color: AppColorsDark.warning,
+                              size: 18.sp,
                             ),
-                          if (!store.isApproved)
-                            PopupMenuItem(
-                              value: 'reject',
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.cancel,
-                                    size: 20.sp,
-                                    color: AppColorsDark.error,
-                                  ),
-                                  SizedBox(width: 8.w),
-                                  const Text(
-                                    'Reject',
-                                    style: TextStyle(
-                                      color: AppColorsDark.error,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          PopupMenuItem(
-                            value: 'toggle-active',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  store.isActive
-                                      ? Icons.visibility_off
-                                      : Icons.visibility,
-                                  size: 20.sp,
-                                ),
-                                SizedBox(width: 8.w),
-                                Text(
-                                  store.isActive ? 'Deactivate' : 'Activate',
-                                ),
-                              ],
-                            ),
-                          ),
-                          // ✅ ADD THIS - Toggle Featured
-                          PopupMenuItem(
-                            value: 'toggle-featured',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  store.isFeatured
-                                      ? Icons.star
-                                      : Icons.star_border,
-                                  size: 20.sp,
+                            SizedBox(width: 8.w),
+                            Expanded(
+                              child: Text(
+                                'Pending approval - Review required',
+                                style: AppTextStyles.bodySmall().copyWith(
                                   color: AppColorsDark.warning,
+                                  fontWeight: FontWeight.w500,
                                 ),
-                                SizedBox(width: 8.w),
-                                Text(
-                                  store.isFeatured
-                                      ? 'Remove Featured'
-                                      : 'Make Featured',
-                                  style: const TextStyle(
-                                    color: AppColorsDark.warning,
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
-                          ),
-                          PopupMenuItem(
-                            value: 'delete',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.delete,
-                                  size: 20.sp,
-                                  color: AppColorsDark.error,
-                                ),
-                                SizedBox(width: 8.w),
-                                const Text(
-                                  'Delete',
-                                  style: TextStyle(color: AppColorsDark.error),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                  ),
-                ],
-              ),
-
-              // Pending Approval Warning
-              if (!store.isApproved) ...[
-                SizedBox(height: 12.h),
-                Container(
-                  padding: EdgeInsets.all(12.w),
-                  decoration: BoxDecoration(
-                    color: AppColorsDark.warning.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8.r),
-                    border: Border.all(
-                      color: AppColorsDark.warning.withOpacity(0.3),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.pending,
-                        color: AppColorsDark.warning,
-                        size: 20.sp,
-                      ),
-                      SizedBox(width: 8.w),
-                      Expanded(
-                        child: Text(
-                          'Pending approval - Review and approve/reject',
-                          style: AppTextStyles.bodySmall().copyWith(
-                            color: AppColorsDark.warning,
-                          ),
+                          ],
                         ),
                       ),
                     ],
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // ✅ ADD HELPER METHODS
+  Widget _buildBannerPlaceholder() {
+    return Container(
+      height: 120.h,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [
+            AppColorsDark.surfaceContainer,
+            AppColorsDark.surfaceVariant,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(16.r),
+          topRight: Radius.circular(16.r),
+        ),
+      ),
+      child: Center(
+        child: Icon(
+          Icons.restaurant,
+          size: 40.sp,
+          color: AppColorsDark.textTertiary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLogoPlaceholder() {
+    return Container(
+      decoration: const BoxDecoration(gradient: AppColorsDark.primaryGradient),
+      child: Center(
+        child: Icon(Icons.store, color: AppColorsDark.white, size: 30.sp),
       ),
     );
   }
@@ -647,6 +857,9 @@ class _RestaurantManagementScreenState
       case 'view':
         _showStoreDetails(store);
         break;
+      case 'edit': // ✅ ADD THIS
+        _showEditStoreDialog(store);
+        break;
       case 'approve':
         await _approveStore(store);
         break;
@@ -663,6 +876,13 @@ class _RestaurantManagementScreenState
         _showDeleteDialog(store);
         break;
     }
+  }
+
+  void _showEditStoreDialog(StoreModel store) {
+    showDialog(
+      context: context,
+      builder: (context) => AddEditStoreDialog(store: store),
+    );
   }
 
   // Add this method to your restaurant_management_screen.dart

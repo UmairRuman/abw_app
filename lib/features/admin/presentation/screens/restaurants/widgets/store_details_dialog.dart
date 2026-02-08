@@ -1,5 +1,7 @@
 // lib/features/admin/presentation/screens/restaurants/widgets/store_details_dialog.dart
 
+import 'package:abw_app/features/admin/presentation/screens/products/store_products_screen.dart';
+import 'package:abw_app/features/admin/presentation/screens/restaurants/widgets/add_edit_store_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../../../core/theme/colors/app_colors_dark.dart';
@@ -9,18 +11,13 @@ import '../../../../../stores/data/models/store_model.dart';
 class StoreDetailsDialog extends StatelessWidget {
   final StoreModel store;
 
-  const StoreDetailsDialog({
-    super.key,
-    required this.store,
-  });
+  const StoreDetailsDialog({super.key, required this.store});
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: AppColorsDark.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20.r),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
       child: Container(
         constraints: BoxConstraints(maxHeight: 600.h),
         child: Column(
@@ -74,10 +71,7 @@ class StoreDetailsDialog extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(
-                      Icons.close,
-                      color: AppColorsDark.white,
-                    ),
+                    icon: const Icon(Icons.close, color: AppColorsDark.white),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -91,12 +85,9 @@ class StoreDetailsDialog extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSection(
-                      title: 'Status',
-                      child: _buildStatusRow(),
-                    ),
+                    _buildSection(title: 'Status', child: _buildStatusRow()),
                     SizedBox(height: 20.h),
-                    
+
                     _buildSection(
                       title: 'Contact Information',
                       child: Column(
@@ -120,7 +111,7 @@ class StoreDetailsDialog extends StatelessWidget {
                       ),
                     ),
                     SizedBox(height: 20.h),
-                    
+
                     _buildSection(
                       title: 'Location',
                       child: Column(
@@ -139,7 +130,7 @@ class StoreDetailsDialog extends StatelessWidget {
                       ),
                     ),
                     SizedBox(height: 20.h),
-                    
+
                     _buildSection(
                       title: 'Delivery Info',
                       child: Column(
@@ -147,7 +138,8 @@ class StoreDetailsDialog extends StatelessWidget {
                           _buildInfoRow(
                             icon: Icons.delivery_dining,
                             label: 'Delivery Fee',
-                            value: 'PKR ${store.deliveryFee.toStringAsFixed(0)}',
+                            value:
+                                'PKR ${store.deliveryFee.toStringAsFixed(0)}',
                           ),
                           _buildInfoRow(
                             icon: Icons.timer,
@@ -157,13 +149,14 @@ class StoreDetailsDialog extends StatelessWidget {
                           _buildInfoRow(
                             icon: Icons.shopping_cart,
                             label: 'Min Order',
-                            value: 'PKR ${store.minimumOrder.toStringAsFixed(0)}',
+                            value:
+                                'PKR ${store.minimumOrder.toStringAsFixed(0)}',
                           ),
                         ],
                       ),
                     ),
                     SizedBox(height: 20.h),
-                    
+
                     _buildSection(
                       title: 'Operating Hours',
                       child: Column(
@@ -171,7 +164,8 @@ class StoreDetailsDialog extends StatelessWidget {
                           _buildInfoRow(
                             icon: Icons.access_time,
                             label: 'Hours',
-                            value: '${store.openingTime} - ${store.closingTime}',
+                            value:
+                                '${store.openingTime} - ${store.closingTime}',
                           ),
                           _buildInfoRow(
                             icon: Icons.calendar_today,
@@ -182,7 +176,7 @@ class StoreDetailsDialog extends StatelessWidget {
                       ),
                     ),
                     SizedBox(height: 20.h),
-                    
+
                     _buildSection(
                       title: 'Statistics',
                       child: Row(
@@ -216,7 +210,7 @@ class StoreDetailsDialog extends StatelessWidget {
                         ],
                       ),
                     ),
-                    
+
                     if (store.cuisines.isNotEmpty) ...[
                       SizedBox(height: 20.h),
                       _buildSection(
@@ -224,17 +218,20 @@ class StoreDetailsDialog extends StatelessWidget {
                         child: Wrap(
                           spacing: 8.w,
                           runSpacing: 8.h,
-                          children: store.cuisines
-                              .map((cuisine) => Chip(
-                                    label: Text(cuisine),
-                                    backgroundColor:
-                                        AppColorsDark.primaryContainer,
-                                  ))
-                              .toList(),
+                          children:
+                              store.cuisines
+                                  .map(
+                                    (cuisine) => Chip(
+                                      label: Text(cuisine),
+                                      backgroundColor:
+                                          AppColorsDark.primaryContainer,
+                                    ),
+                                  )
+                                  .toList(),
                         ),
                       ),
                     ],
-                    
+
                     if (store.tags.isNotEmpty) ...[
                       SizedBox(height: 20.h),
                       _buildSection(
@@ -242,16 +239,77 @@ class StoreDetailsDialog extends StatelessWidget {
                         child: Wrap(
                           spacing: 8.w,
                           runSpacing: 8.h,
-                          children: store.tags
-                              .map((tag) => Chip(
-                                    label: Text(tag),
-                                    backgroundColor:
-                                        AppColorsDark.secondaryContainer,
-                                  ))
-                              .toList(),
+                          children:
+                              store.tags
+                                  .map(
+                                    (tag) => Chip(
+                                      label: Text(tag),
+                                      backgroundColor:
+                                          AppColorsDark.secondaryContainer,
+                                    ),
+                                  )
+                                  .toList(),
                         ),
                       ),
                     ],
+
+                    Container(
+                      padding: EdgeInsets.all(16.w),
+                      decoration: const BoxDecoration(
+                        color: AppColorsDark.surface,
+                        border: Border(
+                          top: BorderSide(
+                            color: AppColorsDark.border,
+                            width: 1,
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (context) =>
+                                            StoreProductsScreen(store: store),
+                                  ),
+                                );
+                              },
+                              icon: Icon(Icons.fastfood, size: 18.sp),
+                              label: const Text('View Products'),
+                              style: OutlinedButton.styleFrom(
+                                padding: EdgeInsets.symmetric(vertical: 14.h),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 12.w),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                // Close dialog and show edit
+                                Navigator.pop(context);
+                                // TODO: Show edit dialog
+                                showDialog(
+                                  context: context,
+                                  builder:
+                                      (context) =>
+                                          AddEditStoreDialog(store: store),
+                                );
+                              },
+                              icon: Icon(Icons.edit, size: 18.sp),
+                              label: const Text('Edit Store'),
+                              style: ElevatedButton.styleFrom(
+                                padding: EdgeInsets.symmetric(vertical: 14.h),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -262,10 +320,7 @@ class StoreDetailsDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildSection({
-    required String title,
-    required Widget child,
-  }) {
+  Widget _buildSection({required String title, required Widget child}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -282,31 +337,30 @@ class StoreDetailsDialog extends StatelessWidget {
     );
   }
 
-Widget _buildStatusRow() {
-  return Wrap(
-    spacing: 8.w,
-    runSpacing: 6.h,
-    children: [
-      _buildStatusChip(
-        label: store.isApproved ? 'Approved' : 'Pending',
-        color:
-            store.isApproved ? AppColorsDark.success : AppColorsDark.warning,
-        icon: store.isApproved ? Icons.check_circle : Icons.pending,
-      ),
-      _buildStatusChip(
-        label: store.isActive ? 'Active' : 'Inactive',
-        color: store.isActive ? AppColorsDark.success : AppColorsDark.error,
-        icon: store.isActive ? Icons.visibility : Icons.visibility_off,
-      ),
-      _buildStatusChip(
-        label: store.isOpen ? 'Open' : 'Closed',
-        color: store.isOpen ? AppColorsDark.info : AppColorsDark.error,
-        icon: store.isOpen ? Icons.lock_open : Icons.lock,
-      ),
-    ],
-  );
-}
-
+  Widget _buildStatusRow() {
+    return Wrap(
+      spacing: 8.w,
+      runSpacing: 6.h,
+      children: [
+        _buildStatusChip(
+          label: store.isApproved ? 'Approved' : 'Pending',
+          color:
+              store.isApproved ? AppColorsDark.success : AppColorsDark.warning,
+          icon: store.isApproved ? Icons.check_circle : Icons.pending,
+        ),
+        _buildStatusChip(
+          label: store.isActive ? 'Active' : 'Inactive',
+          color: store.isActive ? AppColorsDark.success : AppColorsDark.error,
+          icon: store.isActive ? Icons.visibility : Icons.visibility_off,
+        ),
+        _buildStatusChip(
+          label: store.isOpen ? 'Open' : 'Closed',
+          color: store.isOpen ? AppColorsDark.info : AppColorsDark.error,
+          icon: store.isOpen ? Icons.lock_open : Icons.lock,
+        ),
+      ],
+    );
+  }
 
   Widget _buildStatusChip({
     required String label,
@@ -346,11 +400,7 @@ Widget _buildStatusRow() {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            size: 20.sp,
-            color: AppColorsDark.textSecondary,
-          ),
+          Icon(icon, size: 20.sp, color: AppColorsDark.textSecondary),
           SizedBox(width: 12.w),
           Expanded(
             child: Column(
@@ -388,9 +438,7 @@ Widget _buildStatusRow() {
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(
-          color: color.withOpacity(0.3),
-        ),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Column(
         children: [

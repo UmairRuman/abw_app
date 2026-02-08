@@ -50,12 +50,16 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
         _selectedCategoryId = categoriesState.categories.first.id;
         _isInitialized = true;
       });
+
+      // Load products for the selected category (Food)
+      await ref
+          .read(productsProvider.notifier)
+          .getProductsByCategory(categoriesState.categories.first.id);
     }
 
     // Load other data
     await Future.wait([
       ref.read(storesProvider.notifier).getAllStores(),
-      ref.read(productsProvider.notifier).getFeaturedProducts(),
       _loadCart(),
     ]);
   }
@@ -420,7 +424,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
   // ============================================================
 
   Widget _buildProductsGrid(ProductsLoaded state) {
-    final products = state.products.take(6).toList(); // Show first 6 products
+    final products = state.products.take(10).toList(); // Show first 10 products
 
     if (products.isEmpty) {
       return SliverToBoxAdapter(
@@ -448,187 +452,191 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
       );
     }
 
-    return SliverPadding(
-      padding: EdgeInsets.symmetric(horizontal: 16.w),
-      sliver: SliverGrid(
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          mainAxisSpacing: 12.h,
-          crossAxisSpacing: 12.w,
-          childAspectRatio: 0.75,
+    return SliverToBoxAdapter(
+      child: SizedBox(
+        height: 240.h, // Fixed height for horizontal list
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          padding: EdgeInsets.symmetric(horizontal: 16.w),
+          itemCount: products.length,
+          itemBuilder: (context, index) {
+            final product = products[index];
+            return _buildProductCard(product);
+          },
         ),
-        delegate: SliverChildBuilderDelegate((context, index) {
-          final product = products[index];
-          return _buildProductCard(product);
-        }, childCount: products.length),
       ),
     );
   }
 
   Widget _buildProductCard(ProductModel product) {
-    return InkWell(
-      onTap: () {
-        // Navigate to product details
-        context.push('/customer/store/${product.storeId}');
-      },
-      borderRadius: BorderRadius.circular(12.r),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColorsDark.cardBackground,
-          borderRadius: BorderRadius.circular(12.r),
-          border: Border.all(color: AppColorsDark.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Product Image
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(12.r),
-                    topRight: Radius.circular(12.r),
+    return Container(
+      width: 160.w, // ADD THIS LINE - Fixed width for horizontal scroll
+      margin: EdgeInsets.only(
+        right: 12.w,
+      ), // ADD THIS LINE - Spacing between cards
+      child: InkWell(
+        onTap: () {
+          context.push('/customer/store/${product.storeId}');
+        },
+        borderRadius: BorderRadius.circular(12.r),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColorsDark.cardBackground,
+            borderRadius: BorderRadius.circular(12.r),
+            border: Border.all(color: AppColorsDark.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Product Image
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(12.r),
+                      topRight: Radius.circular(12.r),
+                    ),
+                    child:
+                        product.images.isNotEmpty
+                            ? Image.network(
+                              product.images.first,
+                              width: double.infinity,
+                              height: 120.h,
+                              fit: BoxFit.cover,
+                              errorBuilder:
+                                  (_, __, ___) => _buildProductPlaceholder(),
+                            )
+                            : _buildProductPlaceholder(),
                   ),
-                  child:
-                      product.images.isNotEmpty
-                          ? Image.network(
-                            product.images.first,
-                            width: double.infinity,
-                            height: 120.h,
-                            fit: BoxFit.cover,
-                            errorBuilder:
-                                (_, __, ___) => _buildProductPlaceholder(),
-                          )
-                          : _buildProductPlaceholder(),
-                ),
 
-                // Discount Badge
-                if (product.discount > 0)
-                  Positioned(
-                    top: 8.h,
-                    left: 8.w,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 8.w,
-                        vertical: 4.h,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColorsDark.error,
-                        borderRadius: BorderRadius.circular(6.r),
-                      ),
-                      child: Text(
-                        '${product.discount.toInt()}% OFF',
-                        style: AppTextStyles.labelSmall().copyWith(
-                          color: AppColorsDark.white,
-                          fontWeight: FontWeight.bold,
+                  // Discount Badge
+                  if (product.discount > 0)
+                    Positioned(
+                      top: 8.h,
+                      left: 8.w,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 8.w,
+                          vertical: 4.h,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColorsDark.error,
+                          borderRadius: BorderRadius.circular(6.r),
+                        ),
+                        child: Text(
+                          '${product.discount.toInt()}% OFF',
+                          style: AppTextStyles.labelSmall().copyWith(
+                            color: AppColorsDark.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
-                  ),
 
-                // Availability Badge
-                if (!product.isAvailable)
-                  Positioned(
-                    top: 8.h,
-                    right: 8.w,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 8.w,
-                        vertical: 4.h,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColorsDark.black.withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(6.r),
-                      ),
-                      child: Text(
-                        'Out of Stock',
-                        style: AppTextStyles.labelSmall().copyWith(
-                          color: AppColorsDark.white,
+                  // Availability Badge
+                  if (!product.isAvailable)
+                    Positioned(
+                      top: 8.h,
+                      right: 8.w,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 8.w,
+                          vertical: 4.h,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColorsDark.black.withOpacity(0.7),
+                          borderRadius: BorderRadius.circular(6.r),
+                        ),
+                        child: Text(
+                          'Out of Stock',
+                          style: AppTextStyles.labelSmall().copyWith(
+                            color: AppColorsDark.white,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-              ],
-            ),
+                ],
+              ),
 
-            // Product Details
-            Expanded(
-              child: Padding(
-                padding: EdgeInsets.all(10.w),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Product Name
-                    Text(
-                      product.name,
-                      style: AppTextStyles.bodyMedium().copyWith(
-                        color: AppColorsDark.textPrimary,
-                        fontWeight: FontWeight.w600,
+              // Product Details
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.all(10.w),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Product Name
+                      Text(
+                        product.name,
+                        style: AppTextStyles.bodyMedium().copyWith(
+                          color: AppColorsDark.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
 
-                    SizedBox(height: 4.h),
+                      SizedBox(height: 4.h),
 
-                    // Store Name
-                    Text(
-                      product.storeName,
-                      style: AppTextStyles.bodySmall().copyWith(
-                        color: AppColorsDark.textSecondary,
+                      // Store Name
+                      Text(
+                        product.storeName,
+                        style: AppTextStyles.bodySmall().copyWith(
+                          color: AppColorsDark.textSecondary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
 
-                    const Spacer(),
+                      const Spacer(),
 
-                    // Price & Add Button
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (product.discount > 0)
+                      // Price & Add Button
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (product.discount > 0)
+                                Text(
+                                  'PKR ${product.price.toInt()}',
+                                  style: AppTextStyles.bodySmall().copyWith(
+                                    color: AppColorsDark.textTertiary,
+                                    decoration: TextDecoration.lineThrough,
+                                  ),
+                                ),
                               Text(
-                                'PKR ${product.price.toInt()}',
-                                style: AppTextStyles.bodySmall().copyWith(
-                                  color: AppColorsDark.textTertiary,
-                                  decoration: TextDecoration.lineThrough,
+                                'PKR ${product.discountedPrice.toInt()}',
+                                style: AppTextStyles.titleSmall().copyWith(
+                                  color: AppColorsDark.primary,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-                            Text(
-                              'PKR ${product.discountedPrice.toInt()}',
-                              style: AppTextStyles.titleSmall().copyWith(
-                                color: AppColorsDark.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
+                            ],
+                          ),
 
-                        // Add Button
-                        Container(
-                          width: 32.w,
-                          height: 32.w,
-                          decoration: BoxDecoration(
-                            color: AppColorsDark.primary,
-                            borderRadius: BorderRadius.circular(8.r),
+                          // Add Button
+                          Container(
+                            width: 32.w,
+                            height: 32.w,
+                            decoration: BoxDecoration(
+                              color: AppColorsDark.primary,
+                              borderRadius: BorderRadius.circular(8.r),
+                            ),
+                            child: Icon(
+                              Icons.add,
+                              color: AppColorsDark.white,
+                              size: 18.sp,
+                            ),
                           ),
-                          child: Icon(
-                            Icons.add,
-                            color: AppColorsDark.white,
-                            size: 18.sp,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
