@@ -1,16 +1,16 @@
 // lib/features/checkout/domain/entities/checkout_entity.dart
 
+import 'package:abw_app/features/addresses/data/models/address_model.dart';
+import 'package:abw_app/features/cart/data/models/cart_item_model.dart';
 import 'package:equatable/equatable.dart';
-import '../../../cart/domain/entities/cart_item_entity.dart';
-import '../../../addresses/domain/entities/address_entity.dart';
 
 class CheckoutEntity extends Equatable {
   final String id;
   final String userId;
   final String storeId;
   final String storeName;
-  final List<CartItemEntity> items;
-  final AddressEntity deliveryAddress;
+  final List<CartItemModel> items;
+  final AddressModel deliveryAddress;
   final String deliveryTimeSlot; // 'ASAP', '30min', '1hour', '2hours'
   final String? specialInstructions;
   final double subtotal;
