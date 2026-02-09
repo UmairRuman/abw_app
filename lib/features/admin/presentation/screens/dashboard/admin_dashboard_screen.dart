@@ -439,7 +439,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
                       ),
                   ],
                 ),
-                const Spacer(),
+                // const Spacer(),
                 Text(
                   value,
                   style: AppTextStyles.headlineLarge().copyWith(
@@ -449,7 +449,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                SizedBox(height: 4.h),
+                // SizedBox(height: 4.h),
                 Row(
                   children: [
                     Expanded(
