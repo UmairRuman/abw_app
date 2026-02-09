@@ -2,7 +2,9 @@
 
 // COMPLETE REPLACEMENT:
 
+import 'package:abw_app/core/routes/app_router.dart';
 import 'package:abw_app/features/stores/data/models/store_model.dart';
+import 'package:abw_app/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -25,7 +27,8 @@ class CustomerHomeScreen extends ConsumerStatefulWidget {
   ConsumerState<CustomerHomeScreen> createState() => _CustomerHomeScreenState();
 }
 
-class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
+class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
+    with RouteAware {
   String _selectedCategoryId =
       ''; // Will be set to first category (food) in initState
   bool _isInitialized = false;
@@ -33,6 +36,29 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
   @override
   void initState() {
     super.initState();
+    _loadData();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // ✅ Subscribe to route changes
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this); // ✅ Unsubscribe
+    super.dispose();
+  }
+
+  // ✅ Called when returning to this screen
+  @override
+  void didPopNext() {
+    // Refresh data when coming back from another screen
     _loadData();
   }
 

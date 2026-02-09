@@ -28,10 +28,14 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
   }
 
   Future<void> _loadAddresses() async {
-    await Future.delayed(const Duration(milliseconds: 200)); // Ensure context is available
+    await Future.delayed(
+      const Duration(milliseconds: 200),
+    ); // Ensure context is available
     final authState = ref.read(authProvider);
     if (authState is Authenticated) {
-      await ref.read(addressesProvider.notifier).loadUserAddresses(authState.user.id);
+      await ref
+          .read(addressesProvider.notifier)
+          .loadUserAddresses(authState.user.id);
     }
   }
 
@@ -41,15 +45,12 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
     final addressesState = ref.watch(addressesProvider);
 
     if (authState is! Authenticated) {
-      return const Scaffold(
-        body: Center(child: Text('Please login')),
-      );
+      return const Scaffold(body: Center(child: Text('Please login')));
     }
 
     final user = authState.user;
 
     return Scaffold(
-      
       backgroundColor: AppColorsDark.background,
       body: CustomScrollView(
         slivers: [
@@ -63,11 +64,11 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
 
   Widget _buildAppBar(BuildContext context) {
     return SliverAppBar(
-       leading: IconButton(
+      leading: IconButton(
         icon: Container(
           padding: EdgeInsets.all(8.w),
           decoration: BoxDecoration(
-            color: AppColorsDark.background.withOpacity(0.8),
+            color: Colors.black.withOpacity(0.5),
             shape: BoxShape.circle,
           ),
           child: Icon(
@@ -77,8 +78,8 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
           ),
         ),
         onPressed: () {
-      //      ref.read(categoriesProvider.notifier).getAllCategories();
-      // ref.read(storesProvider.notifier).getAllStores();
+          //      ref.read(categoriesProvider.notifier).getAllCategories();
+          // ref.read(storesProvider.notifier).getAllStores();
           context.pop();
         },
       ),
@@ -118,7 +119,9 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
               ),
               child: Center(
                 child: Text(
-                  user.name.isNotEmpty ? user.name.substring(0, 2).toUpperCase() : 'U',
+                  user.name.isNotEmpty
+                      ? user.name.substring(0, 2).toUpperCase()
+                      : 'U',
                   style: AppTextStyles.headlineLarge().copyWith(
                     color: AppColorsDark.white,
                     fontWeight: FontWeight.bold,
@@ -161,7 +164,10 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
     );
   }
 
-  Widget _buildMenuSection(BuildContext context, AddressesState addressesState) {
+  Widget _buildMenuSection(
+    BuildContext context,
+    AddressesState addressesState,
+  ) {
     int addressCount = 0;
     if (addressesState is AddressesLoaded) {
       addressCount = addressesState.addresses.length;
@@ -278,14 +284,15 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
           color: AppColorsDark.textPrimary,
         ),
       ),
-      subtitle: subtitle != null
-          ? Text(
-              subtitle,
-              style: AppTextStyles.bodySmall().copyWith(
-                color: AppColorsDark.textSecondary,
-              ),
-            )
-          : null,
+      subtitle:
+          subtitle != null
+              ? Text(
+                subtitle,
+                style: AppTextStyles.bodySmall().copyWith(
+                  color: AppColorsDark.textSecondary,
+                ),
+              )
+              : null,
       trailing: Icon(Icons.arrow_forward_ios, size: 16.sp),
       onTap: onTap,
     );

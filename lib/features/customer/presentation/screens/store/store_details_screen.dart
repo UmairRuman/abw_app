@@ -131,33 +131,58 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
       expandedHeight: 250.h,
       pinned: true,
       backgroundColor: AppColorsDark.surface,
+      // ✅ FIX: Override default icon theme for better visibility
+      iconTheme: IconThemeData(color: AppColorsDark.white, size: 24.sp),
+      // ✅ ENHANCED: Better back button styling
       leading: IconButton(
         icon: Container(
-          padding: EdgeInsets.all(8.w),
+          padding: EdgeInsets.all(10.w),
           decoration: BoxDecoration(
-            color: AppColorsDark.background.withOpacity(0.8),
+            color: Colors.black.withOpacity(
+              0.5,
+            ), // ✅ Changed to black for better contrast
             shape: BoxShape.circle,
+            border: Border.all(
+              color: AppColorsDark.white.withOpacity(0.3),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
           ),
           child: Icon(
-            Icons.arrow_back,
+            Icons.arrow_back_ios_new, // ✅ Better back icon
             color: AppColorsDark.white,
-            size: 20.sp,
+            size: 18.sp,
           ),
         ),
         onPressed: () {
-          ref.read(categoriesProvider.notifier).getAllCategories();
-          ref.read(storesProvider.notifier).getAllStores();
-          _loadCart();
           context.pop();
         },
       ),
+      // ✅ ENHANCED: Better action buttons
       actions: [
         IconButton(
           icon: Container(
-            padding: EdgeInsets.all(8.w),
+            padding: EdgeInsets.all(10.w),
             decoration: BoxDecoration(
-              color: AppColorsDark.background.withOpacity(0.8),
+              color: Colors.black.withOpacity(0.5),
               shape: BoxShape.circle,
+              border: Border.all(
+                color: AppColorsDark.white.withOpacity(0.3),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
             child: Icon(
               Icons.favorite_border,
@@ -165,40 +190,74 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
               size: 20.sp,
             ),
           ),
-          onPressed: () {},
+          onPressed: () {
+            // TODO: Add to favorites
+          },
         ),
         IconButton(
           icon: Container(
-            padding: EdgeInsets.all(8.w),
+            padding: EdgeInsets.all(10.w),
             decoration: BoxDecoration(
-              color: AppColorsDark.background.withOpacity(0.8),
+              color: Colors.black.withOpacity(0.5),
               shape: BoxShape.circle,
+              border: Border.all(
+                color: AppColorsDark.white.withOpacity(0.3),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
             child: Icon(Icons.share, color: AppColorsDark.white, size: 20.sp),
           ),
-          onPressed: () {},
+          onPressed: () {
+            // TODO: Share store
+          },
         ),
+        SizedBox(width: 8.w),
       ],
       flexibleSpace: FlexibleSpaceBar(
         background: Stack(
           fit: StackFit.expand,
           children: [
+            // Banner Image
             store.bannerUrl.isNotEmpty
                 ? Image.network(
                   store.bannerUrl,
                   fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      color: AppColorsDark.surfaceContainer,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: AppColorsDark.primary,
+                        ),
+                      ),
+                    );
+                  },
                   errorBuilder: (_, __, ___) => _buildBannerPlaceholder(),
                 )
                 : _buildBannerPlaceholder(),
+
+            // ✅ ENHANCED: Better gradient for readability
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
+                    Colors.black.withOpacity(0.3), // ✅ Darker top for icons
                     Colors.transparent,
-                    AppColorsDark.background.withOpacity(0.8),
+                    AppColorsDark.background.withOpacity(
+                      0.9,
+                    ), // ✅ Darker bottom
                   ],
+                  stops: [0.0, 0.5, 1.0],
                 ),
               ),
             ),

@@ -315,10 +315,8 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
                           Expanded(
                             child: _buildTextField(
                               controller: _quantityController,
-                              label: 'Stock Quantity',
+                              label: 'Stock Quantity (Optional)',
                               keyboardType: TextInputType.number,
-                              validator:
-                                  (v) => v?.isEmpty ?? true ? 'Required' : null,
                             ),
                           ),
                           SizedBox(width: 12.w),
@@ -983,6 +981,9 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
       final discount = double.tryParse(_discountController.text) ?? 0;
       final discountedPrice = price - (price * discount / 100);
 
+      // ✅ HANDLE OPTIONAL STOCK QUANTITY
+      final stockQuantity = int.tryParse(_quantityController.text) ?? 0;
+
       // Create product model
       final product = ProductModel(
         id: productId,
@@ -1000,10 +1001,10 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
         discount: discount,
         discountedPrice: discountedPrice,
         unit: _unitController.text.trim(),
-        quantity: int.parse(_quantityController.text),
+        quantity: stockQuantity,
         minOrderQuantity: int.tryParse(_minOrderController.text) ?? 1,
         maxOrderQuantity: int.tryParse(_maxOrderController.text) ?? 99,
-        isAvailable: _isAvailable,
+        isAvailable: true,
         isFeatured: _isFeatured,
         isPopular: _isPopular,
         isVegetarian: _isVegetarian,

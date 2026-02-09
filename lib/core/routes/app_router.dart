@@ -20,8 +20,11 @@ import '../../features/admin/presentation/screens/main/admin_main_screen.dart';
 import '../../features/admin/presentation/screens/products/product_management_screen.dart';
 import '../../features/admin/presentation/screens/users/users_list_screen.dart';
 
+final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
+
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
+    observers: [routeObserver],
     initialLocation: '/splash',
     debugLogDiagnostics: true,
     routes: [
@@ -42,29 +45,29 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'login',
         builder: (context, state) => const LoginScreen(),
       ),
-      
+
       GoRoute(
         path: '/signup/customer',
         name: 'signup-customer',
         builder: (context, state) => const CustomerSignupScreen(),
       ),
       GoRoute(
-  path: '/signup/admin',
-  name: 'signup-admin',
-  builder: (context, state) => const AdminSignupScreen(),
-),
+        path: '/signup/admin',
+        name: 'signup-admin',
+        builder: (context, state) => const AdminSignupScreen(),
+      ),
       GoRoute(
         path: '/signup/rider',
         name: 'signup-rider',
         builder: (context, state) => const RiderSignupScreen(),
       ),
-      
+
       GoRoute(
         path: '/forgot-password',
         name: 'forgot-password',
         builder: (context, state) => const ForgotPasswordScreen(),
       ),
-      
+
       GoRoute(
         path: '/rider/pending',
         name: 'rider-pending',
@@ -79,7 +82,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'customer-home',
         builder: (context, state) => const CustomerHomeScreen(),
       ),
-      
+
       GoRoute(
         path: '/customer/store/:id',
         name: 'store-details',
@@ -121,13 +124,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'admin-dashboard',
         builder: (context, state) => const AdminMainScreen(),
       ),
-      
+
       GoRoute(
         path: '/admin/products',
         name: 'admin-products',
         builder: (context, state) => const ProductManagementScreen(),
       ),
-      
+
       GoRoute(
         path: '/admin/users',
         name: 'admin-users',
@@ -140,14 +143,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/rider/dashboard',
         name: 'rider-dashboard',
-        builder: (context, state) => const Scaffold(
-          body: Center(
-            child: Text(
-              'Rider Dashboard - Coming in Milestone 2',
-              style: TextStyle(fontSize: 18),
+        builder:
+            (context, state) => const Scaffold(
+              body: Center(
+                child: Text(
+                  'Rider Dashboard - Coming in Milestone 2',
+                  style: TextStyle(fontSize: 18),
+                ),
+              ),
             ),
-          ),
-        ),
       ),
 
       // ============================================================
@@ -156,7 +160,41 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/error',
         name: 'error',
-        builder: (context, state) => Scaffold(
+        builder:
+            (context, state) => Scaffold(
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.red,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Page Not Found',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text('The page you are looking for does not exist.'),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () => context.go('/login'),
+                      child: const Text('Go to Login'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+      ),
+    ],
+
+    errorBuilder:
+        (context, state) => Scaffold(
           body: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -164,11 +202,11 @@ final routerProvider = Provider<GoRouter>((ref) {
                 const Icon(Icons.error_outline, size: 64, color: Colors.red),
                 const SizedBox(height: 16),
                 const Text(
-                  'Page Not Found',
+                  'Something went wrong',
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                const Text('The page you are looking for does not exist.'),
+                Text('Error: ${state.error}'),
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: () => context.go('/login'),
@@ -178,31 +216,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
         ),
-      ),
-    ],
-
-    errorBuilder: (context, state) => Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.red),
-            const SizedBox(height: 16),
-            const Text(
-              'Something went wrong',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text('Error: ${state.error}'),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () => context.go('/login'),
-              child: const Text('Go to Login'),
-            ),
-          ],
-        ),
-      ),
-    ),
   );
 });
 
@@ -216,7 +229,7 @@ extension NavigationExtensions on BuildContext {
   void goToCustomerSignup() => go('/signup/customer');
   void goToRiderSignup() => go('/signup/rider');
   void goToForgotPassword() => go('/forgot-password');
-  
+
   // Customer navigation
   void goToCustomerHome() => go('/customer/home');
   void goToStoreDetails(String storeId) => go('/customer/store/$storeId');
@@ -224,12 +237,12 @@ extension NavigationExtensions on BuildContext {
   void goToCart() => go('/customer/cart');
   void goToProfile() => go('/customer/profile');
   void goToAddresses() => go('/customer/addresses');
-  
+
   // Admin navigation
   void goToAdminDashboard() => go('/admin/dashboard');
   void goToAdminProducts() => go('/admin/products');
   void goToAdminUsers() => go('/admin/users');
-  
+
   // Rider navigation
   void goToRiderDashboard() => go('/rider/dashboard');
   void goToRiderPending() => go('/rider/pending');

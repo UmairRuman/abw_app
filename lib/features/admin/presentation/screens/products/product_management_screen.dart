@@ -401,7 +401,7 @@ class _ProductManagementScreenState
           crossAxisCount: 2,
           mainAxisSpacing: 12.h,
           crossAxisSpacing: 12.w,
-          mainAxisExtent: 280.h,
+          mainAxisExtent: 285.h,
         ),
         itemCount: filteredProducts.length,
         itemBuilder: (context, index) {
@@ -411,8 +411,6 @@ class _ProductManagementScreenState
       ),
     );
   }
-
-  // lib/features/admin/presentation/screens/products/product_management_screen.dart
 
   Widget _buildProductCard(ProductModel product) {
     return InkWell(

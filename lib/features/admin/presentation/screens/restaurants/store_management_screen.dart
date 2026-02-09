@@ -28,7 +28,7 @@ class _RestaurantManagementScreenState
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
     _loadStores();
   }
 
@@ -130,10 +130,27 @@ class _RestaurantManagementScreenState
                 labelStyle: AppTextStyles.bodyMedium().copyWith(
                   fontWeight: FontWeight.w600,
                 ),
-                tabs: const [
-                  Tab(text: 'All'),
-                  Tab(text: 'Pending'),
-                  Tab(text: 'Active'),
+                tabs: [
+                  Tab(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check_circle, size: 16.sp),
+                        SizedBox(width: 8.w),
+                        const Text('Active'),
+                      ],
+                    ),
+                  ),
+                  Tab(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.visibility_off, size: 16.sp),
+                        SizedBox(width: 8.w),
+                        const Text('Inactive'),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -240,16 +257,25 @@ class _RestaurantManagementScreenState
     return TabBarView(
       controller: _tabController,
       children: [
-        _buildStoresTab(allStores),
-        _buildStoresTab(allStores.where((s) => !s.isApproved).toList()),
+        // Tab 1: Active stores (approved AND active)
         _buildStoresTab(
           allStores.where((s) => s.isApproved && s.isActive).toList(),
+          emptyMessage: 'No active stores',
+        ),
+
+        // Tab 2: Inactive stores (either not approved OR not active)
+        _buildStoresTab(
+          allStores.where((s) => !s.isActive || !s.isApproved).toList(),
+          emptyMessage: 'No inactive stores',
         ),
       ],
     );
   }
 
-  Widget _buildStoresTab(List<StoreModel> stores) {
+  Widget _buildStoresTab(
+    List<StoreModel> stores, {
+    String emptyMessage = 'No stores', // ✅ ADD PARAMETER
+  }) {
     // Filter by search query
     final filteredStores =
         stores.where((store) {
@@ -274,12 +300,21 @@ class _RestaurantManagementScreenState
             SizedBox(height: 16.h),
             Text(
               _searchQuery.isEmpty
-                  ? 'No stores in this tab'
-                  : 'No results found',
+                  ? emptyMessage
+                  : 'No results found', // ✅ USE PARAMETER
               style: AppTextStyles.titleMedium().copyWith(
                 color: AppColorsDark.textPrimary,
               ),
             ),
+            if (_searchQuery.isEmpty) ...[
+              SizedBox(height: 8.h),
+              Text(
+                'Stores will appear here',
+                style: AppTextStyles.bodyMedium().copyWith(
+                  color: AppColorsDark.textSecondary,
+                ),
+              ),
+            ],
           ],
         ),
       );
@@ -299,8 +334,6 @@ class _RestaurantManagementScreenState
       ),
     );
   }
-
-  // lib/features/admin/presentation/screens/restaurants/restaurant_management_screen.dart
 
   Widget _buildStoreCard(StoreModel store) {
     return Padding(
@@ -570,7 +603,7 @@ class _RestaurantManagementScreenState
                                     ),
                                   ),
                                 PopupMenuItem(
-                                  value: 'toggle-active',
+                                  value: 'toggle-active', // ✅ CORRECT VALUE
                                   child: Row(
                                     children: [
                                       Icon(
@@ -866,7 +899,7 @@ class _RestaurantManagementScreenState
       case 'reject':
         _showRejectDialog(store);
         break;
-      case 'toggle':
+      case 'toggle-active':
         await _toggleStoreStatus(store);
         break;
       case 'toggle-featured': // ✅ ADD THIS
