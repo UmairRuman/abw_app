@@ -1,5 +1,7 @@
 // lib/features/admin/presentation/screens/dashboard/admin_dashboard_screen.dart
 
+import 'package:abw_app/features/admin/presentation/screens/orders/admin_orders_screen.dart';
+import 'package:abw_app/features/admin/presentation/screens/settings/payment_settings_dialog.dart';
 import 'package:abw_app/features/auth/presentation/providers/auth_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -547,6 +549,31 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
                   color: const Color(0xFF4facfe),
                   onTap: () {
                     context.push('/admin/users');
+                  },
+                ),
+
+                _buildActionCard(
+                  icon: Icons.receipt_long,
+                  label: 'All Orders',
+                  color: AppColorsDark.warning,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AdminOrdersScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildActionCard(
+                  icon: Icons.payment,
+                  label: 'Payment Settings',
+                  color: const Color(0xFF00A651),
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => const PaymentSettingsDialog(),
+                    );
                   },
                 ),
               ],

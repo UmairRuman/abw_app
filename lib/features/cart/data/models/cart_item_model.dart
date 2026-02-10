@@ -1,5 +1,7 @@
 // lib/features/cart/data/models/cart_item_model.dart
 
+import 'package:abw_app/features/products/domain/entities/product_variant.dart';
+
 class CartItemModel {
   final String productId;
   final String productName;
@@ -14,6 +16,11 @@ class CartItemModel {
   final int maxQuantity;
   final String unit;
 
+  // ✅ ADD THESE for variant/addon support
+  final ProductVariant? selectedVariant;
+  final List<ProductAddon> selectedAddons;
+  final String? specialInstructions;
+
   CartItemModel({
     required this.productId,
     required this.productName,
@@ -27,6 +34,10 @@ class CartItemModel {
     this.isAvailable = true,
     required this.maxQuantity,
     required this.unit,
+    // ✅ ADD THESE
+    this.selectedVariant,
+    this.selectedAddons = const [],
+    this.specialInstructions,
   });
 
   /// Calculate total for this item
@@ -49,10 +60,29 @@ class CartItemModel {
       'isAvailable': isAvailable,
       'maxQuantity': maxQuantity,
       'unit': unit,
+      // ✅ ADD THESE
+      'selectedVariant': selectedVariant?.toJson(),
+      'selectedAddons': selectedAddons.map((a) => a.toJson()).toList(),
+      'specialInstructions': specialInstructions,
     };
   }
 
   factory CartItemModel.fromJson(Map<String, dynamic> json) {
+    // ✅ Parse selectedVariant
+    ProductVariant? selectedVariant;
+    if (json['selectedVariant'] != null) {
+      selectedVariant = ProductVariant.fromJson(
+        json['selectedVariant'] as Map<String, dynamic>,
+      );
+    }
+
+    // ✅ Parse selectedAddons
+    final addonsList = json['selectedAddons'] as List? ?? [];
+    final selectedAddons =
+        addonsList
+            .map((a) => ProductAddon.fromJson(a as Map<String, dynamic>))
+            .toList();
+
     return CartItemModel(
       productId: json['productId'] as String,
       productName: json['productName'] as String,

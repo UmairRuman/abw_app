@@ -11,6 +11,8 @@ import '../../../../../core/theme/colors/app_colors_dark.dart';
 import '../../../../../core/theme/text_styles/app_text_styles.dart';
 import '../../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../addresses/presentation/providers/addresses_provider.dart';
+import '../../../../orders/presentation/screens/customer/active_orders_screen.dart';
+import '../../../../orders/presentation/screens/customer/order_history_screen.dart';
 
 class CustomerProfileScreen extends ConsumerStatefulWidget {
   const CustomerProfileScreen({super.key});
@@ -78,8 +80,6 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
           ),
         ),
         onPressed: () {
-          //      ref.read(categoriesProvider.notifier).getAllCategories();
-          // ref.read(storesProvider.notifier).getAllStores();
           context.pop();
         },
       ),
@@ -194,14 +194,30 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
           ),
         ]),
         _buildSection(context, 'Orders', [
+          // ✅ ADD THIS
+          _buildMenuItem(
+            icon: Icons.shopping_bag_outlined,
+            title: 'Active Orders',
+            subtitle: 'Track your ongoing orders',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ActiveOrdersScreen(),
+                ),
+              );
+            },
+          ),
+          // ✅ ADD THIS
           _buildMenuItem(
             icon: Icons.history,
             title: 'Order History',
+            subtitle: 'View orders from last 5 days',
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Order history coming in Milestone 2'),
-                  backgroundColor: AppColorsDark.info,
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const OrderHistoryScreen(),
                 ),
               );
             },

@@ -10,15 +10,35 @@ import '../../features/auth/presentation/screens/rider_request/pending_approval_
 import '../../features/auth/presentation/screens/signup/customer_signup_screen.dart';
 import '../../features/auth/presentation/screens/signup/rider_signup_screen.dart';
 import '../../features/auth/presentation/screens/splash/splash_screen.dart';
+
+// Customer
 import '../../features/customer/presentation/screens/home/customer_home_screen.dart';
 import '../../features/customer/presentation/screens/store/store_details_screen.dart';
 import '../../features/customer/presentation/screens/search/search_screen.dart';
 import '../../features/customer/presentation/screens/cart/cart_screen.dart';
 import '../../features/customer/presentation/screens/profile/customer_profile_screen.dart';
 import '../../features/customer/presentation/screens/addresses/addresses_screen.dart';
+
+// Checkout & Payment
+import '../../features/checkout/presentation/screens/checkout_screen.dart';
+import '../../features/payment/presentation/screens/payment_selection_screen.dart';
+import '../../features/payment/presentation/screens/cod_confirmation_screen.dart';
+import '../../features/payment/presentation/screens/jazzcash_payment_screen.dart';
+import '../../features/payment/presentation/screens/easypaisa_payment_screen.dart';
+import '../../features/payment/presentation/screens/bank_transfer_payment_screen.dart';
+import '../../features/payment/presentation/screens/order_confirmation_screen.dart';
+
+// Orders - Customer
+import '../../features/orders/presentation/screens/customer/active_orders_screen.dart';
+import '../../features/orders/presentation/screens/customer/order_history_screen.dart';
+import '../../features/orders/presentation/screens/customer/order_details_screen.dart';
+
+// Admin
 import '../../features/admin/presentation/screens/main/admin_main_screen.dart';
 import '../../features/admin/presentation/screens/products/product_management_screen.dart';
 import '../../features/admin/presentation/screens/users/users_list_screen.dart';
+import '../../features/admin/presentation/screens/orders/admin_orders_screen.dart';
+import '../../features/admin/presentation/screens/orders/admin_order_details_screen.dart';
 
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 
@@ -29,7 +49,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     debugLogDiagnostics: true,
     routes: [
       // ============================================================
-      // SPLASH SCREEN
+      // SPLASH
       // ============================================================
       GoRoute(
         path: '/splash',
@@ -38,14 +58,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
 
       // ============================================================
-      // AUTHENTICATION ROUTES
+      // AUTH ROUTES
       // ============================================================
       GoRoute(
         path: '/login',
         name: 'login',
         builder: (context, state) => const LoginScreen(),
       ),
-
       GoRoute(
         path: '/signup/customer',
         name: 'signup-customer',
@@ -61,13 +80,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'signup-rider',
         builder: (context, state) => const RiderSignupScreen(),
       ),
-
       GoRoute(
         path: '/forgot-password',
         name: 'forgot-password',
         builder: (context, state) => const ForgotPasswordScreen(),
       ),
-
       GoRoute(
         path: '/rider/pending',
         name: 'rider-pending',
@@ -82,7 +99,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'customer-home',
         builder: (context, state) => const CustomerHomeScreen(),
       ),
-
       GoRoute(
         path: '/customer/store/:id',
         name: 'store-details',
@@ -91,29 +107,98 @@ final routerProvider = Provider<GoRouter>((ref) {
           return StoreDetailsScreen(storeId: storeId);
         },
       ),
-
       GoRoute(
         path: '/customer/search',
         name: 'search',
         builder: (context, state) => const SearchScreen(),
       ),
-
       GoRoute(
         path: '/customer/cart',
         name: 'cart',
         builder: (context, state) => const CartScreen(),
       ),
-
       GoRoute(
         path: '/customer/profile',
         name: 'profile',
         builder: (context, state) => const CustomerProfileScreen(),
       ),
-
       GoRoute(
         path: '/customer/addresses',
         name: 'addresses',
-        builder: (context, state) => const AddressesScreen(),
+        builder: (context, state) {
+          // ✅ Support selection mode via extra param
+          final extra = state.extra as Map<String, dynamic>?;
+          final isSelectionMode = extra?['isSelectionMode'] as bool? ?? false;
+          return AddressesScreen();
+        },
+      ),
+
+      // ============================================================
+      // CHECKOUT ROUTES
+      // ============================================================
+      GoRoute(
+        path: '/customer/checkout',
+        name: 'checkout',
+        builder: (context, state) => const CheckoutScreen(),
+      ),
+
+      // ============================================================
+      // PAYMENT ROUTES
+      // ============================================================
+      GoRoute(
+        path: '/customer/payment',
+        name: 'payment-selection',
+        builder: (context, state) => const PaymentSelectionScreen(),
+      ),
+      GoRoute(
+        path: '/customer/payment/cod',
+        name: 'payment-cod',
+        builder: (context, state) => const CodConfirmationScreen(),
+      ),
+      GoRoute(
+        path: '/customer/payment/jazzcash',
+        name: 'payment-jazzcash',
+        builder: (context, state) => const JazzcashPaymentScreen(),
+      ),
+      GoRoute(
+        path: '/customer/payment/easypaisa',
+        name: 'payment-easypaisa',
+        builder: (context, state) => const EasypaisaPaymentScreen(),
+      ),
+      GoRoute(
+        path: '/customer/payment/bank',
+        name: 'payment-bank',
+        builder: (context, state) => const BankTransferPaymentScreen(),
+      ),
+      GoRoute(
+        path: '/customer/payment/confirmation/:orderId',
+        name: 'order-confirmation',
+        builder: (context, state) {
+          final orderId = state.pathParameters['orderId'] ?? '';
+          return OrderConfirmationScreen(orderId: orderId);
+        },
+      ),
+
+      // ============================================================
+      // ORDER ROUTES - CUSTOMER
+      // ============================================================
+      GoRoute(
+        path: '/customer/orders/active',
+        name: 'active-orders',
+        builder: (context, state) => const ActiveOrdersScreen(),
+      ),
+      GoRoute(
+        path: '/customer/orders/history',
+        name: 'order-history',
+        builder: (context, state) => const OrderHistoryScreen(),
+      ),
+      GoRoute(
+        path: '/customer/orders/:orderId',
+        name: 'order-details',
+        builder: (context, state) {
+          final orderId = state.pathParameters['orderId'] ?? '';
+          return OrderDetailsScreen(orderId: orderId);
+        },
       ),
 
       // ============================================================
@@ -124,21 +209,32 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'admin-dashboard',
         builder: (context, state) => const AdminMainScreen(),
       ),
-
       GoRoute(
         path: '/admin/products',
         name: 'admin-products',
         builder: (context, state) => const ProductManagementScreen(),
       ),
-
       GoRoute(
         path: '/admin/users',
         name: 'admin-users',
         builder: (context, state) => const UsersListScreen(),
       ),
+      GoRoute(
+        path: '/admin/orders',
+        name: 'admin-orders',
+        builder: (context, state) => const AdminOrdersScreen(),
+      ),
+      GoRoute(
+        path: '/admin/orders/:orderId',
+        name: 'admin-order-details',
+        builder: (context, state) {
+          final orderId = state.pathParameters['orderId'] ?? '';
+          return AdminOrderDetailsScreen(orderId: orderId);
+        },
+      ),
 
       // ============================================================
-      // RIDER ROUTES (Milestone 2)
+      // RIDER ROUTES
       // ============================================================
       GoRoute(
         path: '/rider/dashboard',
@@ -147,7 +243,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             (context, state) => const Scaffold(
               body: Center(
                 child: Text(
-                  'Rider Dashboard - Coming in Milestone 2',
+                  'Rider Dashboard - Coming Soon',
                   style: TextStyle(fontSize: 18),
                 ),
               ),
@@ -155,7 +251,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
 
       // ============================================================
-      // ERROR/404 ROUTE
+      // ERROR ROUTE
       // ============================================================
       GoRoute(
         path: '/error',
@@ -179,8 +275,6 @@ final routerProvider = Provider<GoRouter>((ref) {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    const Text('The page you are looking for does not exist.'),
                     const SizedBox(height: 24),
                     ElevatedButton(
                       onPressed: () => context.go('/login'),
@@ -223,14 +317,16 @@ final routerProvider = Provider<GoRouter>((ref) {
 // NAVIGATION EXTENSIONS
 // ============================================================
 
+// ADD AT BOTTOM of app_router.dart:
+
 extension NavigationExtensions on BuildContext {
-  // Auth navigation
+  // ── Auth ──────────────────────────────────────────────
   void goToLogin() => go('/login');
   void goToCustomerSignup() => go('/signup/customer');
   void goToRiderSignup() => go('/signup/rider');
   void goToForgotPassword() => go('/forgot-password');
 
-  // Customer navigation
+  // ── Customer ──────────────────────────────────────────
   void goToCustomerHome() => go('/customer/home');
   void goToStoreDetails(String storeId) => go('/customer/store/$storeId');
   void goToSearch() => go('/customer/search');
@@ -238,12 +334,31 @@ extension NavigationExtensions on BuildContext {
   void goToProfile() => go('/customer/profile');
   void goToAddresses() => go('/customer/addresses');
 
-  // Admin navigation
+  // ✅ NEW - Checkout & Payment
+  void goToCheckout() => go('/customer/checkout');
+  void goToPaymentSelection() => go('/customer/payment');
+  void goToPaymentCOD() => go('/customer/payment/cod');
+  void goToPaymentJazzcash() => go('/customer/payment/jazzcash');
+  void goToPaymentEasypaisa() => go('/customer/payment/easypaisa');
+  void goToPaymentBank() => go('/customer/payment/bank');
+  void goToOrderConfirmation(String orderId) =>
+      go('/customer/payment/confirmation/$orderId');
+
+  // ✅ NEW - Orders
+  void goToActiveOrders() => go('/customer/orders/active');
+  void goToOrderHistory() => go('/customer/orders/history');
+  void goToOrderDetails(String orderId) => go('/customer/orders/$orderId');
+
+  // ── Admin ─────────────────────────────────────────────
   void goToAdminDashboard() => go('/admin/dashboard');
   void goToAdminProducts() => go('/admin/products');
   void goToAdminUsers() => go('/admin/users');
 
-  // Rider navigation
+  // ✅ NEW - Admin Orders
+  void goToAdminOrders() => go('/admin/orders');
+  void goToAdminOrderDetails(String orderId) => go('/admin/orders/$orderId');
+
+  // ── Rider ─────────────────────────────────────────────
   void goToRiderDashboard() => go('/rider/dashboard');
   void goToRiderPending() => go('/rider/pending');
 }

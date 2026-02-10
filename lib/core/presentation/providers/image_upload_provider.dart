@@ -5,9 +5,10 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/collections/image_upload_collection.dart';
 
-final imageUploadProvider = NotifierProvider<ImageUploadNotifier, ImageUploadState>(
-  ImageUploadNotifier.new,
-);
+final imageUploadProvider =
+    NotifierProvider<ImageUploadNotifier, ImageUploadState>(
+      ImageUploadNotifier.new,
+    );
 
 class ImageUploadNotifier extends Notifier<ImageUploadState> {
   late final ImageUploadCollection _collection;
@@ -16,6 +17,40 @@ class ImageUploadNotifier extends Notifier<ImageUploadState> {
   ImageUploadState build() {
     _collection = ImageUploadCollection();
     return ImageUploadInitial();
+  }
+
+  // Upload payment proof screenshots
+  Future<List<String>> uploadPaymentProof(List<File> images) async {
+    try {
+      final uploadedUrls = <String>[];
+
+      for (final image in images) {
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final publicId = 'proof_$timestamp';
+
+        // ✅ USE _collection instead of cloudinary directly
+        final uploadedPublicId = await _collection.uploadImage(
+          imageFile: image,
+          folder: 'abw_app/payment_proofs',
+          publicId: publicId,
+          onProgress: (progress) {
+            // Optional: update state with progress
+            state = ImageUploading(progress: progress);
+          },
+        );
+
+        if (uploadedPublicId != null) {
+          // ✅ Get the full URL using _collection
+          final url = _collection.getOptimizedUrl(uploadedPublicId);
+          uploadedUrls.add(url);
+        }
+      }
+
+      return uploadedUrls;
+    } catch (e) {
+      log('Error uploading payment proof: $e');
+      return [];
+    }
   }
 
   /// Upload single image
@@ -86,10 +121,11 @@ class ImageUploadNotifier extends Notifier<ImageUploadState> {
       );
 
       if (uploadedPublicIds.isNotEmpty) {
-        final urls = uploadedPublicIds
-            .map((id) => _collection.getOptimizedUrl(id))
-            .toList();
-        
+        final urls =
+            uploadedPublicIds
+                .map((id) => _collection.getOptimizedUrl(id))
+                .toList();
+
         state = ImagesUploaded(urls: urls, publicIds: uploadedPublicIds);
         return uploadedPublicIds;
       } else {
@@ -172,16 +208,8 @@ class ImageUploadNotifier extends Notifier<ImageUploadState> {
   }
 
   /// Get optimized URL
-  String getOptimizedUrl(
-    String publicId, {
-    int? width,
-    int? height,
-  }) {
-    return _collection.getOptimizedUrl(
-      publicId,
-      width: width,
-      height: height,
-    );
+  String getOptimizedUrl(String publicId, {int? width, int? height}) {
+    return _collection.getOptimizedUrl(publicId, width: width, height: height);
   }
 
   /// Get thumbnail URL
@@ -202,26 +230,26 @@ class ImageUploadInitial extends ImageUploadState {}
 
 class ImageUploading extends ImageUploadState {
   final double progress;
-  
+
   ImageUploading({required this.progress});
 }
 
 class ImageUploaded extends ImageUploadState {
   final String url;
   final String publicId;
-  
+
   ImageUploaded({required this.url, required this.publicId});
 }
 
 class ImagesUploaded extends ImageUploadState {
   final List<String> urls;
   final List<String> publicIds;
-  
+
   ImagesUploaded({required this.urls, required this.publicIds});
 }
 
 class ImageUploadError extends ImageUploadState {
   final String error;
-  
+
   ImageUploadError({required this.error});
 }

@@ -1,5 +1,6 @@
 // lib/features/customer/presentation/screens/cart/cart_screen.dart
 
+import 'package:abw_app/core/routes/app_router.dart';
 import 'package:abw_app/features/auth/presentation/providers/auth_state.dart';
 import 'package:abw_app/features/cart/data/models/cart_item_model.dart';
 import 'package:abw_app/features/products/presentation/providers/products_provider.dart';
@@ -346,13 +347,7 @@ class CartScreen extends ConsumerWidget {
             SizedBox(height: 16.h),
             ElevatedButton(
               onPressed: () {
-                // TODO: Navigate to checkout
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Checkout coming in Milestone 2'),
-                    backgroundColor: AppColorsDark.info,
-                  ),
-                );
+                context.goToCheckout();
               },
               style: ElevatedButton.styleFrom(
                 minimumSize: Size(double.infinity, 56.h),

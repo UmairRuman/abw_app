@@ -22,6 +22,22 @@ class OrdersCollection {
     }
   }
 
+  Future<bool> updatePaymentStatus(
+    String orderId,
+    PaymentStatus newStatus,
+  ) async {
+    try {
+      await _firestore.collection(_collectionPath).doc(orderId).update({
+        'paymentStatus': newStatus.name,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return true;
+    } catch (e) {
+      print('Error updating payment status: $e');
+      return false;
+    }
+  }
+
   // Get order by ID
   Future<OrderModel?> getOrderById(String orderId) async {
     try {
