@@ -1,4 +1,5 @@
 // lib/features/auth/data/models/rider_model.dart
+// FULL REPLACEMENT:
 
 import 'package:abw_app/shared/enums/user_role.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -10,20 +11,24 @@ class RiderModel extends RiderEntity {
     required super.email,
     required super.name,
     required super.phone,
-    super.role = UserRole.rider,
-    super.profileImage,
     required super.isActive,
     required super.createdAt,
     required super.updatedAt,
     required super.vehicleType,
     required super.vehicleNumber,
+    super.role = UserRole.rider,
+    super.profileImage,
     super.licenseNumber,
     super.isApproved = false,
     super.isAvailable = false,
     super.rating = 0.0,
     super.totalDeliveries = 0,
-    super.approvedAt,    // ✅ ADD THIS
-    super.approvedBy,    // ✅ ADD THIS
+    super.approvedAt,
+    super.approvedBy,
+    // ── Rider App fields ──
+    super.status = RiderStatus.offline,
+    super.totalEarnings = 0.0,
+    super.currentOrderId,
   });
 
   factory RiderModel.fromJson(Map<String, dynamic> json) {
@@ -36,17 +41,25 @@ class RiderModel extends RiderEntity {
       isActive: json['isActive'] as bool? ?? true,
       createdAt: (json['createdAt'] as Timestamp).toDate(),
       updatedAt: (json['updatedAt'] as Timestamp).toDate(),
-      vehicleType: json['vehicleType'] as String,
-      vehicleNumber: json['vehicleNumber'] as String,
+      vehicleType: json['vehicleType'] as String? ?? '',
+      vehicleNumber: json['vehicleNumber'] as String? ?? '',
       licenseNumber: json['licenseNumber'] as String?,
       isApproved: json['isApproved'] as bool? ?? false,
       isAvailable: json['isAvailable'] as bool? ?? false,
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
       totalDeliveries: json['totalDeliveries'] as int? ?? 0,
-      approvedAt: json['approvedAt'] != null        // ✅ ADD THIS
-          ? (json['approvedAt'] as Timestamp).toDate()
-          : null,
-      approvedBy: json['approvedBy'] as String?,    // ✅ ADD THIS
+      approvedAt:
+          json['approvedAt'] != null
+              ? (json['approvedAt'] as Timestamp).toDate()
+              : null,
+      approvedBy: json['approvedBy'] as String?,
+      // ── Rider App fields ──
+      status: RiderStatus.values.firstWhere(
+        (s) => s.name == (json['status'] as String? ?? 'offline'),
+        orElse: () => RiderStatus.offline,
+      ),
+      totalEarnings: (json['totalEarnings'] as num?)?.toDouble() ?? 0.0,
+      currentOrderId: json['currentOrderId'] as String?,
     );
   }
 
@@ -67,10 +80,12 @@ class RiderModel extends RiderEntity {
       'isAvailable': isAvailable,
       'rating': rating,
       'totalDeliveries': totalDeliveries,
-      'approvedAt': approvedAt != null              // ✅ ADD THIS
-          ? Timestamp.fromDate(approvedAt!)
-          : null,
-      'approvedBy': approvedBy,                     // ✅ ADD THIS
+      'approvedAt': approvedAt != null ? Timestamp.fromDate(approvedAt!) : null,
+      'approvedBy': approvedBy,
+      // ── Rider App fields ──
+      'status': status.name,
+      'totalEarnings': totalEarnings,
+      'currentOrderId': currentOrderId,
     };
   }
 
@@ -90,8 +105,12 @@ class RiderModel extends RiderEntity {
     bool? isAvailable,
     double? rating,
     int? totalDeliveries,
-    DateTime? approvedAt,    // ✅ ADD THIS
-    String? approvedBy,      // ✅ ADD THIS
+    DateTime? approvedAt,
+    String? approvedBy,
+    // ── Rider App fields ──
+    RiderStatus? status,
+    double? totalEarnings,
+    String? currentOrderId,
   }) {
     return RiderModel(
       id: id ?? this.id,
@@ -109,8 +128,11 @@ class RiderModel extends RiderEntity {
       isAvailable: isAvailable ?? this.isAvailable,
       rating: rating ?? this.rating,
       totalDeliveries: totalDeliveries ?? this.totalDeliveries,
-      approvedAt: approvedAt ?? this.approvedAt,        // ✅ ADD THIS
-      approvedBy: approvedBy ?? this.approvedBy,        // ✅ ADD THIS
+      approvedAt: approvedAt ?? this.approvedAt,
+      approvedBy: approvedBy ?? this.approvedBy,
+      status: status ?? this.status,
+      totalEarnings: totalEarnings ?? this.totalEarnings,
+      currentOrderId: currentOrderId ?? this.currentOrderId,
     );
   }
 }

@@ -121,7 +121,7 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
     await Future.delayed(const Duration(milliseconds: 300));
 
     // ✅ FIXED: Handle null case properly
-    String? storeId = widget.product?.storeId ?? widget.storeId;
+    final String? storeId = widget.product?.storeId ?? widget.storeId;
 
     // If no storeId, just load categories and all stores
     if (storeId == null) {
@@ -548,7 +548,7 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
 
     return DropdownButtonFormField<String>(
       isExpanded: true,
-      value: _selectedCategory.isEmpty ? null : _selectedCategory,
+      initialValue: _selectedCategory.isEmpty ? null : _selectedCategory,
       decoration: const InputDecoration(labelText: 'Category'),
       items:
           state.categories.map((category) {
@@ -633,7 +633,7 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
 
     return DropdownButtonFormField<String>(
       isExpanded: true,
-      value: _selectedStore.isEmpty ? null : _selectedStore,
+      initialValue: _selectedStore.isEmpty ? null : _selectedStore,
       decoration: const InputDecoration(labelText: 'Store'),
       items:
           state.stores.map((store) {
@@ -879,16 +879,6 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please fill all required fields'),
-          backgroundColor: AppColorsDark.error,
-        ),
-      );
-      return;
-    }
-
-    if (_selectedStore == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a store'),
           backgroundColor: AppColorsDark.error,
         ),
       );

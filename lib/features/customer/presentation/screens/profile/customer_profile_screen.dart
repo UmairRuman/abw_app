@@ -149,7 +149,7 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
               ),
             ),
 
-            if (user.phone != null) ...[
+            ...[
               SizedBox(height: 4.h),
               Text(
                 user.phone!,
@@ -282,8 +282,8 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
   Widget _buildMenuItem({
     required IconData icon,
     required String title,
-    String? subtitle,
     required VoidCallback onTap,
+    String? subtitle,
   }) {
     return ListTile(
       leading: Container(

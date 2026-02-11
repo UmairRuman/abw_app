@@ -9,18 +9,13 @@ import '../../../../../products/data/models/product_model.dart';
 class ProductDetailsDialog extends StatelessWidget {
   final ProductModel product;
 
-  const ProductDetailsDialog({
-    super.key,
-    required this.product,
-  });
+  const ProductDetailsDialog({required this.product, super.key});
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: AppColorsDark.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20.r),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
       child: Container(
         constraints: BoxConstraints(maxHeight: 600.h),
         child: Column(
@@ -49,7 +44,7 @@ class ProductDetailsDialog extends StatelessWidget {
                     top: 12.h,
                     right: 12.w,
                     child: IconButton(
-                      icon: Icon(
+                      icon: const Icon(
                         Icons.close,
                         color: AppColorsDark.textPrimary,
                       ),
@@ -97,65 +92,66 @@ class ProductDetailsDialog extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    
+
                     SizedBox(height: 8.h),
-                    
+
                     // Store & Category
                     Row(
-  children: [
-    Icon(
-      Icons.store,
-      size: 16.sp,
-      color: AppColorsDark.textSecondary,
-    ),
-    SizedBox(width: 4.w),
+                      children: [
+                        Icon(
+                          Icons.store,
+                          size: 16.sp,
+                          color: AppColorsDark.textSecondary,
+                        ),
+                        SizedBox(width: 4.w),
 
-    Expanded(
-      child: Text(
-        product.storeName,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: AppTextStyles.bodyMedium().copyWith(
-          color: AppColorsDark.textSecondary,
-        ),
-      ),
-    ),
+                        Expanded(
+                          child: Text(
+                            product.storeName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.bodyMedium().copyWith(
+                              color: AppColorsDark.textSecondary,
+                            ),
+                          ),
+                        ),
 
-    SizedBox(width: 12.w),
+                        SizedBox(width: 12.w),
 
-    Icon(
-      Icons.category,
-      size: 16.sp,
-      color: AppColorsDark.textSecondary,
-    ),
-    SizedBox(width: 4.w),
+                        Icon(
+                          Icons.category,
+                          size: 16.sp,
+                          color: AppColorsDark.textSecondary,
+                        ),
+                        SizedBox(width: 4.w),
 
-    Expanded(
-      child: Text(
-        product.categoryName,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: AppTextStyles.bodyMedium().copyWith(
-          color: AppColorsDark.textSecondary,
-        ),
-      ),
-    ),
-  ],
-),
+                        Expanded(
+                          child: Text(
+                            product.categoryName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.bodyMedium().copyWith(
+                              color: AppColorsDark.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
 
-                    
                     SizedBox(height: 16.h),
-                    
+
                     // Status badges
                     Wrap(
                       spacing: 8.w,
                       runSpacing: 8.h,
                       children: [
                         _buildBadge(
-                          label: product.isAvailable ? 'Available' : 'Unavailable',
-                          color: product.isAvailable
-                              ? AppColorsDark.success
-                              : AppColorsDark.error,
+                          label:
+                              product.isAvailable ? 'Available' : 'Unavailable',
+                          color:
+                              product.isAvailable
+                                  ? AppColorsDark.success
+                                  : AppColorsDark.error,
                         ),
                         if (product.isFeatured)
                           _buildBadge(
@@ -174,11 +170,11 @@ class ProductDetailsDialog extends StatelessWidget {
                           ),
                       ],
                     ),
-                    
+
                     SizedBox(height: 16.h),
-                    Divider(color: AppColorsDark.divider),
+                    const Divider(color: AppColorsDark.divider),
                     SizedBox(height: 16.h),
-                    
+
                     // Price Section
                     _buildSection(
                       title: 'Pricing',
@@ -216,9 +212,9 @@ class ProductDetailsDialog extends StatelessWidget {
                         ],
                       ),
                     ),
-                    
+
                     SizedBox(height: 16.h),
-                    
+
                     // Stock Section
                     _buildSection(
                       title: 'Stock Information',
@@ -228,24 +224,27 @@ class ProductDetailsDialog extends StatelessWidget {
                           _buildInfoRow(
                             label: 'Available Stock',
                             value: '${product.quantity} ${product.unit}',
-                            color: product.quantity > 0
-                                ? AppColorsDark.success
-                                : AppColorsDark.error,
+                            color:
+                                product.quantity > 0
+                                    ? AppColorsDark.success
+                                    : AppColorsDark.error,
                           ),
                           _buildInfoRow(
                             label: 'Min Order',
-                            value: '${product.minOrderQuantity} ${product.unit}',
+                            value:
+                                '${product.minOrderQuantity} ${product.unit}',
                           ),
                           _buildInfoRow(
                             label: 'Max Order',
-                            value: '${product.maxOrderQuantity} ${product.unit}',
+                            value:
+                                '${product.maxOrderQuantity} ${product.unit}',
                           ),
                         ],
                       ),
                     ),
-                    
+
                     SizedBox(height: 16.h),
-                    
+
                     // Description
                     _buildSection(
                       title: 'Description',
@@ -256,7 +255,7 @@ class ProductDetailsDialog extends StatelessWidget {
                         ),
                       ),
                     ),
-                    
+
                     if (product.preparationTime > 0) ...[
                       SizedBox(height: 16.h),
                       _buildSection(
@@ -279,7 +278,7 @@ class ProductDetailsDialog extends StatelessWidget {
                         ),
                       ),
                     ],
-                    
+
                     // Stats
                     SizedBox(height: 16.h),
                     _buildSection(
@@ -315,7 +314,7 @@ class ProductDetailsDialog extends StatelessWidget {
                         ],
                       ),
                     ),
-                    
+
                     // Tags
                     if (product.tags.isNotEmpty) ...[
                       SizedBox(height: 16.h),
@@ -324,12 +323,16 @@ class ProductDetailsDialog extends StatelessWidget {
                         child: Wrap(
                           spacing: 8.w,
                           runSpacing: 8.h,
-                          children: product.tags
-                              .map((tag) => Chip(
-                                    label: Text(tag),
-                                    backgroundColor: AppColorsDark.primaryContainer,
-                                  ))
-                              .toList(),
+                          children:
+                              product.tags
+                                  .map(
+                                    (tag) => Chip(
+                                      label: Text(tag),
+                                      backgroundColor:
+                                          AppColorsDark.primaryContainer,
+                                    ),
+                                  )
+                                  .toList(),
                         ),
                       ),
                     ],
@@ -343,10 +346,7 @@ class ProductDetailsDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildSection({
-    required String title,
-    required Widget child,
-  }) {
+  Widget _buildSection({required String title, required Widget child}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -363,10 +363,7 @@ class ProductDetailsDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildBadge({
-    required String label,
-    required Color color,
-  }) {
+  Widget _buildBadge({required String label, required Color color}) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
       decoration: BoxDecoration(

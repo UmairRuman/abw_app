@@ -1,6 +1,6 @@
 // lib/features/checkout/presentation/screens/checkout_screen.dart
 
-import 'package:abw_app/core/routes/app_router.dart';
+import 'package:abw_app/features/checkout/data/models/checkout_model.dart';
 import 'package:abw_app/features/customer/presentation/screens/addresses/addresses_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,36 +28,25 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   @override
   void initState() {
     super.initState();
-    // _loadCheckout();
+    // ✅ Load checkout on init - single call, no duplication
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadCheckout();
+    });
   }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-
-    // final checkoutState = ref.read(checkoutProvider);
-    // if (checkoutState is CheckoutInitial) {
-    //   final authState = ref.read(authProvider);
-
-    //   if (authState is Authenticated) {
-    //     ref.read(checkoutProvider.notifier).prepareCheckout(authState.user.id);
-    //   }
-    // }
-  }
-
-  // Future<void> _loadCheckout() async {
-  //   final authState = ref.read(authProvider);
-  //   if (authState is Authenticated) {
-  //     await ref
-  //         .read(checkoutProvider.notifier)
-  //         .prepareCheckout(authState.user.id);
-  //   }
-  // }
 
   @override
   void dispose() {
     _instructionsController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadCheckout() async {
+    final authState = ref.read(authProvider);
+    if (authState is Authenticated) {
+      await ref
+          .read(checkoutProvider.notifier)
+          .prepareCheckout(authState.user.id);
+    }
   }
 
   @override
@@ -124,9 +113,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Delivery Address Section
-                _buildDeliveryAddressSection(
-                  checkout.deliveryAddress as AddressModel,
-                ),
+                _buildDeliveryAddressSection(checkout.deliveryAddress),
                 SizedBox(height: 20.h),
 
                 // Estimated Delivery Time
@@ -134,7 +121,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 SizedBox(height: 20.h),
 
                 // Order Items
-                _buildOrderItemsSection(checkout.items as List<CartItemModel>),
+                _buildOrderItemsSection(checkout.items),
                 SizedBox(height: 20.h),
 
                 // Special Instructions
@@ -471,7 +458,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     );
   }
 
-  Widget _buildPriceBreakdown(checkout) {
+  Widget _buildPriceBreakdown(CheckoutModel checkout) {
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
@@ -490,9 +477,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             ),
           ),
           SizedBox(height: 16.h),
-          _buildPriceRow('Subtotal', (checkout.subtotal as double)),
+          _buildPriceRow('Subtotal', checkout.subtotal),
           SizedBox(height: 8.h),
-          _buildPriceRow('Delivery Fee', (checkout.deliveryFee as double)),
+          _buildPriceRow('Delivery Fee', checkout.deliveryFee),
           SizedBox(height: 12.h),
           const Divider(color: AppColorsDark.border),
           SizedBox(height: 12.h),
@@ -594,6 +581,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   void _proceedToPayment() {
-    context.goToPaymentSelection();
+    context.push('/customer/payment');
   }
 }

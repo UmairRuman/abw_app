@@ -30,7 +30,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
   }
 
   Future<void> _loadRecentSearches() async {
-    await ref.read(searchProvider.notifier).getRecentSearches();
+    ref.read(searchProvider.notifier).getRecentSearches();
   }
 
   @override
@@ -70,15 +70,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
               color: AppColorsDark.textTertiary,
             ),
             border: InputBorder.none,
-            suffixIcon: _searchController.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: () {
-                      _searchController.clear();
-                      ref.read(searchProvider.notifier).clearSearch();
-                    },
-                  )
-                : null,
+            suffixIcon:
+                _searchController.text.isNotEmpty
+                    ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        _searchController.clear();
+                        ref.read(searchProvider.notifier).clearSearch();
+                      },
+                    )
+                    : null,
           ),
           onSubmitted: _performSearch,
           onChanged: (value) {
@@ -92,9 +93,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
           ),
         ],
       ),
-      body: searchState is SearchLoading
-          ? Center(child: CircularProgressIndicator(color: AppColorsDark.primary))
-          : searchState is SearchLoaded
+      body:
+          searchState is SearchLoading
+              ? const Center(
+                child: CircularProgressIndicator(color: AppColorsDark.primary),
+              )
+              : searchState is SearchLoaded
               ? _buildSearchResults(searchState)
               : _buildRecentSearches(),
     );
@@ -120,7 +124,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                 onPressed: () {
                   ref.read(searchProvider.notifier).clearRecentSearches();
                 },
-                child: Text('Clear All'),
+                child: const Text('Clear All'),
               ),
             ],
           ),
@@ -129,7 +133,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
           ...List.generate(
             5,
             (index) => ListTile(
-              leading: Icon(Icons.history, color: AppColorsDark.textSecondary),
+              leading: const Icon(
+                Icons.history,
+                color: AppColorsDark.textSecondary,
+              ),
               title: Text('Recent search ${index + 1}'),
               trailing: Icon(Icons.north_west, size: 16.sp),
               onTap: () {
@@ -149,7 +156,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off, size: 64.sp, color: AppColorsDark.textTertiary),
+            Icon(
+              Icons.search_off,
+              size: 64.sp,
+              color: AppColorsDark.textTertiary,
+            ),
             SizedBox(height: 16.h),
             Text(
               'No results found',
@@ -219,7 +230,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                   width: 60.w,
                   height: 60.w,
                   color: AppColorsDark.surfaceContainer,
-                  child: Icon(Icons.store, color: AppColorsDark.textTertiary),
+                  child: const Icon(
+                    Icons.store,
+                    color: AppColorsDark.textTertiary,
+                  ),
                 ),
               ),
               SizedBox(width: 12.w),
@@ -237,7 +251,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                     SizedBox(height: 4.h),
                     Row(
                       children: [
-                        Icon(Icons.star, size: 14.sp, color: AppColorsDark.foodRating),
+                        Icon(
+                          Icons.star,
+                          size: 14.sp,
+                          color: AppColorsDark.foodRating,
+                        ),
                         SizedBox(width: 4.w),
                         Text('${store.rating}'),
                       ],

@@ -14,7 +14,7 @@ import 'widgets/product_details_dialog.dart';
 class StoreProductsScreen extends ConsumerStatefulWidget {
   final StoreModel store;
 
-  const StoreProductsScreen({super.key, required this.store});
+  const StoreProductsScreen({required this.store, super.key});
 
   @override
   ConsumerState<StoreProductsScreen> createState() =>

@@ -16,9 +16,9 @@ class RiderActiveDeliveryScreen extends ConsumerStatefulWidget {
   final String riderId;
 
   const RiderActiveDeliveryScreen({
-    super.key,
     required this.orderId,
     required this.riderId,
+    super.key,
   });
 
   @override
@@ -47,20 +47,20 @@ class _RiderActiveDeliveryScreenState
       appBar: AppBar(
         title: Text(
           'Active Delivery',
-          style: AppTextStyles.titleLarge()
-              .copyWith(color: AppColorsDark.textPrimary),
+          style: AppTextStyles.titleLarge().copyWith(
+            color: AppColorsDark.textPrimary,
+          ),
         ),
         backgroundColor: AppColorsDark.surface,
       ),
-      body: ordersState is OrdersLoading
-          ? Center(
-              child: CircularProgressIndicator(
-                color: AppColorsDark.primary,
-              ),
-            )
-          : ordersState is OrderSingleLoaded
+      body:
+          ordersState is OrdersLoading
+              ? const Center(
+                child: CircularProgressIndicator(color: AppColorsDark.primary),
+              )
+              : ordersState is OrderSingleLoaded
               ? _buildContent(ordersState.order)
-              : Center(child: Text('Unable to load order')),
+              : const Center(child: Text('Unable to load order')),
     );
   }
 
@@ -129,14 +129,11 @@ class _RiderActiveDeliveryScreenState
                       SizedBox(height: 12.h),
                       // Call Customer Button
                       OutlinedButton.icon(
-                        onPressed: () => _copyPhone(
-                          context,
-                          order.userPhone,
-                        ),
+                        onPressed: () => _copyPhone(context, order.userPhone),
                         icon: Icon(Icons.phone, size: 16.sp),
                         label: Text('Copy Number: ${order.userPhone}'),
                         style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: AppColorsDark.primary),
+                          side: const BorderSide(color: AppColorsDark.primary),
                           padding: EdgeInsets.symmetric(
                             horizontal: 16.w,
                             vertical: 10.h,
@@ -160,22 +157,19 @@ class _RiderActiveDeliveryScreenState
                         (item) => Padding(
                           padding: EdgeInsets.only(bottom: 8.h),
                           child: Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Expanded(
                                 child: Text(
                                   '${item.quantity}x ${item.productName}',
-                                  style: AppTextStyles.bodySmall()
-                                      .copyWith(
+                                  style: AppTextStyles.bodySmall().copyWith(
                                     color: AppColorsDark.textPrimary,
                                   ),
                                 ),
                               ),
                               Text(
                                 'PKR ${item.total.toInt()}',
-                                style: AppTextStyles.bodySmall()
-                                    .copyWith(
+                                style: AppTextStyles.bodySmall().copyWith(
                                   color: AppColorsDark.primary,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -206,9 +200,10 @@ class _RiderActiveDeliveryScreenState
                                 ? '⚠️ Collect Cash from Customer'
                                 : '✅ Already Paid Online',
                             style: AppTextStyles.bodyMedium().copyWith(
-                              color: order.paymentMethod == PaymentMethod.cod
-                                  ? AppColorsDark.warning
-                                  : AppColorsDark.success,
+                              color:
+                                  order.paymentMethod == PaymentMethod.cod
+                                      ? AppColorsDark.warning
+                                      : AppColorsDark.success,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -216,8 +211,7 @@ class _RiderActiveDeliveryScreenState
                             SizedBox(height: 4.h),
                             Text(
                               'Amount: PKR ${order.total.toInt()}',
-                              style: AppTextStyles.titleMedium()
-                                  .copyWith(
+                              style: AppTextStyles.titleMedium().copyWith(
                                 color: AppColorsDark.error,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -272,17 +266,13 @@ class _RiderActiveDeliveryScreenState
           BoxShadow(
             color: AppColorsDark.primary.withOpacity(0.3),
             blurRadius: 15,
-            offset: Offset(0, 5),
+            offset: const Offset(0, 5),
           ),
         ],
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.delivery_dining,
-            color: AppColorsDark.white,
-            size: 48.sp,
-          ),
+          Icon(Icons.delivery_dining, color: AppColorsDark.white, size: 48.sp),
           SizedBox(width: 16.w),
           Expanded(
             child: Column(
@@ -340,7 +330,7 @@ class _RiderActiveDeliveryScreenState
             ],
           ),
           SizedBox(height: 12.h),
-          Divider(color: AppColorsDark.border),
+          const Divider(color: AppColorsDark.border),
           SizedBox(height: 12.h),
           child,
         ],
@@ -351,7 +341,7 @@ class _RiderActiveDeliveryScreenState
   Widget _buildBottomBar(OrderModel order) {
     return Container(
       padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColorsDark.surface,
         boxShadow: [
           BoxShadow(
@@ -363,18 +353,18 @@ class _RiderActiveDeliveryScreenState
       ),
       child: SafeArea(
         child: ElevatedButton.icon(
-          onPressed:
-              _isMarkingDelivered ? null : () => _markDelivered(order),
-          icon: _isMarkingDelivered
-              ? SizedBox(
-                  height: 20.h,
-                  width: 20.w,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppColorsDark.white,
-                  ),
-                )
-              : Icon(Icons.task_alt, size: 22.sp),
+          onPressed: _isMarkingDelivered ? null : () => _markDelivered(order),
+          icon:
+              _isMarkingDelivered
+                  ? SizedBox(
+                    height: 20.h,
+                    width: 20.w,
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColorsDark.white,
+                    ),
+                  )
+                  : Icon(Icons.task_alt, size: 22.sp),
           label: Text(
             _isMarkingDelivered ? 'Marking...' : 'Mark as Delivered',
             style: AppTextStyles.button().copyWith(fontSize: 16.sp),
@@ -391,7 +381,7 @@ class _RiderActiveDeliveryScreenState
   void _copyPhone(BuildContext context, String phone) {
     Clipboard.setData(ClipboardData(text: phone));
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
+      const SnackBar(
         content: Text('Phone number copied!'),
         backgroundColor: AppColorsDark.success,
         duration: Duration(seconds: 1),
@@ -402,32 +392,35 @@ class _RiderActiveDeliveryScreenState
   Future<void> _markDelivered(OrderModel order) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColorsDark.surface,
-        title: Text(
-          'Mark as Delivered?',
-          style: AppTextStyles.titleMedium()
-              .copyWith(color: AppColorsDark.textPrimary),
-        ),
-        content: Text(
-          'Confirm that this order has been delivered to the customer.',
-          style: AppTextStyles.bodyMedium()
-              .copyWith(color: AppColorsDark.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColorsDark.success,
+      builder:
+          (ctx) => AlertDialog(
+            backgroundColor: AppColorsDark.surface,
+            title: Text(
+              'Mark as Delivered?',
+              style: AppTextStyles.titleMedium().copyWith(
+                color: AppColorsDark.textPrimary,
+              ),
             ),
-            child: const Text('Yes, Delivered!'),
+            content: Text(
+              'Confirm that this order has been delivered to the customer.',
+              style: AppTextStyles.bodyMedium().copyWith(
+                color: AppColorsDark.textSecondary,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColorsDark.success,
+                ),
+                child: const Text('Yes, Delivered!'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
 
     if (confirm == true) {
@@ -435,11 +428,7 @@ class _RiderActiveDeliveryScreenState
       try {
         final success = await ref
             .read(ridersProvider.notifier)
-            .markDelivered(
-              widget.riderId,
-              order.id,
-              order.deliveryFee,
-            );
+            .markDelivered(widget.riderId, order.id, order.deliveryFee);
 
         if (mounted) {
           if (success) {

@@ -13,19 +13,13 @@ class UserDetailsDialog extends StatelessWidget {
   final dynamic user;
   final UserRole role;
 
-  const UserDetailsDialog({
-    super.key,
-    required this.user,
-    required this.role,
-  });
+  const UserDetailsDialog({required this.user, required this.role, super.key});
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: AppColorsDark.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20.r),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
       child: Container(
         constraints: BoxConstraints(maxHeight: 600.h),
         child: Column(
@@ -38,9 +32,10 @@ class UserDetailsDialog extends StatelessWidget {
             Expanded(
               child: SingleChildScrollView(
                 padding: EdgeInsets.all(20.w),
-                child: role == UserRole.customer
-                    ? _buildCustomerDetails(user as CustomerModel)
-                    : _buildRiderDetails(user as RiderModel),
+                child:
+                    role == UserRole.customer
+                        ? _buildCustomerDetails(user as CustomerModel)
+                        : _buildRiderDetails(user as RiderModel),
               ),
             ),
           ],
@@ -50,21 +45,20 @@ class UserDetailsDialog extends StatelessWidget {
   }
 
   Widget _buildHeader() {
-    final name = role == UserRole.customer
-        ? (user as CustomerModel).name
-        : (user as RiderModel).name;
+    final name =
+        role == UserRole.customer
+            ? (user as CustomerModel).name
+            : (user as RiderModel).name;
 
     return Container(
       padding: EdgeInsets.all(20.w),
       decoration: BoxDecoration(
-        gradient: role == UserRole.customer
-            ? AppColorsDark.primaryGradient
-            : const LinearGradient(
-                colors: [
-                  AppColorsDark.success,
-                  AppColorsDark.successLight,
-                ],
-              ),
+        gradient:
+            role == UserRole.customer
+                ? AppColorsDark.primaryGradient
+                : const LinearGradient(
+                  colors: [AppColorsDark.success, AppColorsDark.successLight],
+                ),
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(20.r),
           topRight: Radius.circular(20.r),
@@ -80,19 +74,20 @@ class UserDetailsDialog extends StatelessWidget {
               borderRadius: BorderRadius.circular(30.r),
             ),
             child: Center(
-              child: role == UserRole.customer
-                  ? Text(
-                      name.substring(0, 2).toUpperCase(),
-                      style: AppTextStyles.titleMedium().copyWith(
-                        color: AppColorsDark.primary,
-                        fontWeight: FontWeight.bold,
+              child:
+                  role == UserRole.customer
+                      ? Text(
+                        name.substring(0, 2).toUpperCase(),
+                        style: AppTextStyles.titleMedium().copyWith(
+                          color: AppColorsDark.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )
+                      : Icon(
+                        Icons.delivery_dining,
+                        color: AppColorsDark.success,
+                        size: 30.sp,
                       ),
-                    )
-                  : Icon(
-                      Icons.delivery_dining,
-                      color: AppColorsDark.success,
-                      size: 30.sp,
-                    ),
             ),
           ),
           SizedBox(width: 12.w),
@@ -118,13 +113,11 @@ class UserDetailsDialog extends StatelessWidget {
             ),
           ),
           Builder(
-            builder: (context) => IconButton(
-              icon: Icon(
-                Icons.close,
-                color: AppColorsDark.white,
-              ),
-              onPressed: () => Navigator.pop(context),
-            ),
+            builder:
+                (context) => IconButton(
+                  icon: const Icon(Icons.close, color: AppColorsDark.white),
+                  onPressed: () => Navigator.pop(context),
+                ),
           ),
         ],
       ),
@@ -144,12 +137,11 @@ class UserDetailsDialog extends StatelessWidget {
                 label: 'Email',
                 value: customer.email,
               ),
-              if (customer.phone != null)
-                _buildInfoRow(
-                  icon: Icons.phone,
-                  label: 'Phone',
-                  value: customer.phone!,
-                ),
+              _buildInfoRow(
+                icon: Icons.phone,
+                label: 'Phone',
+                value: customer.phone!,
+              ),
             ],
           ),
         ),
@@ -210,33 +202,35 @@ class UserDetailsDialog extends StatelessWidget {
           child: Container(
             padding: EdgeInsets.all(12.w),
             decoration: BoxDecoration(
-              color: rider.isApproved
-                  ? AppColorsDark.success.withOpacity(0.2)
-                  : AppColorsDark.warning.withOpacity(0.2),
+              color:
+                  rider.isApproved
+                      ? AppColorsDark.success.withOpacity(0.2)
+                      : AppColorsDark.warning.withOpacity(0.2),
               borderRadius: BorderRadius.circular(8.r),
               border: Border.all(
-                color: rider.isApproved
-                    ? AppColorsDark.success
-                    : AppColorsDark.warning,
+                color:
+                    rider.isApproved
+                        ? AppColorsDark.success
+                        : AppColorsDark.warning,
               ),
             ),
             child: Row(
               children: [
                 Icon(
                   rider.isApproved ? Icons.check_circle : Icons.pending,
-                  color: rider.isApproved
-                      ? AppColorsDark.success
-                      : AppColorsDark.warning,
+                  color:
+                      rider.isApproved
+                          ? AppColorsDark.success
+                          : AppColorsDark.warning,
                 ),
                 SizedBox(width: 8.w),
                 Text(
-                  rider.isApproved
-                      ? 'Approved & Active'
-                      : 'Pending Approval',
+                  rider.isApproved ? 'Approved & Active' : 'Pending Approval',
                   style: AppTextStyles.bodyMedium().copyWith(
-                    color: rider.isApproved
-                        ? AppColorsDark.success
-                        : AppColorsDark.warning,
+                    color:
+                        rider.isApproved
+                            ? AppColorsDark.success
+                            : AppColorsDark.warning,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -255,12 +249,11 @@ class UserDetailsDialog extends StatelessWidget {
                 label: 'Email',
                 value: rider.email,
               ),
-              if (rider.phone != null)
-                _buildInfoRow(
-                  icon: Icons.phone,
-                  label: 'Phone',
-                  value: rider.phone!,
-                ),
+              _buildInfoRow(
+                icon: Icons.phone,
+                label: 'Phone',
+                value: rider.phone!,
+              ),
             ],
           ),
         ),
@@ -271,18 +264,16 @@ class UserDetailsDialog extends StatelessWidget {
             title: 'Vehicle Information',
             child: Column(
               children: [
-                if (rider.vehicleType != null)
-                  _buildInfoRow(
-                    icon: Icons.two_wheeler,
-                    label: 'Vehicle Type',
-                    value: rider.vehicleType!,
-                  ),
-                if (rider.vehicleNumber != null)
-                  _buildInfoRow(
-                    icon: Icons.confirmation_number,
-                    label: 'Vehicle Number',
-                    value: rider.vehicleNumber!,
-                  ),
+                _buildInfoRow(
+                  icon: Icons.two_wheeler,
+                  label: 'Vehicle Type',
+                  value: rider.vehicleType!,
+                ),
+                _buildInfoRow(
+                  icon: Icons.confirmation_number,
+                  label: 'Vehicle Number',
+                  value: rider.vehicleNumber!,
+                ),
               ],
             ),
           ),
@@ -336,10 +327,7 @@ class UserDetailsDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildSection({
-    required String title,
-    required Widget child,
-  }) {
+  Widget _buildSection({required String title, required Widget child}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -366,11 +354,7 @@ class UserDetailsDialog extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            size: 20.sp,
-            color: AppColorsDark.textSecondary,
-          ),
+          Icon(icon, size: 20.sp, color: AppColorsDark.textSecondary),
           SizedBox(width: 12.w),
           Expanded(
             child: Column(

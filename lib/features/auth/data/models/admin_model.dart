@@ -10,11 +10,11 @@ class AdminModel extends AdminEntity {
     required super.email,
     required super.name,
     required super.phone,
-    super.profileImage,
     required super.isActive,
     required super.createdAt,
     required super.updatedAt,
     required super.accessKey,
+    super.profileImage,
     super.permissions = const [],
   });
 
@@ -30,7 +30,8 @@ class AdminModel extends AdminEntity {
       createdAt: (json['createdAt'] as Timestamp).toDate(),
       updatedAt: (json['updatedAt'] as Timestamp).toDate(),
       accessKey: json['accessKey'] as String,
-      permissions: (json['permissions'] as List<dynamic>?)
+      permissions:
+          (json['permissions'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],

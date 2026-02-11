@@ -29,12 +29,9 @@ class _RiderMainScreenState extends ConsumerState<RiderMainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColorsDark.background,
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
+      body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: AppColorsDark.surface,
           boxShadow: [
             BoxShadow(
@@ -46,8 +43,7 @@ class _RiderMainScreenState extends ConsumerState<RiderMainScreen> {
         ),
         child: SafeArea(
           child: Padding(
-            padding:
-                EdgeInsets.symmetric(vertical: 8.h),
+            padding: EdgeInsets.symmetric(vertical: 8.h),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -61,11 +57,7 @@ class _RiderMainScreenState extends ConsumerState<RiderMainScreen> {
                   label: 'Earnings',
                   index: 1,
                 ),
-                _buildNavItem(
-                  icon: Icons.person,
-                  label: 'Profile',
-                  index: 2,
-                ),
+                _buildNavItem(icon: Icons.person, label: 'Profile', index: 2),
               ],
             ),
           ),
@@ -84,15 +76,13 @@ class _RiderMainScreenState extends ConsumerState<RiderMainScreen> {
     return GestureDetector(
       onTap: () => setState(() => _currentIndex = index),
       child: AnimatedContainer(
-        duration: Duration(milliseconds: 200),
-        padding: EdgeInsets.symmetric(
-          horizontal: 20.w,
-          vertical: 8.h,
-        ),
+        duration: const Duration(milliseconds: 200),
+        padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 8.h),
         decoration: BoxDecoration(
-          color: isSelected
-              ? AppColorsDark.primary.withOpacity(0.15)
-              : Colors.transparent,
+          color:
+              isSelected
+                  ? AppColorsDark.primary.withOpacity(0.15)
+                  : Colors.transparent,
           borderRadius: BorderRadius.circular(12.r),
         ),
         child: Column(
@@ -100,20 +90,21 @@ class _RiderMainScreenState extends ConsumerState<RiderMainScreen> {
           children: [
             Icon(
               icon,
-              color: isSelected
-                  ? AppColorsDark.primary
-                  : AppColorsDark.textTertiary,
+              color:
+                  isSelected
+                      ? AppColorsDark.primary
+                      : AppColorsDark.textTertiary,
               size: 26.sp,
             ),
             SizedBox(height: 4.h),
             Text(
               label,
               style: AppTextStyles.labelSmall().copyWith(
-                color: isSelected
-                    ? AppColorsDark.primary
-                    : AppColorsDark.textTertiary,
-                fontWeight:
-                    isSelected ? FontWeight.w600 : FontWeight.normal,
+                color:
+                    isSelected
+                        ? AppColorsDark.primary
+                        : AppColorsDark.textTertiary,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
           ],

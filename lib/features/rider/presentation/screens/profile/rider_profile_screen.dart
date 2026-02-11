@@ -1,5 +1,7 @@
 // lib/features/rider/presentation/screens/profile/rider_profile_screen.dart
 
+import 'package:abw_app/features/auth/data/models/rider_model.dart';
+import 'package:abw_app/features/auth/domain/entities/rider_entity.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -9,7 +11,6 @@ import '../../../../../core/theme/text_styles/app_text_styles.dart';
 import '../../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../auth/presentation/providers/auth_state.dart';
 import '../../../../riders/presentation/providers/riders_provider.dart';
-import '../../../../riders/domain/entities/rider_entity.dart';
 
 class RiderProfileScreen extends ConsumerWidget {
   const RiderProfileScreen({super.key});
@@ -19,23 +20,23 @@ class RiderProfileScreen extends ConsumerWidget {
     final authState = ref.watch(authProvider);
     if (authState is! Authenticated) return const SizedBox();
 
-    final riderStream =
-        ref.watch(riderStreamProvider(authState.user.id));
+    final riderStream = ref.watch(riderStreamProvider(authState.user.id));
 
     return Scaffold(
       backgroundColor: AppColorsDark.background,
       appBar: AppBar(
         title: Text(
           'My Profile',
-          style: AppTextStyles.titleLarge()
-              .copyWith(color: AppColorsDark.textPrimary),
+          style: AppTextStyles.titleLarge().copyWith(
+            color: AppColorsDark.textPrimary,
+          ),
         ),
         backgroundColor: AppColorsDark.surface,
       ),
       body: riderStream.when(
         data: (rider) {
           if (rider == null) {
-            return Center(child: Text('Profile not found'));
+            return const Center(child: Text('Profile not found'));
           }
 
           return SingleChildScrollView(
@@ -91,12 +92,12 @@ class RiderProfileScreen extends ConsumerWidget {
                           vertical: 8.h,
                         ),
                         decoration: BoxDecoration(
-                          color: _getStatusColor(rider.status)
-                              .withOpacity(0.2),
+                          color: _getStatusColor(rider.status).withOpacity(0.2),
                           borderRadius: BorderRadius.circular(20.r),
                           border: Border.all(
-                            color: _getStatusColor(rider.status)
-                                .withOpacity(0.5),
+                            color: _getStatusColor(
+                              rider.status,
+                            ).withOpacity(0.5),
                           ),
                         ),
                         child: Row(
@@ -169,7 +170,7 @@ class RiderProfileScreen extends ConsumerWidget {
                     label: const Text('Logout'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColorsDark.error,
-                      side: BorderSide(color: AppColorsDark.error),
+                      side: const BorderSide(color: AppColorsDark.error),
                       padding: EdgeInsets.symmetric(vertical: 16.h),
                     ),
                   ),
@@ -180,9 +181,10 @@ class RiderProfileScreen extends ConsumerWidget {
             ),
           );
         },
-        loading: () => Center(
-          child: CircularProgressIndicator(color: AppColorsDark.primary),
-        ),
+        loading:
+            () => const Center(
+              child: CircularProgressIndicator(color: AppColorsDark.primary),
+            ),
         error: (e, _) => Center(child: Text('Error: $e')),
       ),
     );
@@ -225,7 +227,7 @@ class RiderProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildInfoCard(rider) {
+  Widget _buildInfoCard(RiderModel rider) {
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(

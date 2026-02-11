@@ -1,5 +1,8 @@
 // lib/features/rider/presentation/screens/home/rider_home_screen.dart
 
+import 'package:abw_app/features/auth/data/models/rider_model.dart';
+import 'package:abw_app/features/auth/domain/entities/rider_entity.dart';
+import 'package:abw_app/features/rider/presentation/screens/home/rider_active_delivery_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -9,8 +12,7 @@ import '../../../../../core/theme/text_styles/app_text_styles.dart';
 import '../../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../auth/presentation/providers/auth_state.dart';
 import '../../../../riders/presentation/providers/riders_provider.dart';
-import '../../../../riders/data/models/rider_model.dart';
-import '../../../../riders/domain/entities/rider_entity.dart';
+
 import '../../../../orders/presentation/providers/orders_provider.dart';
 import '../../../../orders/data/models/order_model.dart';
 import '../../../../orders/domain/entities/order_entity.dart';
@@ -22,9 +24,7 @@ class RiderHomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
     if (authState is! Authenticated) {
-      return const Scaffold(
-        body: Center(child: Text('Not authenticated')),
-      );
+      return const Scaffold(body: Center(child: Text('Not authenticated')));
     }
 
     final riderId = authState.user.id;
@@ -33,18 +33,14 @@ class RiderHomeScreen extends ConsumerWidget {
     return riderStream.when(
       data: (rider) {
         if (rider == null) {
-          return const Scaffold(
-            body: Center(child: Text('Rider not found')),
-          );
+          return const Scaffold(body: Center(child: Text('Rider not found')));
         }
         return _RiderHomeContent(rider: rider);
       },
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
-      error: (e, _) => Scaffold(
-        body: Center(child: Text('Error: $e')),
-      ),
+      loading:
+          () =>
+              const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (e, _) => Scaffold(body: Center(child: Text('Error: $e'))),
     );
   }
 }
@@ -57,8 +53,9 @@ class _RiderHomeContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Watch assigned orders for this rider
-    final assignedOrdersStream =
-        ref.watch(riderAssignedOrdersProvider(rider.id));
+    final assignedOrdersStream = ref.watch(
+      riderAssignedOrdersProvider(rider.id),
+    );
 
     return Scaffold(
       backgroundColor: AppColorsDark.background,
@@ -99,57 +96,52 @@ class _RiderHomeContent extends ConsumerWidget {
           assignedOrdersStream.when(
             data: (orders) {
               // Filter out current active order
-              final pending = orders
-                  .where((o) =>
-                      o.id != rider.currentOrderId &&
-                      o.status == OrderStatus.outForDelivery)
-                  .toList();
+              final pending =
+                  orders
+                      .where(
+                        (o) =>
+                            o.id != rider.currentOrderId &&
+                            o.status == OrderStatus.outForDelivery,
+                      )
+                      .toList();
 
               if (pending.isEmpty) {
-                return SliverToBoxAdapter(
-                  child: _buildNoOrdersState(),
-                );
+                return SliverToBoxAdapter(child: _buildNoOrdersState());
               }
 
               return SliverList(
                 delegate: SliverChildBuilderDelegate(
-                  (context, index) => _buildOrderCard(
-                    context,
-                    ref,
-                    pending[index],
-                    rider,
-                  ),
+                  (context, index) =>
+                      _buildOrderCard(context, ref, pending[index], rider),
                   childCount: pending.length,
                 ),
               );
             },
-            loading: () => SliverToBoxAdapter(
-              child: Center(
-                child: Padding(
-                  padding: EdgeInsets.all(32.w),
-                  child: CircularProgressIndicator(
-                    color: AppColorsDark.primary,
+            loading:
+                () => SliverToBoxAdapter(
+                  child: Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(32.w),
+                      child: const CircularProgressIndicator(
+                        color: AppColorsDark.primary,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-            error: (e, _) => SliverToBoxAdapter(
-              child: Center(child: Text('Error: $e')),
-            ),
+            error:
+                (e, _) =>
+                    SliverToBoxAdapter(child: Center(child: Text('Error: $e'))),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildHeader(
-      BuildContext context, WidgetRef ref, RiderModel rider) {
+  Widget _buildHeader(BuildContext context, WidgetRef ref, RiderModel rider) {
     final isOnline = rider.status == RiderStatus.available;
 
     return Container(
-      decoration: BoxDecoration(
-        gradient: AppColorsDark.primaryGradient,
-      ),
+      decoration: const BoxDecoration(gradient: AppColorsDark.primaryGradient),
       padding: EdgeInsets.fromLTRB(20.w, 60.h, 20.w, 20.h),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -196,9 +188,10 @@ class _RiderHomeContent extends ConsumerWidget {
                           width: 8.w,
                           height: 8.w,
                           decoration: BoxDecoration(
-                            color: isOnline
-                                ? AppColorsDark.success
-                                : AppColorsDark.textTertiary,
+                            color:
+                                isOnline
+                                    ? AppColorsDark.success
+                                    : AppColorsDark.textTertiary,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -224,9 +217,10 @@ class _RiderHomeContent extends ConsumerWidget {
                     vertical: 10.h,
                   ),
                   decoration: BoxDecoration(
-                    color: isOnline
-                        ? AppColorsDark.success
-                        : AppColorsDark.white.withOpacity(0.2),
+                    color:
+                        isOnline
+                            ? AppColorsDark.success
+                            : AppColorsDark.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12.r),
                   ),
                   child: Text(
@@ -246,7 +240,10 @@ class _RiderHomeContent extends ConsumerWidget {
   }
 
   Widget _buildActiveOrderBanner(
-      BuildContext context, WidgetRef ref, RiderModel rider) {
+    BuildContext context,
+    WidgetRef ref,
+    RiderModel rider,
+  ) {
     return Container(
       margin: EdgeInsets.all(16.w),
       padding: EdgeInsets.all(16.w),
@@ -262,7 +259,7 @@ class _RiderHomeContent extends ConsumerWidget {
           BoxShadow(
             color: AppColorsDark.primary.withOpacity(0.3),
             blurRadius: 12,
-            offset: Offset(0, 4),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -307,20 +304,18 @@ class _RiderHomeContent extends ConsumerWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => RiderActiveDeliveryScreen(
-                    orderId: rider.currentOrderId!,
-                    riderId: rider.id,
-                  ),
+                  builder:
+                      (context) => RiderActiveDeliveryScreen(
+                        orderId: rider.currentOrderId!,
+                        riderId: rider.id,
+                      ),
                 ),
               );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColorsDark.white,
               foregroundColor: AppColorsDark.primary,
-              padding: EdgeInsets.symmetric(
-                horizontal: 16.w,
-                vertical: 10.h,
-              ),
+              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
             ),
             child: Text(
               'View',
@@ -346,7 +341,7 @@ class _RiderHomeContent extends ConsumerWidget {
         color: AppColorsDark.cardBackground,
         borderRadius: BorderRadius.circular(16.r),
         border: Border.all(color: AppColorsDark.border),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
             color: AppColorsDark.shadow,
             blurRadius: 8,
@@ -446,8 +441,7 @@ class _RiderHomeContent extends ConsumerWidget {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: () =>
-                          _acceptOrder(context, ref, order, rider),
+                      onPressed: () => _acceptOrder(context, ref, order, rider),
                       icon: Icon(Icons.check, size: 20.sp),
                       label: const Text('Accept Order'),
                       style: ElevatedButton.styleFrom(
@@ -553,7 +547,7 @@ class _RiderHomeContent extends ConsumerWidget {
         children: [
           Container(
             padding: EdgeInsets.all(32.w),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppColorsDark.surfaceVariant,
               shape: BoxShape.circle,
             ),
@@ -585,10 +579,14 @@ class _RiderHomeContent extends ConsumerWidget {
   }
 
   Future<void> _toggleStatus(
-      BuildContext context, WidgetRef ref, RiderModel rider) async {
-    final newStatus = rider.status == RiderStatus.available
-        ? RiderStatus.offline
-        : RiderStatus.available;
+    BuildContext context,
+    WidgetRef ref,
+    RiderModel rider,
+  ) async {
+    final newStatus =
+        rider.status == RiderStatus.available
+            ? RiderStatus.offline
+            : RiderStatus.available;
 
     final success = await ref
         .read(ridersProvider.notifier)
@@ -618,32 +616,35 @@ class _RiderHomeContent extends ConsumerWidget {
     // Confirm dialog
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColorsDark.surface,
-        title: Text(
-          'Accept Order?',
-          style: AppTextStyles.titleMedium()
-              .copyWith(color: AppColorsDark.textPrimary),
-        ),
-        content: Text(
-          'Accept delivery for Order #${order.id.substring(order.id.length - 6)}?\n\nDelivery fee: PKR ${order.deliveryFee.toInt()}',
-          style: AppTextStyles.bodyMedium()
-              .copyWith(color: AppColorsDark.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColorsDark.success,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: AppColorsDark.surface,
+            title: Text(
+              'Accept Order?',
+              style: AppTextStyles.titleMedium().copyWith(
+                color: AppColorsDark.textPrimary,
+              ),
             ),
-            child: const Text('Accept'),
+            content: Text(
+              'Accept delivery for Order #${order.id.substring(order.id.length - 6)}?\n\nDelivery fee: PKR ${order.deliveryFee.toInt()}',
+              style: AppTextStyles.bodyMedium().copyWith(
+                color: AppColorsDark.textSecondary,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColorsDark.success,
+                ),
+                child: const Text('Accept'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
 
     if (confirm == true) {
@@ -656,16 +657,17 @@ class _RiderHomeContent extends ConsumerWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => RiderActiveDeliveryScreen(
-                orderId: order.id,
-                riderId: rider.id,
-              ),
+              builder:
+                  (context) => RiderActiveDeliveryScreen(
+                    orderId: order.id,
+                    riderId: rider.id,
+                  ),
             ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Failed to accept order'),
+            const SnackBar(
+              content: Text('Failed to accept order'),
               backgroundColor: AppColorsDark.error,
             ),
           );

@@ -3,7 +3,6 @@
 import 'package:abw_app/features/auth/domain/usecases/create_admin_usecase.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/enums/user_role.dart';
-import '../../domain/entities/customer_entity.dart';
 import '../../domain/entities/rider_entity.dart';
 import '../../domain/usecases/get_current_user_usecase.dart';
 import '../../domain/usecases/login_with_email_usecase.dart';
@@ -33,200 +32,196 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required LogoutUseCase logoutUseCase,
     required GetCurrentUserUseCase getCurrentUserUseCase,
     required CreateAdminUseCase createAdminUseCase, // ADD THIS
-  })  : _loginWithEmailUseCase = loginWithEmailUseCase,
-        _loginWithGoogleUseCase = loginWithGoogleUseCase,
-        _signUpCustomerUseCase = signUpCustomerUseCase,
-        _signUpRiderUseCase = signUpRiderUseCase,
-        _sendPasswordResetUseCase = sendPasswordResetUseCase,
-        _logoutUseCase = logoutUseCase,
-        _getCurrentUserUseCase = getCurrentUserUseCase,
-        _createAdminUseCase = createAdminUseCase, // ADD THIS
-        super(const AuthInitial()) {
+  }) : _loginWithEmailUseCase = loginWithEmailUseCase,
+       _loginWithGoogleUseCase = loginWithGoogleUseCase,
+       _signUpCustomerUseCase = signUpCustomerUseCase,
+       _signUpRiderUseCase = signUpRiderUseCase,
+       _sendPasswordResetUseCase = sendPasswordResetUseCase,
+       _logoutUseCase = logoutUseCase,
+       _getCurrentUserUseCase = getCurrentUserUseCase,
+       _createAdminUseCase = createAdminUseCase, // ADD THIS
+       super(const AuthInitial()) {
     _checkAuthStatus();
   }
 
+  Future<void> createAdmin({
+    required String email,
+    required String password,
+    required String name,
+    required String phone,
+    required String accessKey,
+    List<String> permissions = const [],
+  }) async {
+    state = const AuthLoading();
 
-Future<void> createAdmin({
-  required String email,
-  required String password,
-  required String name,
-  required String phone,
-  required String accessKey,
-  List<String> permissions = const [],
-}) async {
-  state = const AuthLoading();
+    final result = await _createAdminUseCase(
+      email: email,
+      password: password,
+      name: name,
+      phone: phone,
+      accessKey: accessKey,
+      permissions: permissions,
+    );
 
-  final result = await _createAdminUseCase(
-    email: email,
-    password: password,
-    name: name,
-    phone: phone,
-    accessKey: accessKey,
-    permissions: permissions,
-  );
+    result.fold(
+      (failure) {
+        state = AuthError(failure.message);
+      },
+      (admin) {
+        state = Authenticated(admin);
+      },
+    );
+  }
 
-  result.fold(
-    (failure) {
-      state = AuthError(failure.message);
-    },
-    (admin) {
-      state = Authenticated(admin);
-    },
-  );
-}
   /// Check current auth status on initialization
   Future<void> _checkAuthStatus() async {
     state = const AuthLoading();
 
     final result = await _getCurrentUserUseCase();
 
-    result.fold(
-      (failure) => state = const Unauthenticated(),
-      (user) {
-        if (user == null) {
-          state = const Unauthenticated();
-        } else {
-          // Check if rider is approved
-          if (user.role == UserRole.rider) {
-            final rider = user as RiderEntity;
-            if (!rider.isApproved) {
-              state = RiderPendingApproval(rider);
-              return;
-            }
+    result.fold((failure) => state = const Unauthenticated(), (user) {
+      if (user == null) {
+        state = const Unauthenticated();
+      } else {
+        // Check if rider is approved
+        if (user.role == UserRole.rider) {
+          final rider = user as RiderEntity;
+          if (!rider.isApproved) {
+            state = RiderPendingApproval(rider);
+            return;
           }
-          state = Authenticated(user);
         }
+        state = Authenticated(user);
+      }
+    });
+  }
+
+  /// Login with email and password
+  Future<void> loginWithEmail({
+    required String email,
+    required String password,
+    required UserRole role,
+    String? adminKey,
+  }) async {
+    state = const AuthLoading();
+
+    final result = await _loginWithEmailUseCase(
+      email: email,
+      password: password,
+      role: role,
+      adminKey: adminKey,
+    );
+
+    result.fold(
+      (failure) {
+        state = AuthError(failure.message);
+        // Don't throw here - state change is enough
+      },
+      (user) {
+        // Check if rider is approved
+        if (user.role == UserRole.rider) {
+          final rider = user as RiderEntity;
+          if (!rider.isApproved) {
+            state = RiderPendingApproval(rider);
+            return;
+          }
+        }
+        state = Authenticated(user);
       },
     );
   }
 
+  /// Login with Google
+  Future<void> loginWithGoogle() async {
+    state = const AuthLoading();
 
- /// Login with email and password
-Future<void> loginWithEmail({
-  required String email,
-  required String password,
-  required UserRole role,
-  String? adminKey,
-}) async {
-  state = const AuthLoading();
+    final result = await _loginWithGoogleUseCase();
 
-  final result = await _loginWithEmailUseCase(
-    email: email,
-    password: password,
-    role: role,
-    adminKey: adminKey,
-  );
+    result.fold(
+      (failure) {
+        state = AuthError(failure.message);
+      },
+      (user) {
+        state = Authenticated(user);
+      },
+    );
+  }
 
-  result.fold(
-    (failure) {
-      state = AuthError(failure.message);
-      // Don't throw here - state change is enough
-    },
-    (user) {
-      // Check if rider is approved
-      if (user.role == UserRole.rider) {
-        final rider = user as RiderEntity;
-        if (!rider.isApproved) {
-          state = RiderPendingApproval(rider);
-          return;
-        }
-      }
-      state = Authenticated(user);
-    },
-  );
-}
+  /// Sign up as customer
+  Future<void> signUpCustomer({
+    required String email,
+    required String password,
+    required String name,
+    required String phone,
+  }) async {
+    state = const AuthLoading();
 
-/// Login with Google
-Future<void> loginWithGoogle() async {
-  state = const AuthLoading();
+    final result = await _signUpCustomerUseCase(
+      email: email,
+      password: password,
+      name: name,
+      phone: phone,
+    );
 
-  final result = await _loginWithGoogleUseCase();
+    result.fold(
+      (failure) {
+        state = AuthError(failure.message);
+      },
+      (user) {
+        state = Authenticated(user);
+      },
+    );
+  }
 
-  result.fold(
-    (failure) {
-      state = AuthError(failure.message);
-    },
-    (user) {
-      state = Authenticated(user);
-    },
-  );
-}
+  /// Sign up as rider
+  Future<void> signUpRider({
+    required String email,
+    required String password,
+    required String name,
+    required String phone,
+    required String vehicleType,
+    required String vehicleNumber,
+    String? licenseNumber,
+  }) async {
+    state = const AuthLoading();
 
-/// Sign up as customer
-Future<void> signUpCustomer({
-  required String email,
-  required String password,
-  required String name,
-  required String phone,
-}) async {
-  state = const AuthLoading();
+    final result = await _signUpRiderUseCase(
+      email: email,
+      password: password,
+      name: name,
+      phone: phone,
+      vehicleType: vehicleType,
+      vehicleNumber: vehicleNumber,
+      licenseNumber: licenseNumber,
+    );
 
-  final result = await _signUpCustomerUseCase(
-    email: email,
-    password: password,
-    name: name,
-    phone: phone,
-  );
+    result.fold(
+      (failure) {
+        state = AuthError(failure.message);
+      },
+      (user) {
+        state = RiderPendingApproval(user);
+      },
+    );
+  }
 
-  result.fold(
-    (failure) {
-      state = AuthError(failure.message);
-    },
-    (user) {
-      state = Authenticated(user);
-    },
-  );
-}
+  /// Send password reset email
+  Future<void> sendPasswordResetEmail(String email) async {
+    state = const AuthLoading();
 
-/// Sign up as rider
-Future<void> signUpRider({
-  required String email,
-  required String password,
-  required String name,
-  required String phone,
-  required String vehicleType,
-  required String vehicleNumber,
-  String? licenseNumber,
-}) async {
-  state = const AuthLoading();
+    final result = await _sendPasswordResetUseCase(email);
 
-  final result = await _signUpRiderUseCase(
-    email: email,
-    password: password,
-    name: name,
-    phone: phone,
-    vehicleType: vehicleType,
-    vehicleNumber: vehicleNumber,
-    licenseNumber: licenseNumber,
-  );
-
-  result.fold(
-    (failure) {
-      state = AuthError(failure.message);
-    },
-    (user) {
-      state = RiderPendingApproval(user);
-    },
-  );
-}
-
-/// Send password reset email  
-Future<void> sendPasswordResetEmail(String email) async {
-  state = const AuthLoading();
-
-  final result = await _sendPasswordResetUseCase(email);
-
-  result.fold(
-    (failure) {
-      state = AuthError(failure.message);
-    },
-    (_) {
-      // Don't change to Unauthenticated - stay on forgot password
-      // Just show success message in UI
-      state = const AuthInitial(); // or create PasswordResetSent state
-    },
-  );
-}
+    result.fold(
+      (failure) {
+        state = AuthError(failure.message);
+      },
+      (_) {
+        // Don't change to Unauthenticated - stay on forgot password
+        // Just show success message in UI
+        state = const AuthInitial(); // or create PasswordResetSent state
+      },
+    );
+  }
 
   /// Logout
   Future<void> logout() async {
@@ -246,6 +241,4 @@ Future<void> sendPasswordResetEmail(String email) async {
       state = const Unauthenticated();
     }
   }
-
-  
 }

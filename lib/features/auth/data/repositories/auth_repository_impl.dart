@@ -43,7 +43,7 @@ class AuthRepositoryImpl implements AuthRepository {
           continue;
         }
       }
-      
+
       // User authenticated but no data found in any collection
       return const Right(null);
     } on Exception catch (e) {
@@ -83,15 +83,13 @@ class AuthRepositoryImpl implements AuthRepository {
       // Verify admin key if logging in as admin
       if (role == UserRole.admin) {
         if (adminKey == null || !verifyAdminKey(adminKey)) {
-          return const Left(
-            AuthFailure(message: 'Invalid admin access key'),
-          );
+          return const Left(AuthFailure(message: 'Invalid admin access key'));
         }
       }
 
       // Authenticate with Firebase
       final credential = await remoteDataSource.loginWithEmail(email, password);
-      
+
       // Get user data from Firestore
       final userData = await remoteDataSource.getUserData(
         credential.user!.uid,
@@ -101,10 +99,13 @@ class AuthRepositoryImpl implements AuthRepository {
       return Right(_parseUserData(userData, role));
     } on AuthException catch (e) {
       return Left(AuthFailure(message: e.message));
-    } on NotFoundException catch (e) {
-      return Left(AuthFailure(
-        message: 'Account not found as ${role.displayName}. Please check your login type.',
-      ));
+    } on NotFoundException {
+      return Left(
+        AuthFailure(
+          message:
+              'Account not found as ${role.displayName}. Please check your login type.',
+        ),
+      );
     } catch (e) {
       return Left(UnexpectedFailure(message: e.toString()));
     }
@@ -268,9 +269,7 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       // Verify admin key
       if (!verifyAdminKey(accessKey)) {
-        return const Left(
-          AuthFailure(message: 'Invalid admin access key'),
-        );
+        return const Left(AuthFailure(message: 'Invalid admin access key'));
       }
 
       // Create Firebase Auth account
@@ -370,7 +369,7 @@ class AuthRepositoryImpl implements AuthRepository {
   ) async {
     try {
       final requestData = await remoteDataSource.getRiderRequest(riderId);
-      
+
       if (requestData == null) {
         return const Right(null);
       }
@@ -409,7 +408,7 @@ class AuthRepositoryImpl implements AuthRepository {
   }) async {
     try {
       final updateData = <String, dynamic>{};
-      
+
       if (name != null) updateData['name'] = name;
       if (phone != null) updateData['phone'] = phone;
       if (profileImage != null) updateData['profileImage'] = profileImage;

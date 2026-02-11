@@ -14,22 +14,17 @@ class CustomerEntity extends UserEntity {
     required super.email,
     required super.name,
     required super.phone,
-    super.profileImage,
     required super.isActive,
     required super.createdAt,
     required super.updatedAt,
+    super.profileImage,
     this.address,
     this.latitude,
     this.longitude,
   }) : super(role: UserRole.customer);
 
   @override
-  List<Object?> get props => [
-        ...super.props,
-        address,
-        latitude,
-        longitude,
-      ];
+  List<Object?> get props => [...super.props, address, latitude, longitude];
 
   CustomerEntity copyWith({
     String? id,

@@ -14,9 +14,9 @@ class ProductCustomizationDialog extends ConsumerStatefulWidget {
   onAddToCart;
 
   const ProductCustomizationDialog({
-    super.key,
     required this.product,
     required this.onAddToCart,
+    super.key,
   });
 
   @override
@@ -47,9 +47,9 @@ class _ProductCustomizationDialogState
   }
 
   double _calculateTotal() {
-    double basePrice =
+    final double basePrice =
         _selectedVariant?.price ?? widget.product.discountedPrice;
-    double addonsPrice = _selectedAddons.fold(
+    final double addonsPrice = _selectedAddons.fold(
       0,
       (sum, addon) => sum + addon.price,
     );

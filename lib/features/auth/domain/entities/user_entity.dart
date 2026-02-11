@@ -20,22 +20,22 @@ abstract class UserEntity extends Equatable {
     required this.name,
     required this.phone,
     required this.role,
-    this.profileImage,
     required this.isActive,
     required this.createdAt,
     required this.updatedAt,
+    this.profileImage,
   });
 
   @override
   List<Object?> get props => [
-        id,
-        email,
-        name,
-        phone,
-        role,
-        profileImage,
-        isActive,
-        createdAt,
-        updatedAt,
-      ];
+    id,
+    email,
+    name,
+    phone,
+    role,
+    profileImage,
+    isActive,
+    createdAt,
+    updatedAt,
+  ];
 }

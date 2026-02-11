@@ -16,7 +16,7 @@ import '../../../../stores/presentation/providers/stores_provider.dart';
 class AdminOrderDetailsScreen extends ConsumerStatefulWidget {
   final String orderId;
 
-  const AdminOrderDetailsScreen({super.key, required this.orderId});
+  const AdminOrderDetailsScreen({required this.orderId, super.key});
 
   @override
   ConsumerState<AdminOrderDetailsScreen> createState() =>
@@ -52,19 +52,19 @@ class _AdminOrderDetailsScreenState
         actions: [
           if (ordersState is OrderSingleLoaded)
             IconButton(
-              icon: Icon(Icons.more_vert),
+              icon: const Icon(Icons.more_vert),
               onPressed: () => _showOrderActions(ordersState.order),
             ),
         ],
       ),
       body:
           ordersState is OrdersLoading
-              ? Center(
+              ? const Center(
                 child: CircularProgressIndicator(color: AppColorsDark.primary),
               )
               : ordersState is OrderSingleLoaded
               ? _buildContent(ordersState.order)
-              : Center(child: Text('Unable to load order')),
+              : const Center(child: Text('Unable to load order')),
     );
   }
 
@@ -134,7 +134,7 @@ class _AdminOrderDetailsScreenState
           BoxShadow(
             color: AppColorsDark.primary.withOpacity(0.3),
             blurRadius: 15,
-            offset: Offset(0, 5),
+            offset: const Offset(0, 5),
           ),
         ],
       ),
@@ -199,7 +199,7 @@ class _AdminOrderDetailsScreenState
         label = 'Confirmed';
         break;
       case OrderStatus.preparing:
-        color = Color(0xFFFF6B00);
+        color = const Color(0xFFFF6B00);
         label = 'Preparing';
         break;
       case OrderStatus.outForDelivery:
@@ -291,7 +291,7 @@ class _AdminOrderDetailsScreenState
                 ),
                 style: OutlinedButton.styleFrom(
                   padding: EdgeInsets.symmetric(vertical: 14.h),
-                  side: BorderSide(color: AppColorsDark.primary),
+                  side: const BorderSide(color: AppColorsDark.primary),
                 ),
               ),
             ),
@@ -309,7 +309,7 @@ class _AdminOrderDetailsScreenState
                 label: const Text('Cancel Order'),
                 style: OutlinedButton.styleFrom(
                   padding: EdgeInsets.symmetric(vertical: 14.h),
-                  side: BorderSide(color: AppColorsDark.error),
+                  side: const BorderSide(color: AppColorsDark.error),
                   foregroundColor: AppColorsDark.error,
                 ),
               ),
@@ -345,7 +345,7 @@ class _AdminOrderDetailsScreenState
             ],
           ),
           SizedBox(height: 12.h),
-          Divider(color: AppColorsDark.border),
+          const Divider(color: AppColorsDark.border),
           SizedBox(height: 12.h),
           _buildInfoRow(Icons.person_outline, 'Name', order.userName),
           SizedBox(height: 8.h),
@@ -410,7 +410,7 @@ class _AdminOrderDetailsScreenState
             ],
           ),
           SizedBox(height: 12.h),
-          Divider(color: AppColorsDark.border),
+          const Divider(color: AppColorsDark.border),
           SizedBox(height: 12.h),
           Text(
             order.deliveryAddress.name,
@@ -477,7 +477,7 @@ class _AdminOrderDetailsScreenState
                                     width: 60.w,
                                     height: 60.w,
                                     color: AppColorsDark.surfaceContainer,
-                                    child: Icon(
+                                    child: const Icon(
                                       Icons.fastfood,
                                       color: AppColorsDark.textTertiary,
                                     ),
@@ -487,7 +487,7 @@ class _AdminOrderDetailsScreenState
                               width: 60.w,
                               height: 60.w,
                               color: AppColorsDark.surfaceContainer,
-                              child: Icon(
+                              child: const Icon(
                                 Icons.fastfood,
                                 color: AppColorsDark.textTertiary,
                               ),
@@ -560,7 +560,7 @@ class _AdminOrderDetailsScreenState
             ],
           ),
           SizedBox(height: 12.h),
-          Divider(color: AppColorsDark.border),
+          const Divider(color: AppColorsDark.border),
           SizedBox(height: 12.h),
 
           Row(
@@ -598,7 +598,7 @@ class _AdminOrderDetailsScreenState
           // Payment Proof Screenshot
           if (order.paymentProofUrl != null) ...[
             SizedBox(height: 16.h),
-            Divider(color: AppColorsDark.border),
+            const Divider(color: AppColorsDark.border),
             SizedBox(height: 12.h),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -643,7 +643,7 @@ class _AdminOrderDetailsScreenState
                     return Container(
                       height: 250.h,
                       color: AppColorsDark.surfaceContainer,
-                      child: Center(
+                      child: const Center(
                         child: CircularProgressIndicator(
                           color: AppColorsDark.primary,
                         ),
@@ -740,7 +740,7 @@ class _AdminOrderDetailsScreenState
             _buildPriceRow('Discount', order.discount, isDiscount: true),
           ],
           SizedBox(height: 12.h),
-          Divider(color: AppColorsDark.border),
+          const Divider(color: AppColorsDark.border),
           SizedBox(height: 12.h),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -886,8 +886,7 @@ class _AdminOrderDetailsScreenState
                           _updateStatus(order, status);
                         },
                       ),
-                    )
-                    .toList(),
+                    ),
               ],
             ),
           ),
@@ -930,7 +929,7 @@ class _AdminOrderDetailsScreenState
       if (mounted) {
         ref.read(ordersProvider.notifier).getOrderById(order.id);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Payment verified successfully'),
             backgroundColor: AppColorsDark.success,
           ),
@@ -1028,7 +1027,7 @@ class _AdminOrderDetailsScreenState
       case OrderStatus.confirmed:
         return AppColorsDark.info;
       case OrderStatus.preparing:
-        return Color(0xFFFF6B00);
+        return const Color(0xFFFF6B00);
       case OrderStatus.outForDelivery:
         return AppColorsDark.primary;
       case OrderStatus.delivered:

@@ -22,22 +22,25 @@ class RiderEarningsScreen extends ConsumerWidget {
 
     final riderId = authState.user.id;
     final riderStream = ref.watch(riderStreamProvider(riderId));
-    final deliveredOrdersStream =
-        ref.watch(riderDeliveredOrdersProvider(riderId));
+    final deliveredOrdersStream = ref.watch(
+      riderDeliveredOrdersProvider(riderId),
+    );
 
     return Scaffold(
       backgroundColor: AppColorsDark.background,
       appBar: AppBar(
         title: Text(
           'My Earnings',
-          style: AppTextStyles.titleLarge()
-              .copyWith(color: AppColorsDark.textPrimary),
+          style: AppTextStyles.titleLarge().copyWith(
+            color: AppColorsDark.textPrimary,
+          ),
         ),
         backgroundColor: AppColorsDark.surface,
       ),
       body: riderStream.when(
         data: (rider) {
-          if (rider == null) return Center(child: Text('Rider not found'));
+          if (rider == null)
+            return const Center(child: Text('Rider not found'));
 
           return SingleChildScrollView(
             padding: EdgeInsets.all(16.w),
@@ -54,7 +57,7 @@ class RiderEarningsScreen extends ConsumerWidget {
                       BoxShadow(
                         color: AppColorsDark.primary.withOpacity(0.3),
                         blurRadius: 20,
-                        offset: Offset(0, 6),
+                        offset: const Offset(0, 6),
                       ),
                     ],
                   ),
@@ -101,9 +104,10 @@ class RiderEarningsScreen extends ConsumerWidget {
                     Expanded(
                       child: _buildStatCard(
                         title: 'Avg per Delivery',
-                        value: rider.totalDeliveries > 0
-                            ? 'PKR ${(rider.totalEarnings / rider.totalDeliveries).toInt()}'
-                            : 'PKR 0',
+                        value:
+                            rider.totalDeliveries > 0
+                                ? 'PKR ${(rider.totalEarnings / rider.totalDeliveries).toInt()}'
+                                : 'PKR 0',
                         icon: Icons.trending_up,
                         color: AppColorsDark.info,
                       ),
@@ -160,25 +164,28 @@ class RiderEarningsScreen extends ConsumerWidget {
                     }
 
                     return Column(
-                      children: orders
-                          .map((order) => _buildEarningItem(order))
-                          .toList(),
+                      children:
+                          orders
+                              .map((order) => _buildEarningItem(order))
+                              .toList(),
                     );
                   },
-                  loading: () => Center(
-                    child: CircularProgressIndicator(
-                      color: AppColorsDark.primary,
-                    ),
-                  ),
-                  error: (e, _) => Text('Error loading history'),
+                  loading:
+                      () => const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColorsDark.primary,
+                        ),
+                      ),
+                  error: (e, _) => const Text('Error loading history'),
                 ),
               ],
             ),
           );
         },
-        loading: () => Center(
-          child: CircularProgressIndicator(color: AppColorsDark.primary),
-        ),
+        loading:
+            () => const Center(
+              child: CircularProgressIndicator(color: AppColorsDark.primary),
+            ),
         error: (e, _) => Center(child: Text('Error: $e')),
       ),
     );
@@ -228,7 +235,7 @@ class RiderEarningsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildEarningItem(order) {
+  Widget _buildEarningItem(OrderEntity order) {
     return Container(
       margin: EdgeInsets.only(bottom: 10.h),
       padding: EdgeInsets.all(16.w),

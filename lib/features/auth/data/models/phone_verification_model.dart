@@ -13,10 +13,10 @@ class PhoneVerificationModel {
   PhoneVerificationModel({
     required this.userId,
     required this.phoneNumber,
+    required this.createdAt,
     this.isVerified = false,
     this.verificationId,
     this.verifiedAt,
-    required this.createdAt,
   });
 
   Map<String, dynamic> toJson() {
@@ -25,9 +25,7 @@ class PhoneVerificationModel {
       'phoneNumber': phoneNumber,
       'isVerified': isVerified,
       'verificationId': verificationId,
-      'verifiedAt': verifiedAt != null 
-          ? Timestamp.fromDate(verifiedAt!)
-          : null,
+      'verifiedAt': verifiedAt != null ? Timestamp.fromDate(verifiedAt!) : null,
       'createdAt': Timestamp.fromDate(createdAt),
     };
   }
@@ -38,9 +36,10 @@ class PhoneVerificationModel {
       phoneNumber: json['phoneNumber'] as String,
       isVerified: json['isVerified'] as bool? ?? false,
       verificationId: json['verificationId'] as String?,
-      verifiedAt: json['verifiedAt'] != null
-          ? (json['verifiedAt'] as Timestamp).toDate()
-          : null,
+      verifiedAt:
+          json['verifiedAt'] != null
+              ? (json['verifiedAt'] as Timestamp).toDate()
+              : null,
       createdAt: (json['createdAt'] as Timestamp).toDate(),
     );
   }

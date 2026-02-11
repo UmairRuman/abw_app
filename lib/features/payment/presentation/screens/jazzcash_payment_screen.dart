@@ -39,7 +39,7 @@ class _JazzcashPaymentScreenState extends ConsumerState<JazzcashPaymentScreen> {
     if (checkoutState is! CheckoutLoaded) {
       return Scaffold(
         appBar: AppBar(title: const Text('JazzCash Payment')),
-        body: Center(child: Text('Something went wrong')),
+        body: const Center(child: Text('Something went wrong')),
       );
     }
 
@@ -71,8 +71,8 @@ class _JazzcashPaymentScreenState extends ConsumerState<JazzcashPaymentScreen> {
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            Color(0xFFFF6B00).withOpacity(0.15),
-                            Color(0xFFFF6B00).withOpacity(0.05),
+                            const Color(0xFFFF6B00).withOpacity(0.15),
+                            const Color(0xFFFF6B00).withOpacity(0.05),
                           ],
                         ),
                         shape: BoxShape.circle,
@@ -80,7 +80,7 @@ class _JazzcashPaymentScreenState extends ConsumerState<JazzcashPaymentScreen> {
                       child: Icon(
                         Icons.account_balance_wallet,
                         size: 80.sp,
-                        color: Color(0xFFFF6B00),
+                        color: const Color(0xFFFF6B00),
                       ),
                     ),
                   ),
@@ -93,13 +93,13 @@ class _JazzcashPaymentScreenState extends ConsumerState<JazzcashPaymentScreen> {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          Color(0xFFFF6B00).withOpacity(0.15),
-                          Color(0xFFFF6B00).withOpacity(0.05),
+                          const Color(0xFFFF6B00).withOpacity(0.15),
+                          const Color(0xFFFF6B00).withOpacity(0.05),
                         ],
                       ),
                       borderRadius: BorderRadius.circular(16.r),
                       border: Border.all(
-                        color: Color(0xFFFF6B00).withOpacity(0.3),
+                        color: const Color(0xFFFF6B00).withOpacity(0.3),
                       ),
                     ),
                     child: Row(
@@ -114,7 +114,7 @@ class _JazzcashPaymentScreenState extends ConsumerState<JazzcashPaymentScreen> {
                         Text(
                           'PKR ${checkout.total.toInt()}',
                           style: AppTextStyles.headlineSmall().copyWith(
-                            color: Color(0xFFFF6B00),
+                            color: const Color(0xFFFF6B00),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -146,10 +146,10 @@ class _JazzcashPaymentScreenState extends ConsumerState<JazzcashPaymentScreen> {
                   Container(
                     padding: EdgeInsets.all(16.w),
                     decoration: BoxDecoration(
-                      color: Color(0xFFFF6B00).withOpacity(0.1),
+                      color: const Color(0xFFFF6B00).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12.r),
                       border: Border.all(
-                        color: Color(0xFFFF6B00).withOpacity(0.3),
+                        color: const Color(0xFFFF6B00).withOpacity(0.3),
                         width: 2,
                       ),
                     ),
@@ -169,7 +169,7 @@ class _JazzcashPaymentScreenState extends ConsumerState<JazzcashPaymentScreen> {
                             Text(
                               _jazzcashNumber,
                               style: AppTextStyles.headlineSmall().copyWith(
-                                color: Color(0xFFFF6B00),
+                                color: const Color(0xFFFF6B00),
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 1.5,
                               ),
@@ -182,14 +182,17 @@ class _JazzcashPaymentScreenState extends ConsumerState<JazzcashPaymentScreen> {
                               ClipboardData(text: _jazzcashNumber),
                             );
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
+                              const SnackBar(
                                 content: Text('Number copied!'),
                                 backgroundColor: AppColorsDark.success,
                                 duration: Duration(seconds: 1),
                               ),
                             );
                           },
-                          icon: Icon(Icons.copy, color: Color(0xFFFF6B00)),
+                          icon: const Icon(
+                            Icons.copy,
+                            color: Color(0xFFFF6B00),
+                          ),
                         ),
                       ],
                     ),
@@ -274,7 +277,7 @@ class _JazzcashPaymentScreenState extends ConsumerState<JazzcashPaymentScreen> {
         Container(
           width: 32.w,
           height: 32.w,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: Color(0xFFFF6B00),
             shape: BoxShape.circle,
           ),
@@ -399,7 +402,7 @@ class _JazzcashPaymentScreenState extends ConsumerState<JazzcashPaymentScreen> {
                         onTap: _pickImage,
                         child: Container(
                           padding: EdgeInsets.all(8.w),
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             color: AppColorsDark.info,
                             shape: BoxShape.circle,
                             boxShadow: [
@@ -425,7 +428,7 @@ class _JazzcashPaymentScreenState extends ConsumerState<JazzcashPaymentScreen> {
                         },
                         child: Container(
                           padding: EdgeInsets.all(8.w),
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             color: AppColorsDark.error,
                             shape: BoxShape.circle,
                             boxShadow: [
@@ -458,7 +461,7 @@ class _JazzcashPaymentScreenState extends ConsumerState<JazzcashPaymentScreen> {
 
     return Container(
       padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColorsDark.surface,
         boxShadow: [
           BoxShadow(
@@ -473,7 +476,7 @@ class _JazzcashPaymentScreenState extends ConsumerState<JazzcashPaymentScreen> {
           onPressed: canPlaceOrder ? _placeOrder : null,
           style: ElevatedButton.styleFrom(
             minimumSize: Size(double.infinity, 56.h),
-            backgroundColor: Color(0xFFFF6B00),
+            backgroundColor: const Color(0xFFFF6B00),
             disabledBackgroundColor: AppColorsDark.surfaceVariant,
           ),
           child:
@@ -484,7 +487,7 @@ class _JazzcashPaymentScreenState extends ConsumerState<JazzcashPaymentScreen> {
                       SizedBox(
                         height: 24.h,
                         width: 24.w,
-                        child: CircularProgressIndicator(
+                        child: const CircularProgressIndicator(
                           strokeWidth: 2,
                           color: AppColorsDark.white,
                         ),
@@ -560,11 +563,10 @@ class _JazzcashPaymentScreenState extends ConsumerState<JazzcashPaymentScreen> {
           );
 
       if (orderId != null && mounted) {
-        // Clear checkout
-        ref.read(checkoutProvider.notifier).reset();
-
-        // Navigate to confirmation
         context.goToOrderConfirmation(orderId);
+        Future.delayed(const Duration(milliseconds: 100), () {
+          ref.read(checkoutProvider.notifier).reset();
+        });
       } else {
         throw Exception('Failed to place order');
       }

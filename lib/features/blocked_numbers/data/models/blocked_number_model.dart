@@ -7,11 +7,11 @@ class BlockedNumberModel extends BlockedNumberEntity {
   const BlockedNumberModel({
     required super.id,
     required super.phoneNumber,
-    super.userId,
     required super.blockedBy,
     required super.blockedByName,
     required super.reason,
     required super.blockedAt,
+    super.userId,
     super.isActive,
   });
 

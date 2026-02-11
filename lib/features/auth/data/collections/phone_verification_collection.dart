@@ -6,10 +6,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PhoneVerificationCollection {
   // Singleton pattern
-  static final PhoneVerificationCollection instance = 
+  static final PhoneVerificationCollection instance =
       PhoneVerificationCollection._internal();
   PhoneVerificationCollection._internal();
-  
+
   factory PhoneVerificationCollection() {
     return instance;
   }
@@ -24,27 +24,27 @@ class PhoneVerificationCollection {
   Future<String?> sendOTP(String phoneNumber) async {
     try {
       String? verificationId;
-      
+
       await _auth.verifyPhoneNumber(
         phoneNumber: phoneNumber,
         timeout: const Duration(seconds: 60),
-        
+
         verificationCompleted: (PhoneAuthCredential credential) async {
           log('Auto verification completed');
           // Auto-retrieval of OTP (Android only)
         },
-        
+
         verificationFailed: (FirebaseAuthException e) {
           log('Verification failed: ${e.code} - ${e.message}');
           throw Exception('Failed to send OTP: ${e.message}');
         },
-        
+
         codeSent: (String verId, int? resendToken) {
           log('OTP sent successfully. VerificationId: $verId');
           verificationId = verId;
           _verificationIds[phoneNumber] = verId;
         },
-        
+
         codeAutoRetrievalTimeout: (String verId) {
           log('Auto retrieval timeout');
           verificationId = verId;
@@ -53,15 +53,13 @@ class PhoneVerificationCollection {
 
       // Wait a bit for codeSent to be called
       await Future.delayed(const Duration(seconds: 2));
-      
-      if (verificationId == null) {
-        verificationId = _verificationIds[phoneNumber];
-      }
+
+      verificationId ??= _verificationIds[phoneNumber];
 
       return verificationId;
     } on FirebaseAuthException catch (e) {
       log('Firebase Auth Error sending OTP: ${e.code} - ${e.message}');
-      
+
       // Handle specific error codes
       switch (e.code) {
         case 'invalid-phone-number':
@@ -90,16 +88,16 @@ class PhoneVerificationCollection {
 
       // Verify credential
       final userCredential = await _auth.signInWithCredential(credential);
-      
+
       if (userCredential.user != null) {
         log('OTP verified successfully');
         return true;
       }
-      
+
       return false;
     } on FirebaseAuthException catch (e) {
       log('Firebase Auth Error verifying OTP: ${e.code} - ${e.message}');
-      
+
       switch (e.code) {
         case 'invalid-verification-code':
           throw Exception('Invalid OTP code');
@@ -126,11 +124,13 @@ class PhoneVerificationCollection {
         'phoneVerifiedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      
+
       log('User phone verification updated: $userId');
       return true;
     } on FirebaseException catch (e) {
-      log('Firebase Error updating phone verification: ${e.code} - ${e.message}');
+      log(
+        'Firebase Error updating phone verification: ${e.code} - ${e.message}',
+      );
       return false;
     } catch (e) {
       log('Error updating phone verification: ${e.toString()}');
@@ -142,11 +142,11 @@ class PhoneVerificationCollection {
   Future<bool> isPhoneVerified(String userId) async {
     try {
       final doc = await _firestore.collection('users').doc(userId).get();
-      
+
       if (doc.exists && doc.data() != null) {
         return doc.data()!['isPhoneVerified'] as bool? ?? false;
       }
-      
+
       return false;
     } catch (e) {
       log('Error checking phone verification: ${e.toString()}');

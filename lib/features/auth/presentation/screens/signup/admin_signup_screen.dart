@@ -1,14 +1,11 @@
 //Location: lib/features/auth/presentation/screens/signup/admin_signup_screen.dart
 
-
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../../core/theme/colors/app_colors_dark.dart';
 import '../../../../../core/theme/text_styles/app_text_styles.dart';
-import '../../../../../core/constants/auth_constants.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/auth_state.dart';
 
@@ -56,13 +53,15 @@ class _AdminSignupScreenState extends ConsumerState<AdminSignupScreen> {
     setState(() => _isLoading = true);
 
     // Call admin signup (you'll need to add this to AuthNotifier)
-    await ref.read(authProvider.notifier).createAdmin(
-      email: _emailController.text.trim(),
-      password: _passwordController.text.trim(),
-      name: _nameController.text.trim(),
-      phone: _phoneController.text.trim(),
-      accessKey: _adminKeyController.text.trim(),
-    );
+    await ref
+        .read(authProvider.notifier)
+        .createAdmin(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+          name: _nameController.text.trim(),
+          phone: _phoneController.text.trim(),
+          accessKey: _adminKeyController.text.trim(),
+        );
 
     if (mounted) {
       setState(() => _isLoading = false);
@@ -308,8 +307,11 @@ class _AdminSignupScreenState extends ConsumerState<AdminSignupScreen> {
                             : Icons.visibility_off_outlined,
                       ),
                       onPressed: () {
-                        setState(() =>
-                            _obscureConfirmPassword = !_obscureConfirmPassword);
+                        setState(
+                          () =>
+                              _obscureConfirmPassword =
+                                  !_obscureConfirmPassword,
+                        );
                       },
                     ),
                   ),
@@ -357,11 +359,12 @@ class _AdminSignupScreenState extends ConsumerState<AdminSignupScreen> {
                   height: 56.h,
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _handleSignup,
-                    child: _isLoading
-                        ? const CircularProgressIndicator(
-                            color: AppColorsDark.background,
-                          )
-                        : const Text('Create Admin Account'),
+                    child:
+                        _isLoading
+                            ? const CircularProgressIndicator(
+                              color: AppColorsDark.background,
+                            )
+                            : const Text('Create Admin Account'),
                   ),
                 ),
 

@@ -1,5 +1,6 @@
 // lib/features/admin/presentation/screens/orders/widgets/assign_rider_dialog.dart
 
+import 'package:abw_app/features/riders/presentation/providers/riders_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -11,7 +12,7 @@ import '../../../../../orders/presentation/providers/orders_provider.dart';
 class AssignRiderDialog extends ConsumerStatefulWidget {
   final OrderModel order;
 
-  const AssignRiderDialog({super.key, required this.order});
+  const AssignRiderDialog({required this.order, super.key});
 
   @override
   ConsumerState<AssignRiderDialog> createState() => _AssignRiderDialogState();
@@ -26,13 +27,13 @@ class _AssignRiderDialogState extends ConsumerState<AssignRiderDialog> {
   void initState() {
     super.initState();
     Future.microtask(() {
-      // return ref.read(ridersProvider.notifier).getAvailableRiders();
+      return ref.read(ridersProvider.notifier).getAvailableRiders();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // final ridersState = ref.watch(ridersProvider);
+    final ridersState = ref.watch(ridersProvider);
 
     return Dialog(
       backgroundColor: AppColorsDark.surface,
@@ -77,138 +78,140 @@ class _AssignRiderDialogState extends ConsumerState<AssignRiderDialog> {
               ),
             ),
 
-            // Content
-            // Expanded(
-            //   child: ridersState is RidersLoading
-            //       ? const Center(
-            //           child: CircularProgressIndicator(
-            //             color: AppColorsDark.primary,
-            //           ),
-            //         )
-            //       : ridersState is RidersLoaded
-            //           ? ridersState.riders.isEmpty
-            //               ? Center(
-            //                   child: Column(
-            //                     mainAxisAlignment: MainAxisAlignment.center,
-            //                     children: [
-            //                       Icon(
-            //                         Icons.delivery_dining,
-            //                         size: 64.sp,
-            //                         color: AppColorsDark.textTertiary,
-            //                       ),
-            //                       SizedBox(height: 16.h),
-            //                       Text(
-            //                         'No available riders',
-            //                         style: AppTextStyles.bodyMedium().copyWith(
-            //                           color: AppColorsDark.textSecondary,
-            //                         ),
-            //                       ),
-            //                     ],
-            //                   ),
-            //                 )
-            //               : ListView.builder(
-            //                   padding: EdgeInsets.all(16.w),
-            //                   itemCount: ridersState.riders.length,
-            //                   itemBuilder: (context, index) {
-            //                     final rider = ridersState.riders[index];
-            //                     final isSelected =
-            //                         _selectedRiderId == rider.id;
+            Expanded(
+              child:
+                  ridersState is RidersLoading
+                      ? const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColorsDark.primary,
+                        ),
+                      )
+                      : ridersState is RidersLoaded
+                      ? ridersState.riders.isEmpty
+                          ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.delivery_dining,
+                                  size: 64.sp,
+                                  color: AppColorsDark.textTertiary,
+                                ),
+                                SizedBox(height: 16.h),
+                                Text(
+                                  'No available riders',
+                                  style: AppTextStyles.bodyMedium().copyWith(
+                                    color: AppColorsDark.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                          : ListView.builder(
+                            padding: EdgeInsets.all(16.w),
+                            itemCount: ridersState.riders.length,
+                            itemBuilder: (context, index) {
+                              final rider = ridersState.riders[index];
+                              final isSelected = _selectedRiderId == rider.id;
 
-            //                     return InkWell(
-            //                       onTap: () {
-            //                         setState(() {
-            //                           _selectedRiderId = rider.id;
-            //                           _selectedRiderName = rider.name;
-            //                         });
-            //                       },
-            //                       borderRadius: BorderRadius.circular(12.r),
-            //                       child: Container(
-            //                         margin: EdgeInsets.only(bottom: 8.h),
-            //                         padding: EdgeInsets.all(16.w),
-            //                         decoration: BoxDecoration(
-            //                           color: isSelected
-            //                               ? AppColorsDark.primary
-            //                                   .withOpacity(0.1)
-            //                               : AppColorsDark.cardBackground,
-            //                           borderRadius:
-            //                               BorderRadius.circular(12.r),
-            //                           border: Border.all(
-            //                             color: isSelected
-            //                                 ? AppColorsDark.primary
-            //                                 : AppColorsDark.border,
-            //                             width: isSelected ? 2 : 1,
-            //                           ),
-            //                         ),
-            //                         child: Row(
-            //                           children: [
-            //                             // Avatar
-            //                             Container(
-            //                               width: 48.w,
-            //                               height: 48.w,
-            //                               decoration: const BoxDecoration(
-            //                                 gradient: AppColorsDark
-            //                                     .primaryGradient,
-            //                                 shape: BoxShape.circle,
-            //                               ),
-            //                               child: Center(
-            //                                 child: Text(
-            //                                   rider.name
-            //                                       .substring(0, 1)
-            //                                       .toUpperCase(),
-            //                                   style: AppTextStyles.titleMedium()
-            //                                       .copyWith(
-            //                                     color: AppColorsDark.white,
-            //                                     fontWeight: FontWeight.bold,
-            //                                   ),
-            //                                 ),
-            //                               ),
-            //                             ),
-            //                             SizedBox(width: 12.w),
+                              return InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    _selectedRiderId = rider.id;
+                                    _selectedRiderName = rider.name;
+                                  });
+                                },
+                                borderRadius: BorderRadius.circular(12.r),
+                                child: Container(
+                                  margin: EdgeInsets.only(bottom: 8.h),
+                                  padding: EdgeInsets.all(16.w),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        isSelected
+                                            ? AppColorsDark.primary.withOpacity(
+                                              0.1,
+                                            )
+                                            : AppColorsDark.cardBackground,
+                                    borderRadius: BorderRadius.circular(12.r),
+                                    border: Border.all(
+                                      color:
+                                          isSelected
+                                              ? AppColorsDark.primary
+                                              : AppColorsDark.border,
+                                      width: isSelected ? 2 : 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      // Avatar
+                                      Container(
+                                        width: 48.w,
+                                        height: 48.w,
+                                        decoration: const BoxDecoration(
+                                          gradient:
+                                              AppColorsDark.primaryGradient,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            rider.name
+                                                .substring(0, 1)
+                                                .toUpperCase(),
+                                            style: AppTextStyles.titleMedium()
+                                                .copyWith(
+                                                  color: AppColorsDark.white,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                          ),
+                                        ),
+                                      ),
+                                      SizedBox(width: 12.w),
 
-            //                             // Info
-            //                             Expanded(
-            //                               child: Column(
-            //                                 crossAxisAlignment:
-            //                                     CrossAxisAlignment.start,
-            //                                 children: [
-            //                                   Text(
-            //                                     rider.name,
-            //                                     style: AppTextStyles.titleSmall()
-            //                                         .copyWith(
-            //                                       color:
-            //                                           AppColorsDark.textPrimary,
-            //                                       fontWeight: FontWeight.w600,
-            //                                     ),
-            //                                   ),
-            //                                   SizedBox(height: 4.h),
-            //                                   Text(
-            //                                     rider.phone,
-            //                                     style:
-            //                                         AppTextStyles.bodySmall()
-            //                                             .copyWith(
-            //                                       color: AppColorsDark
-            //                                           .textSecondary,
-            //                                     ),
-            //                                   ),
-            //                                 ],
-            //                               ),
-            //                             ),
+                                      // Info
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              rider.name,
+                                              style: AppTextStyles.titleSmall()
+                                                  .copyWith(
+                                                    color:
+                                                        AppColorsDark
+                                                            .textPrimary,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                            ),
+                                            SizedBox(height: 4.h),
+                                            Text(
+                                              rider.phone,
+                                              style: AppTextStyles.bodySmall()
+                                                  .copyWith(
+                                                    color:
+                                                        AppColorsDark
+                                                            .textSecondary,
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
 
-            //                             // Selection Indicator
-            //                             if (isSelected)
-            //                               Icon(
-            //                                 Icons.check_circle,
-            //                                 color: AppColorsDark.primary,
-            //                                 size: 24.sp,
-            //                               ),
-            //                           ],
-            //                         ),
-            //                       ),
-            //                     );
-            //                   },
-            //                 )
-            //           : const Center(child: Text('Failed to load riders')),
-            // ),
+                                      // Selection Indicator
+                                      if (isSelected)
+                                        Icon(
+                                          Icons.check_circle,
+                                          color: AppColorsDark.primary,
+                                          size: 24.sp,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          )
+                      : const Center(child: Text('Failed to load riders')),
+            ),
 
             // Actions
             Container(
@@ -267,7 +270,7 @@ class _AssignRiderDialogState extends ConsumerState<AssignRiderDialog> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Rider ${_selectedRiderName} assigned successfully!'),
+            content: Text('Rider $_selectedRiderName assigned successfully!'),
             backgroundColor: AppColorsDark.success,
           ),
         );

@@ -33,7 +33,9 @@ class _PaymentSettingsDialogState extends ConsumerState<PaymentSettingsDialog> {
   @override
   void initState() {
     super.initState();
-    _loadCurrentSettings();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadCurrentSettings();
+    });
   }
 
   void _loadCurrentSettings() {
@@ -329,7 +331,7 @@ class _PaymentSettingsDialogState extends ConsumerState<PaymentSettingsDialog> {
                 Switch(
                   value: isEnabled,
                   onChanged: onToggle,
-                  activeColor: color,
+                  activeThumbColor: color,
                 ),
               ],
             ),

@@ -8,7 +8,6 @@ import '../../../../../core/theme/colors/app_colors_dark.dart';
 import '../../../../../core/theme/text_styles/app_text_styles.dart';
 import '../../../../stores/presentation/providers/stores_provider.dart';
 import '../../../../stores/data/models/store_model.dart';
-import 'widgets/add_store_dialog.dart';
 import 'widgets/store_details_dialog.dart';
 
 class RestaurantManagementScreen extends ConsumerStatefulWidget {

@@ -15,10 +15,7 @@ import '../../../../../stores/data/models/store_model.dart';
 class AddEditStoreDialog extends ConsumerStatefulWidget {
   final StoreModel? store; // null for add, populated for edit
 
-  const AddEditStoreDialog({
-    super.key,
-    this.store,
-  });
+  const AddEditStoreDialog({super.key, this.store});
 
   @override
   ConsumerState<AddEditStoreDialog> createState() => _AddEditStoreDialogState();
@@ -95,7 +92,7 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
   }
 
   Future<void> _loadCategories() async {
-     await Future.delayed(const Duration(milliseconds: 500)); 
+    await Future.delayed(const Duration(milliseconds: 500));
     await ref.read(categoriesProvider.notifier).getAllCategories();
   }
 
@@ -152,8 +149,8 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
                         controller: _nameController,
                         label: 'Store Name',
                         hint: 'e.g., Pizza Palace',
-                        validator: (v) =>
-                            v?.isEmpty ?? true ? 'Required' : null,
+                        validator:
+                            (v) => v?.isEmpty ?? true ? 'Required' : null,
                       ),
                       SizedBox(height: 16.h),
                       _buildTextField(
@@ -161,27 +158,27 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
                         label: 'Description',
                         hint: 'Brief description of your store',
                         maxLines: 3,
-                        validator: (v) =>
-                            v?.isEmpty ?? true ? 'Required' : null,
+                        validator:
+                            (v) => v?.isEmpty ?? true ? 'Required' : null,
                       ),
                       SizedBox(height: 16.h),
 
                       // Category & Type
-                    Row(
-  children: [
-    Flexible(
-      child: DropdownButtonHideUnderline(
-        child: _buildCategoryDropdown(categoriesState),
-      ),
-    ),
-    SizedBox(width: 12.w),
-    Flexible(
-      child: DropdownButtonHideUnderline(
-        child: _buildTypeDropdown(),
-      ),
-    ),
-  ],
-),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: DropdownButtonHideUnderline(
+                              child: _buildCategoryDropdown(categoriesState),
+                            ),
+                          ),
+                          SizedBox(width: 12.w),
+                          Flexible(
+                            child: DropdownButtonHideUnderline(
+                              child: _buildTypeDropdown(),
+                            ),
+                          ),
+                        ],
+                      ),
                       SizedBox(height: 24.h),
 
                       // Owner Info
@@ -190,24 +187,24 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
                       _buildTextField(
                         controller: _ownerNameController,
                         label: 'Owner Name',
-                        validator: (v) =>
-                            v?.isEmpty ?? true ? 'Required' : null,
+                        validator:
+                            (v) => v?.isEmpty ?? true ? 'Required' : null,
                       ),
                       SizedBox(height: 16.h),
                       _buildTextField(
                         controller: _ownerEmailController,
                         label: 'Email',
                         keyboardType: TextInputType.emailAddress,
-                        validator: (v) =>
-                            v?.isEmpty ?? true ? 'Required' : null,
+                        validator:
+                            (v) => v?.isEmpty ?? true ? 'Required' : null,
                       ),
                       SizedBox(height: 16.h),
                       _buildTextField(
                         controller: _ownerPhoneController,
                         label: 'Phone',
                         keyboardType: TextInputType.phone,
-                        validator: (v) =>
-                            v?.isEmpty ?? true ? 'Required' : null,
+                        validator:
+                            (v) => v?.isEmpty ?? true ? 'Required' : null,
                       ),
                       SizedBox(height: 24.h),
 
@@ -218,8 +215,8 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
                         controller: _addressController,
                         label: 'Address',
                         maxLines: 2,
-                        validator: (v) =>
-                            v?.isEmpty ?? true ? 'Required' : null,
+                        validator:
+                            (v) => v?.isEmpty ?? true ? 'Required' : null,
                       ),
                       SizedBox(height: 16.h),
                       Row(
@@ -228,8 +225,8 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
                             child: _buildTextField(
                               controller: _areaController,
                               label: 'Area',
-                              validator: (v) =>
-                                  v?.isEmpty ?? true ? 'Required' : null,
+                              validator:
+                                  (v) => v?.isEmpty ?? true ? 'Required' : null,
                             ),
                           ),
                           SizedBox(width: 12.w),
@@ -237,8 +234,8 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
                             child: _buildTextField(
                               controller: _cityController,
                               label: 'City',
-                              validator: (v) =>
-                                  v?.isEmpty ?? true ? 'Required' : null,
+                              validator:
+                                  (v) => v?.isEmpty ?? true ? 'Required' : null,
                             ),
                           ),
                         ],
@@ -255,8 +252,8 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
                               controller: _deliveryFeeController,
                               label: 'Delivery Fee (PKR)',
                               keyboardType: TextInputType.number,
-                              validator: (v) =>
-                                  v?.isEmpty ?? true ? 'Required' : null,
+                              validator:
+                                  (v) => v?.isEmpty ?? true ? 'Required' : null,
                             ),
                           ),
                           SizedBox(width: 12.w),
@@ -265,8 +262,8 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
                               controller: _deliveryTimeController,
                               label: 'Delivery Time (mins)',
                               keyboardType: TextInputType.number,
-                              validator: (v) =>
-                                  v?.isEmpty ?? true ? 'Required' : null,
+                              validator:
+                                  (v) => v?.isEmpty ?? true ? 'Required' : null,
                             ),
                           ),
                         ],
@@ -276,8 +273,8 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
                         controller: _minOrderController,
                         label: 'Minimum Order (PKR)',
                         keyboardType: TextInputType.number,
-                        validator: (v) =>
-                            v?.isEmpty ?? true ? 'Required' : null,
+                        validator:
+                            (v) => v?.isEmpty ?? true ? 'Required' : null,
                       ),
                       SizedBox(height: 24.h),
 
@@ -330,11 +327,7 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.store,
-            color: AppColorsDark.white,
-            size: 24.sp,
-          ),
+          Icon(Icons.store, color: AppColorsDark.white, size: 24.sp),
           SizedBox(width: 12.w),
           Expanded(
             child: Text(
@@ -380,85 +373,83 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
       style: AppTextStyles.bodyMedium().copyWith(
         color: AppColorsDark.textPrimary,
       ),
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-      ),
+      decoration: InputDecoration(labelText: label, hintText: hint),
       validator: validator,
     );
   }
 
-Widget _buildCategoryDropdown(CategoriesState state) {
-  if (state is! CategoriesLoaded) {
-    return Container(
-      padding: EdgeInsets.all(12.w),
-      decoration: BoxDecoration(
-        color: AppColorsDark.surfaceVariant,
-        borderRadius: BorderRadius.circular(12.r),
-      ),
-      child: Text(
-        'Loading categories...',
-        overflow: TextOverflow.ellipsis,
-        style: AppTextStyles.bodyMedium().copyWith(
-          color: AppColorsDark.textSecondary,
+  Widget _buildCategoryDropdown(CategoriesState state) {
+    if (state is! CategoriesLoaded) {
+      return Container(
+        padding: EdgeInsets.all(12.w),
+        decoration: BoxDecoration(
+          color: AppColorsDark.surfaceVariant,
+          borderRadius: BorderRadius.circular(12.r),
         ),
+        child: Text(
+          'Loading categories...',
+          overflow: TextOverflow.ellipsis,
+          style: AppTextStyles.bodyMedium().copyWith(
+            color: AppColorsDark.textSecondary,
+          ),
+        ),
+      );
+    }
+
+    return DropdownButtonFormField<String>(
+      isExpanded: true, // <<< CRITICAL
+      initialValue: _selectedCategory.isEmpty ? null : _selectedCategory,
+      decoration: InputDecoration(
+        labelText: 'Category',
+        isDense: true, // <<< CRITICAL
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: 12.w,
+          vertical: 10.h,
+        ), // <<< CRITICAL
       ),
+      items:
+          state.categories.map((category) {
+            return DropdownMenuItem(
+              value: category.id,
+              child: Text(
+                category.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            );
+          }).toList(),
+      onChanged: (value) {
+        setState(() => _selectedCategory = value ?? '');
+      },
+      validator: (v) => v == null ? 'Required' : null,
     );
   }
 
-  return DropdownButtonFormField<String>(
-    isExpanded: true, // <<< CRITICAL
-    value: _selectedCategory.isEmpty ? null : _selectedCategory,
-    decoration: InputDecoration(
-      labelText: 'Category',
-      isDense: true, // <<< CRITICAL
-      contentPadding:
-          EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h), // <<< CRITICAL
-    ),
-    items: state.categories.map((category) {
-      return DropdownMenuItem(
-        value: category.id,
-        child: Text(
-          category.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      );
-    }).toList(),
-    onChanged: (value) {
-      setState(() => _selectedCategory = value ?? '');
-    },
-    validator: (v) => v == null ? 'Required' : null,
-  );
-}
-
-
-Widget _buildTypeDropdown() {
-  return DropdownButtonFormField<String>(
-    isExpanded: true, // <<< CRITICAL
-    value: _selectedType,
-    decoration: InputDecoration(
-      labelText: 'Type',
-      isDense: true,
-      contentPadding:
-          EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
-    ),
-    items: _storeTypes.map((type) {
-      return DropdownMenuItem(
-        value: type,
-        child: Text(
-          type.toUpperCase(),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      );
-    }).toList(),
-    onChanged: (value) {
-      setState(() => _selectedType = value ?? 'restaurant');
-    },
-  );
-}
-
+  Widget _buildTypeDropdown() {
+    return DropdownButtonFormField<String>(
+      isExpanded: true, // <<< CRITICAL
+      initialValue: _selectedType,
+      decoration: InputDecoration(
+        labelText: 'Type',
+        isDense: true,
+        contentPadding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
+      ),
+      items:
+          _storeTypes.map((type) {
+            return DropdownMenuItem(
+              value: type,
+              child: Text(
+                type.toUpperCase(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            );
+          }).toList(),
+      onChanged: (value) {
+        setState(() => _selectedType = value ?? 'restaurant');
+      },
+    );
+  }
 
   Widget _buildTimeField({
     required TextEditingController controller,
@@ -498,24 +489,25 @@ Widget _buildTypeDropdown() {
         Wrap(
           spacing: 8.w,
           runSpacing: 8.h,
-          children: _workingDays.map((day) {
-            final isSelected = _selectedWorkingDays.contains(day);
-            return FilterChip(
-              label: Text(day.substring(0, 3)),
-              selected: isSelected,
-              onSelected: (selected) {
-                setState(() {
-                  if (selected) {
-                    _selectedWorkingDays.add(day);
-                  } else {
-                    _selectedWorkingDays.remove(day);
-                  }
-                });
-              },
-              selectedColor: AppColorsDark.primary.withOpacity(0.3),
-              checkmarkColor: AppColorsDark.primary,
-            );
-          }).toList(),
+          children:
+              _workingDays.map((day) {
+                final isSelected = _selectedWorkingDays.contains(day);
+                return FilterChip(
+                  label: Text(day.substring(0, 3)),
+                  selected: isSelected,
+                  onSelected: (selected) {
+                    setState(() {
+                      if (selected) {
+                        _selectedWorkingDays.add(day);
+                      } else {
+                        _selectedWorkingDays.remove(day);
+                      }
+                    });
+                  },
+                  selectedColor: AppColorsDark.primary.withOpacity(0.3),
+                  checkmarkColor: AppColorsDark.primary,
+                );
+              }).toList(),
         ),
       ],
     );
@@ -527,7 +519,7 @@ Widget _buildTypeDropdown() {
       children: [
         _buildSectionTitle('Store Images'),
         SizedBox(height: 12.h),
-        
+
         // Logo
         _buildImagePicker(
           label: 'Logo',
@@ -535,7 +527,7 @@ Widget _buildTypeDropdown() {
           onTap: () => _pickImage(ImageType.logo),
         ),
         SizedBox(height: 12.h),
-        
+
         // Banner
         _buildImagePicker(
           label: 'Banner',
@@ -544,7 +536,7 @@ Widget _buildTypeDropdown() {
           aspectRatio: 3,
         ),
         SizedBox(height: 12.h),
-        
+
         // Gallery
         _buildGalleryPicker(),
       ],
@@ -567,67 +559,66 @@ Widget _buildTypeDropdown() {
           ),
         ),
         SizedBox(height: 8.h),
-      InkWell(
-  onTap: onTap,
-  borderRadius: BorderRadius.circular(12.r),
-  child: aspectRatio == 1
-      ? SizedBox(
-          height: 110.h,
-          width: 110.h,
-          child: AspectRatio(
-            aspectRatio: 1,
-            child: _imageContainer(image, label),
-          ),
-        )
-      : AspectRatio(
-          aspectRatio: aspectRatio,
-          child: _imageContainer(image, label),
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12.r),
+          child:
+              aspectRatio == 1
+                  ? SizedBox(
+                    height: 110.h,
+                    width: 110.h,
+                    child: AspectRatio(
+                      aspectRatio: 1,
+                      child: _imageContainer(image, label),
+                    ),
+                  )
+                  : AspectRatio(
+                    aspectRatio: aspectRatio,
+                    child: _imageContainer(image, label),
+                  ),
         ),
-),
-
       ],
     );
   }
 
-
   Widget _imageContainer(File? image, String label) {
-  return Container(
-    decoration: BoxDecoration(
-      color: AppColorsDark.surfaceVariant,
-      borderRadius: BorderRadius.circular(12.r),
-      border: Border.all(color: AppColorsDark.border),
-    ),
-    child: image != null
-        ? ClipRRect(
-            borderRadius: BorderRadius.circular(12.r),
-            child: Image.file(
-              image,
-              fit: BoxFit.cover,
-              width: double.infinity,
-            ),
-          )
-        : Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.add_photo_alternate,
-                  size: 32.sp,
-                  color: AppColorsDark.textTertiary,
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColorsDark.surfaceVariant,
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: AppColorsDark.border),
+      ),
+      child:
+          image != null
+              ? ClipRRect(
+                borderRadius: BorderRadius.circular(12.r),
+                child: Image.file(
+                  image,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
                 ),
-                SizedBox(height: 6.h),
-                Text(
-                  'Tap to add $label',
-                  style: AppTextStyles.bodySmall().copyWith(
-                    color: AppColorsDark.textTertiary,
-                  ),
+              )
+              : Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.add_photo_alternate,
+                      size: 32.sp,
+                      color: AppColorsDark.textTertiary,
+                    ),
+                    SizedBox(height: 6.h),
+                    Text(
+                      'Tap to add $label',
+                      style: AppTextStyles.bodySmall().copyWith(
+                        color: AppColorsDark.textTertiary,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-  );
-}
-
+              ),
+    );
+  }
 
   Widget _buildGalleryPicker() {
     return Column(
@@ -704,12 +695,7 @@ Widget _buildTypeDropdown() {
     return Container(
       padding: EdgeInsets.all(20.w),
       decoration: const BoxDecoration(
-        border: Border(
-          top: BorderSide(
-            color: AppColorsDark.border,
-            width: 1,
-          ),
-        ),
+        border: Border(top: BorderSide(color: AppColorsDark.border, width: 1)),
       ),
       child: Row(
         children: [
@@ -723,16 +709,17 @@ Widget _buildTypeDropdown() {
           Expanded(
             child: ElevatedButton(
               onPressed: _isLoading ? null : _handleSubmit,
-              child: _isLoading
-                  ? SizedBox(
-                      height: 20.h,
-                      width: 20.w,
-                      child: const CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColorsDark.white,
-                      ),
-                    )
-                  : Text(widget.store == null ? 'Add Store' : 'Update'),
+              child:
+                  _isLoading
+                      ? SizedBox(
+                        height: 20.h,
+                        width: 20.w,
+                        child: const CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColorsDark.white,
+                        ),
+                      )
+                      : Text(widget.store == null ? 'Add Store' : 'Update'),
             ),
           ),
         ],
@@ -796,8 +783,8 @@ Widget _buildTypeDropdown() {
       String bannerUrl = widget.store?.bannerUrl ?? '';
       List<String> imageUrls = widget.store?.images ?? [];
 
-      final storeId = widget.store?.id ??
-          DateTime.now().millisecondsSinceEpoch.toString();
+      final storeId =
+          widget.store?.id ?? DateTime.now().millisecondsSinceEpoch.toString();
 
       if (_logoImage != null) {
         final publicId = await ref
@@ -825,19 +812,23 @@ Widget _buildTypeDropdown() {
         final publicIds = await ref
             .read(imageUploadProvider.notifier)
             .uploadStoreImages(_storeImages, storeId);
-        imageUrls = publicIds
-            .map((id) => ref
-                .read(imageUploadProvider.notifier)
-                .getOptimizedUrl(id))
-            .toList();
+        imageUrls =
+            publicIds
+                .map(
+                  (id) => ref
+                      .read(imageUploadProvider.notifier)
+                      .getOptimizedUrl(id),
+                )
+                .toList();
       }
 
       // Get category name
       final categoriesState = ref.read(categoriesProvider);
       String categoryName = '';
       if (categoriesState is CategoriesLoaded) {
-        final category = categoriesState.categories
-            .firstWhere((c) => c.id == _selectedCategory);
+        final category = categoriesState.categories.firstWhere(
+          (c) => c.id == _selectedCategory,
+        );
         categoryName = category.name;
       }
 
@@ -873,9 +864,10 @@ Widget _buildTypeDropdown() {
       );
 
       // Save to database
-      final success = widget.store == null
-          ? await ref.read(storesProvider.notifier).addStore(store)
-          : await ref.read(storesProvider.notifier).updateStore(store);
+      final success =
+          widget.store == null
+              ? await ref.read(storesProvider.notifier).addStore(store)
+              : await ref.read(storesProvider.notifier).updateStore(store);
 
       if (success && mounted) {
         Navigator.pop(context);

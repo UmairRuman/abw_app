@@ -21,7 +21,7 @@ class OrderHistoryScreen extends ConsumerWidget {
     if (authState is! Authenticated) {
       return Scaffold(
         appBar: AppBar(title: const Text('Order History')),
-        body: Center(child: Text('Please login to view order history')),
+        body: const Center(child: Text('Please login to view order history')),
       );
     }
 
@@ -76,7 +76,7 @@ class OrderHistoryScreen extends ConsumerWidget {
 
                 return RefreshIndicator(
                   onRefresh: () async {
-                    await Future.delayed(Duration(milliseconds: 500));
+                    await Future.delayed(const Duration(milliseconds: 500));
                   },
                   color: AppColorsDark.primary,
                   child: ListView.builder(
@@ -102,7 +102,7 @@ class OrderHistoryScreen extends ConsumerWidget {
                 );
               },
               loading:
-                  () => Center(
+                  () => const Center(
                     child: CircularProgressIndicator(
                       color: AppColorsDark.primary,
                     ),
@@ -141,7 +141,7 @@ class OrderHistoryScreen extends ConsumerWidget {
         children: [
           Container(
             padding: EdgeInsets.all(32.w),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppColorsDark.surfaceVariant,
               shape: BoxShape.circle,
             ),
@@ -172,7 +172,7 @@ class OrderHistoryScreen extends ConsumerWidget {
             onPressed: () {
               Navigator.pop(context);
             },
-            child: Text('Start Shopping'),
+            child: const Text('Start Shopping'),
           ),
         ],
       ),

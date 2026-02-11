@@ -468,7 +468,9 @@ class _CustomerSignupScreenState extends ConsumerState<CustomerSignupScreen>
             value: 0.5,
             minHeight: 6.h,
             backgroundColor: AppColorsDark.surfaceVariant,
-            valueColor: AlwaysStoppedAnimation<Color>(AppColorsDark.primary),
+            valueColor: const AlwaysStoppedAnimation<Color>(
+              AppColorsDark.primary,
+            ),
           ),
         ),
       ],
@@ -688,7 +690,7 @@ class _CustomerSignupScreenState extends ConsumerState<CustomerSignupScreen>
   Widget _buildDivider() {
     return Row(
       children: [
-        Expanded(child: Divider(color: AppColorsDark.border)),
+        const Expanded(child: Divider(color: AppColorsDark.border)),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 16.w),
           child: Text(
@@ -698,7 +700,7 @@ class _CustomerSignupScreenState extends ConsumerState<CustomerSignupScreen>
             ),
           ),
         ),
-        Expanded(child: Divider(color: AppColorsDark.border)),
+        const Expanded(child: Divider(color: AppColorsDark.border)),
       ],
     );
   }

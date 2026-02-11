@@ -20,7 +20,7 @@ import '../../../../products/data/models/product_model.dart';
 class StoreDetailsScreen extends ConsumerStatefulWidget {
   final String storeId;
 
-  const StoreDetailsScreen({super.key, required this.storeId});
+  const StoreDetailsScreen({required this.storeId, super.key});
 
   @override
   ConsumerState<StoreDetailsScreen> createState() => _StoreDetailsScreenState();
@@ -150,7 +150,7 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
               BoxShadow(
                 color: Colors.black.withOpacity(0.3),
                 blurRadius: 8,
-                offset: Offset(0, 2),
+                offset: const Offset(0, 2),
               ),
             ],
           ),
@@ -180,7 +180,7 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
                 BoxShadow(
                   color: Colors.black.withOpacity(0.3),
                   blurRadius: 8,
-                  offset: Offset(0, 2),
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
@@ -208,7 +208,7 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
                 BoxShadow(
                   color: Colors.black.withOpacity(0.3),
                   blurRadius: 8,
-                  offset: Offset(0, 2),
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
@@ -233,7 +233,7 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
                     if (loadingProgress == null) return child;
                     return Container(
                       color: AppColorsDark.surfaceContainer,
-                      child: Center(
+                      child: const Center(
                         child: CircularProgressIndicator(
                           color: AppColorsDark.primary,
                         ),
@@ -257,7 +257,7 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
                       0.9,
                     ), // ✅ Darker bottom
                   ],
-                  stops: [0.0, 0.5, 1.0],
+                  stops: const [0.0, 0.5, 1.0],
                 ),
               ),
             ),

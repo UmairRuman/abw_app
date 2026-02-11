@@ -26,11 +26,11 @@ class CheckoutEntity extends Equatable {
     required this.items,
     required this.deliveryAddress,
     required this.deliveryTimeSlot,
-    this.specialInstructions,
     required this.subtotal,
     required this.deliveryFee,
     required this.total,
     required this.createdAt,
+    this.specialInstructions,
   });
 
   @override

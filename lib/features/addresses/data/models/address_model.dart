@@ -8,7 +8,7 @@ class AddressModel {
   final String label;
   final String name;
   final String phone;
-  
+
   // Address details
   final String addressLine1;
   final String? addressLine2;
@@ -17,19 +17,19 @@ class AddressModel {
   final String state;
   final String? postalCode;
   final String country;
-  
+
   // Coordinates
   final double latitude;
   final double longitude;
-  
+
   // Status
   final bool isDefault;
   final String addressType;
-  
+
   // Additional info
   final String? landmark;
   final String? deliveryInstructions;
-  
+
   // Timestamps
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -41,20 +41,20 @@ class AddressModel {
     required this.name,
     required this.phone,
     required this.addressLine1,
-    this.addressLine2,
     required this.area,
     required this.city,
     required this.state,
-    this.postalCode,
     required this.country,
     required this.latitude,
     required this.longitude,
+    required this.createdAt,
+    required this.updatedAt,
+    this.addressLine2,
+    this.postalCode,
     this.isDefault = false,
     this.addressType = 'home',
     this.landmark,
     this.deliveryInstructions,
-    required this.createdAt,
-    required this.updatedAt,
   });
 
   /// Get full formatted address

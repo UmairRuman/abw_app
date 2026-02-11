@@ -4,7 +4,6 @@ import 'package:abw_app/core/routes/app_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:go_router/go_router.dart';
 import '../../../../core/theme/colors/app_colors_dark.dart';
 import '../../../../core/theme/text_styles/app_text_styles.dart';
 import '../../../checkout/presentation/providers/checkout_provider.dart';
@@ -12,7 +11,6 @@ import '../../../orders/presentation/providers/orders_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/presentation/providers/auth_state.dart';
 import '../../../orders/domain/entities/order_entity.dart';
-import 'order_confirmation_screen.dart';
 
 class CodConfirmationScreen extends ConsumerStatefulWidget {
   const CodConfirmationScreen({super.key});
@@ -277,11 +275,12 @@ class _CodConfirmationScreenState extends ConsumerState<CodConfirmationScreen> {
           );
 
       if (orderId != null && mounted) {
-        // Clear cart and checkout
-        ref.read(checkoutProvider.notifier).reset();
-
-        // Navigate to confirmation
+        // ✅ Reset AFTER navigation to avoid the crash
         context.goToOrderConfirmation(orderId);
+        // ✅ Reset AFTER navigating
+        Future.delayed(const Duration(milliseconds: 100), () {
+          ref.read(checkoutProvider.notifier).reset();
+        });
       } else {
         throw Exception('Failed to place order');
       }

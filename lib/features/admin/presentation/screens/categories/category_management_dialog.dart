@@ -32,14 +32,9 @@ class _CategoryManagementDialogState
 
     return Dialog(
       backgroundColor: AppColorsDark.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20.r),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
       child: Container(
-        constraints: BoxConstraints(
-          maxHeight: 600.h,
-          maxWidth: 400.w,
-        ),
+        constraints: BoxConstraints(maxHeight: 600.h, maxWidth: 400.w),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -55,11 +50,7 @@ class _CategoryManagementDialogState
               ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.category,
-                    color: AppColorsDark.white,
-                    size: 24.sp,
-                  ),
+                  Icon(Icons.category, color: AppColorsDark.white, size: 24.sp),
                   SizedBox(width: 12.w),
                   Expanded(
                     child: Text(
@@ -79,10 +70,7 @@ class _CategoryManagementDialogState
                     onPressed: () => _showAddCategoryDialog(context),
                   ),
                   IconButton(
-                    icon: Icon(
-                      Icons.close,
-                      color: AppColorsDark.white,
-                    ),
+                    icon: const Icon(Icons.close, color: AppColorsDark.white),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -91,17 +79,18 @@ class _CategoryManagementDialogState
 
             // Content
             Expanded(
-              child: categoriesState is CategoriesLoading
-                  ? Center(
-                      child: CircularProgressIndicator(
-                        color: AppColorsDark.primary,
-                      ),
-                    )
-                  : categoriesState is CategoriesLoaded
+              child:
+                  categoriesState is CategoriesLoading
+                      ? const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColorsDark.primary,
+                        ),
+                      )
+                      : categoriesState is CategoriesLoaded
                       ? _buildCategoriesList(categoriesState.categories)
                       : categoriesState is CategoriesError
-                          ? _buildErrorState(categoriesState.error)
-                          : _buildEmptyState(),
+                      ? _buildErrorState(categoriesState.error)
+                      : _buildEmptyState(),
             ),
           ],
         ),
@@ -175,63 +164,66 @@ class _CategoryManagementDialogState
           Container(
             padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
             decoration: BoxDecoration(
-              color: category.isActive
-                  ? AppColorsDark.success.withOpacity(0.2)
-                  : AppColorsDark.error.withOpacity(0.2),
+              color:
+                  category.isActive
+                      ? AppColorsDark.success.withOpacity(0.2)
+                      : AppColorsDark.error.withOpacity(0.2),
               borderRadius: BorderRadius.circular(6.r),
             ),
             child: Text(
               category.isActive ? 'Active' : 'Inactive',
               style: AppTextStyles.labelSmall().copyWith(
-                color: category.isActive
-                    ? AppColorsDark.success
-                    : AppColorsDark.error,
+                color:
+                    category.isActive
+                        ? AppColorsDark.success
+                        : AppColorsDark.error,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
           SizedBox(width: 8.w),
           PopupMenuButton<String>(
-            icon: Icon(
+            icon: const Icon(
               Icons.more_vert,
               color: AppColorsDark.textSecondary,
             ),
             color: AppColorsDark.surface,
             onSelected: (value) => _handleCategoryAction(value, category),
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'toggle',
-                child: Row(
-                  children: [
-                    Icon(
-                      category.isActive
-                          ? Icons.visibility_off
-                          : Icons.visibility,
-                      size: 18.sp,
+            itemBuilder:
+                (context) => [
+                  PopupMenuItem(
+                    value: 'toggle',
+                    child: Row(
+                      children: [
+                        Icon(
+                          category.isActive
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          size: 18.sp,
+                        ),
+                        SizedBox(width: 8.w),
+                        Text(category.isActive ? 'Deactivate' : 'Activate'),
+                      ],
                     ),
-                    SizedBox(width: 8.w),
-                    Text(category.isActive ? 'Deactivate' : 'Activate'),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'delete',
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.delete,
-                      size: 18.sp,
-                      color: AppColorsDark.error,
+                  ),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.delete,
+                          size: 18.sp,
+                          color: AppColorsDark.error,
+                        ),
+                        SizedBox(width: 8.w),
+                        const Text(
+                          'Delete',
+                          style: TextStyle(color: AppColorsDark.error),
+                        ),
+                      ],
                     ),
-                    SizedBox(width: 8.w),
-                    Text(
-                      'Delete',
-                      style: TextStyle(color: AppColorsDark.error),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+                  ),
+                ],
           ),
         ],
       ),
@@ -272,11 +264,7 @@ class _CategoryManagementDialogState
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.error_outline,
-            size: 64.sp,
-            color: AppColorsDark.error,
-          ),
+          Icon(Icons.error_outline, size: 64.sp, color: AppColorsDark.error),
           SizedBox(height: 16.h),
           Text(
             'Error loading categories',
@@ -316,111 +304,113 @@ class _CategoryManagementDialogState
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColorsDark.surface,
-        title: Text(
-          'Add Category',
-          style: AppTextStyles.titleMedium().copyWith(
-            color: AppColorsDark.textPrimary,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              style: AppTextStyles.bodyMedium().copyWith(
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: AppColorsDark.surface,
+            title: Text(
+              'Add Category',
+              style: AppTextStyles.titleMedium().copyWith(
                 color: AppColorsDark.textPrimary,
               ),
-              decoration: InputDecoration(
-                labelText: 'Category Name',
-                hintText: 'e.g., Food & Dining',
-              ),
             ),
-            SizedBox(height: 16.h),
-            TextField(
-              controller: descController,
-              style: AppTextStyles.bodyMedium().copyWith(
-                color: AppColorsDark.textPrimary,
-              ),
-              decoration: InputDecoration(
-                labelText: 'Description',
-                hintText: 'Brief description',
-              ),
-              maxLines: 2,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textPrimary,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Category Name',
+                    hintText: 'e.g., Food & Dining',
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                TextField(
+                  controller: descController,
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textPrimary,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Description',
+                    hintText: 'Brief description',
+                  ),
+                  maxLines: 2,
+                ),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (nameController.text.trim().isEmpty) return;
+
+                  final newCategory = CategoryModel(
+                    id: DateTime.now().millisecondsSinceEpoch.toString(),
+                    name: nameController.text.trim(),
+                    description: descController.text.trim(),
+                    icon: '',
+                    order: 0,
+                    isActive: true,
+                    createdAt: DateTime.now(),
+                    updatedAt: DateTime.now(),
+                    createdBy: 'admin-id', // TODO: Get from auth
+                  );
+
+                  await ref
+                      .read(categoriesProvider.notifier)
+                      .addCategory(newCategory);
+
+                  Navigator.pop(context);
+                },
+                child: const Text('Add'),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameController.text.trim().isEmpty) return;
-
-              final newCategory = CategoryModel(
-                id: DateTime.now().millisecondsSinceEpoch.toString(),
-                name: nameController.text.trim(),
-                description: descController.text.trim(),
-                icon: '',
-                order: 0,
-                isActive: true,
-                createdAt: DateTime.now(),
-                updatedAt: DateTime.now(),
-                createdBy: 'admin-id', // TODO: Get from auth
-              );
-
-              await ref
-                  .read(categoriesProvider.notifier)
-                  .addCategory(newCategory);
-
-              Navigator.pop(context);
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
     );
   }
 
   void _showDeleteDialog(CategoryModel category) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColorsDark.surface,
-        title: Text(
-          'Delete Category',
-          style: AppTextStyles.titleMedium().copyWith(
-            color: AppColorsDark.error,
-          ),
-        ),
-        content: Text(
-          'Are you sure you want to delete "${category.name}"?',
-          style: AppTextStyles.bodyMedium().copyWith(
-            color: AppColorsDark.textSecondary,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await ref
-                  .read(categoriesProvider.notifier)
-                  .deleteCategory(category.id);
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColorsDark.error,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: AppColorsDark.surface,
+            title: Text(
+              'Delete Category',
+              style: AppTextStyles.titleMedium().copyWith(
+                color: AppColorsDark.error,
+              ),
             ),
-            child: const Text('Delete'),
+            content: Text(
+              'Are you sure you want to delete "${category.name}"?',
+              style: AppTextStyles.bodyMedium().copyWith(
+                color: AppColorsDark.textSecondary,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  await ref
+                      .read(categoriesProvider.notifier)
+                      .deleteCategory(category.id);
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColorsDark.error,
+                ),
+                child: const Text('Delete'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 }

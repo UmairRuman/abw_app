@@ -19,12 +19,12 @@ class CategoryModel {
     required this.name,
     required this.description,
     required this.icon,
-    this.imageUrl,
     required this.order,
     required this.isActive,
     required this.createdAt,
     required this.updatedAt,
     required this.createdBy,
+    this.imageUrl,
   });
 
   // Convert to JSON for Firestore

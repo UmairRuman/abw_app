@@ -8,14 +8,15 @@ class CategoriesCollection {
   // Singleton pattern
   static final CategoriesCollection instance = CategoriesCollection._internal();
   CategoriesCollection._internal();
-  
+
   factory CategoriesCollection() {
     return instance;
   }
 
   // Firestore collection reference
-  static final _categoriesCollection = 
-      FirebaseFirestore.instance.collection('categories');
+  static final _categoriesCollection = FirebaseFirestore.instance.collection(
+    'categories',
+  );
 
   /// Add a new category
   Future<bool> addCategory(CategoryModel category) async {
@@ -37,11 +38,11 @@ class CategoriesCollection {
     try {
       // Update updatedAt timestamp
       final updatedCategory = category.copyWith(updatedAt: DateTime.now());
-      
+
       await _categoriesCollection
           .doc(category.id)
           .update(updatedCategory.toJson());
-      
+
       log('Category updated successfully: ${category.id}');
       return true;
     } on FirebaseException catch (e) {
@@ -72,11 +73,11 @@ class CategoriesCollection {
   Future<CategoryModel?> getCategory(String categoryId) async {
     try {
       final snapshot = await _categoriesCollection.doc(categoryId).get();
-      
+
       if (snapshot.exists && snapshot.data() != null) {
         return CategoryModel.fromJson(snapshot.data()!);
       }
-      
+
       log('Category not found: $categoryId');
       return null;
     } on FirebaseException catch (e) {
@@ -90,19 +91,16 @@ class CategoriesCollection {
 
   /// Get all categories
   Future<List<CategoryModel>> getAllCategories() async {
-    List<CategoryModel> categories = [];
-    
+    final List<CategoryModel> categories = [];
+
     try {
-      final snapshot = await _categoriesCollection
-          .orderBy('order', descending: false)
-          .get();
-      
+      final snapshot =
+          await _categoriesCollection.orderBy('order', descending: false).get();
+
       for (var doc in snapshot.docs) {
-        if (doc.data() != null) {
-          categories.add(CategoryModel.fromJson(doc.data()));
-        }
+        categories.add(CategoryModel.fromJson(doc.data()));
       }
-      
+
       log('Fetched ${categories.length} categories');
       return categories;
     } on FirebaseException catch (e) {
@@ -116,20 +114,19 @@ class CategoriesCollection {
 
   /// Get only active categories (for customer app)
   Future<List<CategoryModel>> getActiveCategories() async {
-    List<CategoryModel> categories = [];
-    
+    final List<CategoryModel> categories = [];
+
     try {
-      final snapshot = await _categoriesCollection
-          .where('isActive', isEqualTo: true)
-          .orderBy('order', descending: false)
-          .get();
-      
+      final snapshot =
+          await _categoriesCollection
+              .where('isActive', isEqualTo: true)
+              .orderBy('order', descending: false)
+              .get();
+
       for (var doc in snapshot.docs) {
-        if (doc.data() != null) {
-          categories.add(CategoryModel.fromJson(doc.data()));
-        }
+        categories.add(CategoryModel.fromJson(doc.data()));
       }
-      
+
       log('Fetched ${categories.length} active categories');
       return categories;
     } on FirebaseException catch (e) {
@@ -148,7 +145,7 @@ class CategoriesCollection {
         'order': newOrder,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      
+
       log('Category order updated: $categoryId -> $newOrder');
       return true;
     } on FirebaseException catch (e) {
@@ -167,7 +164,7 @@ class CategoriesCollection {
         'isActive': isActive,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      
+
       log('Category status toggled: $categoryId -> $isActive');
       return true;
     } on FirebaseException catch (e) {

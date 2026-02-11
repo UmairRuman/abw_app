@@ -1,15 +1,11 @@
 // lib/features/customer/presentation/screens/cart/cart_screen.dart
 
-import 'package:abw_app/core/routes/app_router.dart';
 import 'package:abw_app/features/auth/presentation/providers/auth_state.dart';
 import 'package:abw_app/features/cart/data/models/cart_item_model.dart';
-import 'package:abw_app/features/products/presentation/providers/products_provider.dart';
-import 'package:abw_app/features/stores/presentation/providers/stores_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as ref;
 import '../../../../../core/theme/colors/app_colors_dark.dart';
 import '../../../../../core/theme/text_styles/app_text_styles.dart';
 import '../../../../cart/presentation/providers/cart_provider.dart';
@@ -347,7 +343,7 @@ class CartScreen extends ConsumerWidget {
             SizedBox(height: 16.h),
             ElevatedButton(
               onPressed: () {
-                context.goToCheckout();
+                context.push('/customer/checkout');
               },
               style: ElevatedButton.styleFrom(
                 minimumSize: Size(double.infinity, 56.h),

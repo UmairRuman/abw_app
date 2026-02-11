@@ -318,7 +318,7 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen>
           final query = _searchQuery.toLowerCase();
           return rider.name.toLowerCase().contains(query) ||
               rider.email.toLowerCase().contains(query) ||
-              (rider.vehicleNumber?.toLowerCase().contains(query) ?? false);
+              (rider.vehicleNumber.toLowerCase().contains(query) ?? false);
         }).toList();
 
     if (filteredRiders.isEmpty) {

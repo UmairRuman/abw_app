@@ -1,8 +1,12 @@
 // lib/features/auth/domain/entities/rider_entity.dart
+// FULL REPLACEMENT — merges both into ONE entity:
 
 import 'user_entity.dart';
 
+enum RiderStatus { available, busy, offline }
+
 class RiderEntity extends UserEntity {
+  // ── Auth / Registration fields ──────────────────
   final String vehicleType;
   final String vehicleNumber;
   final String? licenseNumber;
@@ -10,8 +14,13 @@ class RiderEntity extends UserEntity {
   final bool isAvailable;
   final double rating;
   final int totalDeliveries;
-  final DateTime? approvedAt;  // ✅ ADD THIS
-  final String? approvedBy;    // ✅ ADD THIS (optional - who approved)
+  final DateTime? approvedAt;
+  final String? approvedBy;
+
+  // ── Rider App operational fields ────────────────
+  final RiderStatus status;
+  final double totalEarnings;
+  final String? currentOrderId;
 
   const RiderEntity({
     required super.id,
@@ -19,32 +28,39 @@ class RiderEntity extends UserEntity {
     required super.name,
     required super.phone,
     required super.role,
-    super.profileImage,
     required super.isActive,
     required super.createdAt,
     required super.updatedAt,
     required this.vehicleType,
     required this.vehicleNumber,
+    super.profileImage,
     this.licenseNumber,
     this.isApproved = false,
     this.isAvailable = false,
     this.rating = 0.0,
     this.totalDeliveries = 0,
-    this.approvedAt,     // ✅ ADD THIS
-    this.approvedBy,     // ✅ ADD THIS
+    this.approvedAt,
+    this.approvedBy,
+    // ── Rider App fields ──
+    this.status = RiderStatus.offline,
+    this.totalEarnings = 0.0,
+    this.currentOrderId,
   });
 
   @override
   List<Object?> get props => [
-        ...super.props,
-        vehicleType,
-        vehicleNumber,
-        licenseNumber,
-        isApproved,
-        isAvailable,
-        rating,
-        totalDeliveries,
-        approvedAt,    // ✅ ADD THIS
-        approvedBy,    // ✅ ADD THIS
-      ];
+    ...super.props,
+    vehicleType,
+    vehicleNumber,
+    licenseNumber,
+    isApproved,
+    isAvailable,
+    rating,
+    totalDeliveries,
+    approvedAt,
+    approvedBy,
+    status,
+    totalEarnings,
+    currentOrderId,
+  ];
 }

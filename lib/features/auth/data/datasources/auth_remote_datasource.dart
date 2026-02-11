@@ -17,9 +17,9 @@ class AuthRemoteDataSource {
     required FirebaseAuth firebaseAuth,
     required FirebaseFirestore firestore,
     required GoogleSignIn googleSignIn,
-  })  : _firebaseAuth = firebaseAuth,
-        _firestore = firestore,
-        _googleSignIn = googleSignIn;
+  }) : _firebaseAuth = firebaseAuth,
+       _firestore = firestore,
+       _googleSignIn = googleSignIn;
 
   /// Get current Firebase user
   User? get currentUser => _firebaseAuth.currentUser;
@@ -39,10 +39,7 @@ class AuthRemoteDataSource {
         password: password,
       );
     } on FirebaseAuthException catch (e) {
-      throw AuthException(
-        message: _getAuthErrorMessage(e.code),
-        code: e.code,
-      );
+      throw AuthException(message: _getAuthErrorMessage(e.code), code: e.code);
     } catch (e) {
       throw AuthException(message: e.toString());
     }
@@ -51,25 +48,15 @@ class AuthRemoteDataSource {
   /// Login with Google
   Future<UserCredential> loginWithGoogle() async {
     try {
-
-         await GoogleSignIn.instance.initialize(
-      serverClientId: '295760269875-85dik9jd027e93fqd48hu7pm3jlba0ch.apps.googleusercontent.com',
-    );
-      // Trigger Google Sign-In flow
-     final GoogleSignInAccount googleUser = await _googleSignIn.authenticate(
+      await GoogleSignIn.instance.initialize(
+        serverClientId:
+            '295760269875-85dik9jd027e93fqd48hu7pm3jlba0ch.apps.googleusercontent.com',
       );
-      
-      if (googleUser == null) {
-        throw AuthException(
-          code: 'user-cancelled',
-          message: 'Google sign-in was cancelled',
-        );
-      }
-
+      // Trigger Google Sign-In flow
+      final GoogleSignInAccount googleUser = await _googleSignIn.authenticate();
 
       // Obtain auth details
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
 
       // Create credential
       final credential = GoogleAuthProvider.credential(
@@ -79,30 +66,21 @@ class AuthRemoteDataSource {
       // Sign in to Firebase
       return await _firebaseAuth.signInWithCredential(credential);
     } on FirebaseAuthException catch (e) {
-      throw AuthException(
-        message: _getAuthErrorMessage(e.code),
-        code: e.code,
-      );
+      throw AuthException(message: _getAuthErrorMessage(e.code), code: e.code);
     } catch (e) {
       throw AuthException(message: e.toString());
     }
   }
 
   /// Sign up with email and password
-  Future<UserCredential> signUpWithEmail(
-    String email,
-    String password,
-  ) async {
+  Future<UserCredential> signUpWithEmail(String email, String password) async {
     try {
       return await _firebaseAuth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
     } on FirebaseAuthException catch (e) {
-      throw AuthException(
-        message: _getAuthErrorMessage(e.code),
-        code: e.code,
-      );
+      throw AuthException(message: _getAuthErrorMessage(e.code), code: e.code);
     } catch (e) {
       throw AuthException(message: e.toString());
     }
@@ -113,10 +91,7 @@ class AuthRemoteDataSource {
     try {
       await _firebaseAuth.sendPasswordResetEmail(email: email);
     } on FirebaseAuthException catch (e) {
-      throw AuthException(
-        message: _getAuthErrorMessage(e.code),
-        code: e.code,
-      );
+      throw AuthException(message: _getAuthErrorMessage(e.code), code: e.code);
     } catch (e) {
       throw AuthException(message: e.toString());
     }
@@ -125,10 +100,7 @@ class AuthRemoteDataSource {
   /// Logout
   Future<void> logout() async {
     try {
-      await Future.wait([
-        _firebaseAuth.signOut(),
-        _googleSignIn.signOut(),
-      ]);
+      await Future.wait([_firebaseAuth.signOut(), _googleSignIn.signOut()]);
     } catch (e) {
       throw AuthException(message: 'Failed to logout: ${e.toString()}');
     }
@@ -145,10 +117,7 @@ class AuthRemoteDataSource {
     required UserRole role,
   }) async {
     try {
-      await _firestore
-          .collection(role.collectionName)
-          .doc(uid)
-          .set(userData);
+      await _firestore.collection(role.collectionName).doc(uid).set(userData);
     } on FirebaseException catch (e) {
       throw FirebaseException(
         plugin: 'cloud_firestore',
@@ -164,16 +133,15 @@ class AuthRemoteDataSource {
   }
 
   /// Get user data from Firestore
-  Future<Map<String, dynamic>> getUserData(
-    String uid,
-    UserRole role,
-  ) async {
+  Future<Map<String, dynamic>> getUserData(String uid, UserRole role) async {
     try {
       final doc =
           await _firestore.collection(role.collectionName).doc(uid).get();
 
       if (!doc.exists) {
-        throw NotFoundException(message: 'User not found in ${role.name} collection');
+        throw NotFoundException(
+          message: 'User not found in ${role.name} collection',
+        );
       }
 
       final data = doc.data();
@@ -240,11 +208,10 @@ class AuthRemoteDataSource {
       throw AuthException(message: 'Failed to delete account: ${e.toString()}');
     }
   }
-   
 
-   // lib/features/auth/data/datasources/auth_remote_datasource.dart
+  // lib/features/auth/data/datasources/auth_remote_datasource.dart
 
-// ADD these methods to the existing AuthRemoteDataSource class:
+  // ADD these methods to the existing AuthRemoteDataSource class:
 
   // ============================================================
   // USER MANAGEMENT OPERATIONS (For Admin)
@@ -253,18 +220,17 @@ class AuthRemoteDataSource {
   /// Get all users from a specific collection
   Future<List<Map<String, dynamic>>> getAllUsers(UserRole role) async {
     try {
-      final snapshot = await _firestore
-          .collection(role.collectionName)
-          .orderBy('createdAt', descending: true)
-          .get();
+      final snapshot =
+          await _firestore
+              .collection(role.collectionName)
+              .orderBy('createdAt', descending: true)
+              .get();
 
-      return snapshot.docs
-          .map((doc) {
-            final data = doc.data();
-            data['id'] = doc.id; // Include document ID
-            return data;
-          })
-          .toList();
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id; // Include document ID
+        return data;
+      }).toList();
     } on FirebaseException catch (e) {
       throw FirebaseException(
         plugin: 'cloud_firestore',
@@ -292,10 +258,8 @@ class AuthRemoteDataSource {
   /// Get user count by role
   Future<int> getUserCount(UserRole role) async {
     try {
-      final snapshot = await _firestore
-          .collection(role.collectionName)
-          .count()
-          .get();
+      final snapshot =
+          await _firestore.collection(role.collectionName).count().get();
 
       return snapshot.count ?? 0;
     } catch (e) {
@@ -306,20 +270,21 @@ class AuthRemoteDataSource {
   /// Get all pending rider requests
   Future<List<Map<String, dynamic>>> getPendingRiderRequests() async {
     try {
-      final snapshot = await _firestore
-          .collection(AuthConstants.riderRequestsCollection)
-          .where(AuthConstants.fieldStatus,
-              isEqualTo: RiderRequestStatus.pending.name)
-          .orderBy('createdAt', descending: true)
-          .get();
+      final snapshot =
+          await _firestore
+              .collection(AuthConstants.riderRequestsCollection)
+              .where(
+                AuthConstants.fieldStatus,
+                isEqualTo: RiderRequestStatus.pending.name,
+              )
+              .orderBy('createdAt', descending: true)
+              .get();
 
-      return snapshot.docs
-          .map((doc) {
-            final data = doc.data();
-            data[AuthConstants.fieldRequestId] = doc.id;
-            return data;
-          })
-          .toList();
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        data[AuthConstants.fieldRequestId] = doc.id;
+        return data;
+      }).toList();
     } on FirebaseException catch (e) {
       throw FirebaseException(
         plugin: 'cloud_firestore',
@@ -340,12 +305,10 @@ class AuthRemoteDataSource {
     String query,
   ) async {
     try {
-      final snapshot = await _firestore
-          .collection(role.collectionName)
-          .get();
+      final snapshot = await _firestore.collection(role.collectionName).get();
 
       final lowerQuery = query.toLowerCase();
-      
+
       return snapshot.docs
           .where((doc) {
             final data = doc.data();
@@ -373,7 +336,7 @@ class AuthRemoteDataSource {
       final docRef = await _firestore
           .collection(AuthConstants.riderRequestsCollection)
           .add(requestData);
-      
+
       return docRef.id;
     } on FirebaseException catch (e) {
       throw FirebaseException(
@@ -392,13 +355,16 @@ class AuthRemoteDataSource {
   /// Get rider request by rider ID
   Future<Map<String, dynamic>?> getRiderRequest(String riderId) async {
     try {
-      final query = await _firestore
-          .collection(AuthConstants.riderRequestsCollection)
-          .where(AuthConstants.fieldRiderId, isEqualTo: riderId)
-          .where(AuthConstants.fieldStatus,
-              isEqualTo: RiderRequestStatus.pending.name)
-          .limit(1)
-          .get();
+      final query =
+          await _firestore
+              .collection(AuthConstants.riderRequestsCollection)
+              .where(AuthConstants.fieldRiderId, isEqualTo: riderId)
+              .where(
+                AuthConstants.fieldStatus,
+                isEqualTo: RiderRequestStatus.pending.name,
+              )
+              .limit(1)
+              .get();
 
       if (query.docs.isEmpty) return null;
 
@@ -464,17 +430,18 @@ class AuthRemoteDataSource {
     try {
       // Check in all user collections
       for (final role in UserRole.values) {
-        final query = await _firestore
-            .collection(role.collectionName)
-            .where('email', isEqualTo: email)
-            .limit(1)
-            .get();
-        
+        final query =
+            await _firestore
+                .collection(role.collectionName)
+                .where('email', isEqualTo: email)
+                .limit(1)
+                .get();
+
         if (query.docs.isNotEmpty) {
           return true;
         }
       }
-      
+
       return false;
     } catch (e) {
       // On error, return false to allow signup attempt
@@ -487,7 +454,7 @@ class AuthRemoteDataSource {
   /// This is the RECOMMENDED approach - just try to create account
   /// If email exists, Firebase Auth will throw 'email-already-in-use' error
   /// This prevents email enumeration attacks
-  
+
   /// Check if user exists in a specific collection
   Future<bool> userExistsInCollection(String uid, String collection) async {
     try {

@@ -1,6 +1,7 @@
 // lib/core/routes/app_router.dart
 
 import 'package:abw_app/features/auth/presentation/screens/signup/admin_signup_screen.dart';
+import 'package:abw_app/features/rider/presentation/screens/main/rider_main_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -129,7 +130,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           // ✅ Support selection mode via extra param
           final extra = state.extra as Map<String, dynamic>?;
           final isSelectionMode = extra?['isSelectionMode'] as bool? ?? false;
-          return AddressesScreen();
+          return const AddressesScreen();
         },
       ),
 
@@ -236,12 +237,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       // ============================================================
       // RIDER ROUTES
       // ============================================================
-     // REPLACE the rider-dashboard route:
-GoRoute(
-  path: '/rider/dashboard',
-  name: 'rider-dashboard',
-  builder: (context, state) => const RiderMainScreen(),
-),
+      // REPLACE the rider-dashboard route:
+      GoRoute(
+        path: '/rider/dashboard',
+        name: 'rider-dashboard',
+        builder: (context, state) => const RiderMainScreen(),
+      ),
 
       // ============================================================
       // ERROR ROUTE

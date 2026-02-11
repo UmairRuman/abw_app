@@ -156,7 +156,7 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
   // Get user orders by date range (last 5 days)
   Stream<List<OrderModel>> getUserOrderHistory(String userId) {
     final endDate = DateTime.now();
-    final startDate = endDate.subtract(Duration(days: 5));
+    final startDate = endDate.subtract(const Duration(days: 5));
     return _collection.getUserOrdersByDateRange(userId, startDate, endDate);
   }
 
@@ -227,15 +227,14 @@ final userOrderHistoryStreamProvider =
       return ref.read(ordersProvider.notifier).getUserOrderHistory(userId);
     });
 
-
 // Stream for rider's assigned orders
 final riderAssignedOrdersProvider =
     StreamProvider.family<List<OrderModel>, String>((ref, riderId) {
-  return OrdersCollection().getRiderOrders(riderId);
-});
+      return OrdersCollection().getRiderOrders(riderId);
+    });
 
 // Stream for rider's delivered orders (earnings history)
 final riderDeliveredOrdersProvider =
     StreamProvider.family<List<OrderModel>, String>((ref, riderId) {
-  return OrdersCollection().getRiderDeliveredOrders(riderId);
-});
+      return OrdersCollection().getRiderDeliveredOrders(riderId);
+    });

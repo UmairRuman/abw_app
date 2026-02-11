@@ -12,9 +12,9 @@ class OrderStatusTimeline extends StatelessWidget {
   final List<OrderStatusUpdate> statusHistory;
 
   const OrderStatusTimeline({
-    super.key,
     required this.currentStatus,
     required this.statusHistory,
+    super.key,
   });
 
   @override
@@ -65,7 +65,7 @@ class OrderStatusTimeline extends StatelessWidget {
                 isCurrent: isCurrent,
                 isLast: isLast,
               );
-            }).toList(),
+            }),
         ],
       ),
     );
@@ -117,13 +117,15 @@ class OrderStatusTimeline extends StatelessWidget {
     required bool isLast,
   }) {
     final statusInfo = _getStatusInfo(status);
+    // ✅ Get time safely
+    final timeText = _getStatusTime(status);
 
     return Column(
       children: [
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Timeline Icon
+            // Timeline Icon Column
             Column(
               children: [
                 Container(
@@ -144,11 +146,7 @@ class OrderStatusTimeline extends StatelessWidget {
                     ),
                   ),
                   child: Icon(
-                    isCompleted
-                        ? Icons.check
-                        : isCurrent
-                        ? statusInfo.icon
-                        : statusInfo.icon,
+                    isCompleted ? Icons.check : statusInfo.icon,
                     color:
                         isCompleted || isCurrent
                             ? statusInfo.color
@@ -195,10 +193,11 @@ class OrderStatusTimeline extends StatelessWidget {
                         color: AppColorsDark.textSecondary,
                       ),
                     ),
-                    if (isCompleted || isCurrent) ...[
+                    // ✅ Only show time if we have it
+                    if ((isCompleted || isCurrent) && timeText.isNotEmpty) ...[
                       SizedBox(height: 4.h),
                       Text(
-                        _getStatusTime(status),
+                        timeText,
                         style: AppTextStyles.bodySmall().copyWith(
                           color: statusInfo.color,
                           fontWeight: FontWeight.w500,
@@ -211,7 +210,7 @@ class OrderStatusTimeline extends StatelessWidget {
             ),
           ],
         ),
-        if (!isLast) SizedBox(height: 0),
+        if (!isLast) const SizedBox(height: 0),
       ],
     );
   }
@@ -232,13 +231,18 @@ class OrderStatusTimeline extends StatelessWidget {
   }
 
   String _getStatusTime(OrderStatus status) {
-    final statusUpdate = statusHistory.firstWhere(
-      (update) => update.status == status,
-      orElse:
-          () => OrderStatusUpdate(status: status, timestamp: DateTime.now()),
-    );
-
-    return DateFormat('MMM d, h:mm a').format(statusUpdate.timestamp);
+    try {
+      // ✅ Search through history for matching status
+      for (final update in statusHistory) {
+        if (update.status == status) {
+          return DateFormat('MMM d, h:mm a').format(update.timestamp);
+        }
+      }
+      // ✅ Not found — return empty string (status not reached yet)
+      return '';
+    } catch (e) {
+      return '';
+    }
   }
 
   _StatusInfo _getStatusInfo(OrderStatus status) {
@@ -262,7 +266,7 @@ class OrderStatusTimeline extends StatelessWidget {
           title: 'Preparing Food',
           description: 'Your food is being prepared',
           icon: Icons.restaurant,
-          color: Color(0xFFFF6B00),
+          color: const Color(0xFFFF6B00),
         );
       case OrderStatus.outForDelivery:
         return _StatusInfo(

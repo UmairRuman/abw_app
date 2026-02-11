@@ -1,9 +1,10 @@
 // lib/features/riders/presentation/providers/riders_provider.dart
 
+import 'package:abw_app/features/auth/data/models/rider_model.dart';
+import 'package:abw_app/features/auth/domain/entities/rider_entity.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/collections/riders_collection.dart';
-import '../../data/models/rider_model.dart';
-import '../../domain/entities/rider_entity.dart';
+
 import '../../../orders/data/collections/orders_collection.dart';
 import '../../../orders/domain/entities/order_entity.dart';
 
@@ -63,8 +64,7 @@ class RidersNotifier extends StateNotifier<RidersState> {
   }
 
   // Toggle online/offline
-  Future<bool> toggleAvailability(
-      String riderId, RiderStatus newStatus) async {
+  Future<bool> toggleAvailability(String riderId, RiderStatus newStatus) async {
     try {
       return await _collection.updateRiderStatus(riderId, newStatus);
     } catch (e) {
@@ -93,7 +93,10 @@ class RidersNotifier extends StateNotifier<RidersState> {
 
   // Mark as delivered
   Future<bool> markDelivered(
-      String riderId, String orderId, double deliveryFee) async {
+    String riderId,
+    String orderId,
+    double deliveryFee,
+  ) async {
     try {
       // Update order to delivered
       await _ordersCollection.updateOrderStatus(
@@ -113,13 +116,14 @@ class RidersNotifier extends StateNotifier<RidersState> {
 }
 
 // Providers
-final ridersProvider =
-    StateNotifierProvider<RidersNotifier, RidersState>(
+final ridersProvider = StateNotifierProvider<RidersNotifier, RidersState>(
   (ref) => RidersNotifier(),
 );
 
 // Stream provider for current rider
-final riderStreamProvider =
-    StreamProvider.family<RiderModel?, String>((ref, riderId) {
+final riderStreamProvider = StreamProvider.family<RiderModel?, String>((
+  ref,
+  riderId,
+) {
   return RidersCollection().getRiderStream(riderId);
 });

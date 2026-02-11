@@ -69,17 +69,20 @@ class _RiderApprovalScreenState extends ConsumerState<RiderApprovalScreen>
     return ListView.builder(
       padding: EdgeInsets.all(16.w),
       itemCount: 5, // TODO: Replace with actual data
-      itemBuilder: (context, index) => _buildRiderCard(
-        name: 'Rider ${index + 1}',
-        email: 'rider${index + 1}@example.com',
-        phone: '+92 300 1234567',
-        vehicle: 'Bike',
-        vehicleNumber: 'ABC-${1234 + index}',
-        requestDate: '2 days ago',
-        status: 'pending',
-        onApprove: () => _showApprovalDialog(context, 'Rider ${index + 1}', true),
-        onReject: () => _showApprovalDialog(context, 'Rider ${index + 1}', false),
-      ),
+      itemBuilder:
+          (context, index) => _buildRiderCard(
+            name: 'Rider ${index + 1}',
+            email: 'rider${index + 1}@example.com',
+            phone: '+92 300 1234567',
+            vehicle: 'Bike',
+            vehicleNumber: 'ABC-${1234 + index}',
+            requestDate: '2 days ago',
+            status: 'pending',
+            onApprove:
+                () => _showApprovalDialog(context, 'Rider ${index + 1}', true),
+            onReject:
+                () => _showApprovalDialog(context, 'Rider ${index + 1}', false),
+          ),
     );
   }
 
@@ -87,15 +90,16 @@ class _RiderApprovalScreenState extends ConsumerState<RiderApprovalScreen>
     return ListView.builder(
       padding: EdgeInsets.all(16.w),
       itemCount: 12, // TODO: Replace with actual data
-      itemBuilder: (context, index) => _buildRiderCard(
-        name: 'Approved Rider ${index + 1}',
-        email: 'approved${index + 1}@example.com',
-        phone: '+92 300 1234567',
-        vehicle: index % 2 == 0 ? 'Bike' : 'Scooter',
-        vehicleNumber: 'XYZ-${5000 + index}',
-        requestDate: '${index + 1} days ago',
-        status: 'approved',
-      ),
+      itemBuilder:
+          (context, index) => _buildRiderCard(
+            name: 'Approved Rider ${index + 1}',
+            email: 'approved${index + 1}@example.com',
+            phone: '+92 300 1234567',
+            vehicle: index % 2 == 0 ? 'Bike' : 'Scooter',
+            vehicleNumber: 'XYZ-${5000 + index}',
+            requestDate: '${index + 1} days ago',
+            status: 'approved',
+          ),
     );
   }
 
@@ -103,16 +107,17 @@ class _RiderApprovalScreenState extends ConsumerState<RiderApprovalScreen>
     return ListView.builder(
       padding: EdgeInsets.all(16.w),
       itemCount: 3, // TODO: Replace with actual data
-      itemBuilder: (context, index) => _buildRiderCard(
-        name: 'Rejected Rider ${index + 1}',
-        email: 'rejected${index + 1}@example.com',
-        phone: '+92 300 1234567',
-        vehicle: 'Car',
-        vehicleNumber: 'LMN-${8000 + index}',
-        requestDate: '${index + 3} days ago',
-        status: 'rejected',
-        rejectionReason: 'Incomplete documents',
-      ),
+      itemBuilder:
+          (context, index) => _buildRiderCard(
+            name: 'Rejected Rider ${index + 1}',
+            email: 'rejected${index + 1}@example.com',
+            phone: '+92 300 1234567',
+            vehicle: 'Car',
+            vehicleNumber: 'LMN-${8000 + index}',
+            requestDate: '${index + 3} days ago',
+            status: 'rejected',
+            rejectionReason: 'Incomplete documents',
+          ),
     );
   }
 
@@ -258,7 +263,7 @@ class _RiderApprovalScreenState extends ConsumerState<RiderApprovalScreen>
                       label: const Text('Reject'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColorsDark.error,
-                        side: BorderSide(color: AppColorsDark.error),
+                        side: const BorderSide(color: AppColorsDark.error),
                       ),
                     ),
                   ),
@@ -274,11 +279,7 @@ class _RiderApprovalScreenState extends ConsumerState<RiderApprovalScreen>
   Widget _buildInfoRow(IconData icon, String text) {
     return Row(
       children: [
-        Icon(
-          icon,
-          size: 16.sp,
-          color: AppColorsDark.textTertiary,
-        ),
+        Icon(icon, size: 16.sp, color: AppColorsDark.textTertiary),
         SizedBox(width: 8.w),
         Expanded(
           child: Text(
@@ -330,86 +331,91 @@ class _RiderApprovalScreenState extends ConsumerState<RiderApprovalScreen>
     );
   }
 
-  void _showApprovalDialog(BuildContext context, String riderName, bool isApprove) {
+  void _showApprovalDialog(
+    BuildContext context,
+    String riderName,
+    bool isApprove,
+  ) {
     final TextEditingController reasonController = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColorsDark.surface,
-        title: Text(
-          isApprove ? 'Approve Rider' : 'Reject Rider',
-          style: AppTextStyles.titleLarge().copyWith(
-            color: AppColorsDark.textPrimary,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              isApprove
-                  ? 'Are you sure you want to approve $riderName?'
-                  : 'Are you sure you want to reject $riderName?',
-              style: AppTextStyles.bodyMedium().copyWith(
-                color: AppColorsDark.textSecondary,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: AppColorsDark.surface,
+            title: Text(
+              isApprove ? 'Approve Rider' : 'Reject Rider',
+              style: AppTextStyles.titleLarge().copyWith(
+                color: AppColorsDark.textPrimary,
               ),
             ),
-            if (!isApprove) ...[
-              SizedBox(height: 16.h),
-              TextField(
-                controller: reasonController,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: 'Rejection Reason',
-                  hintText: 'Enter reason for rejection',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.r),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isApprove
+                      ? 'Are you sure you want to approve $riderName?'
+                      : 'Are you sure you want to reject $riderName?',
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textSecondary,
                   ),
                 ),
-                style: AppTextStyles.bodyMedium().copyWith(
-                  color: AppColorsDark.textPrimary,
+                if (!isApprove) ...[
+                  SizedBox(height: 16.h),
+                  TextField(
+                    controller: reasonController,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      labelText: 'Rejection Reason',
+                      hintText: 'Enter reason for rejection',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                    ),
+                    style: AppTextStyles.bodyMedium().copyWith(
+                      color: AppColorsDark.textPrimary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Cancel',
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textSecondary,
+                  ),
                 ),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  // TODO: Implement approval/rejection logic
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        isApprove
+                            ? '$riderName has been approved!'
+                            : '$riderName has been rejected!',
+                      ),
+                      backgroundColor:
+                          isApprove
+                              ? AppColorsDark.success
+                              : AppColorsDark.error,
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      isApprove ? AppColorsDark.success : AppColorsDark.error,
+                ),
+                child: Text(isApprove ? 'Approve' : 'Reject'),
               ),
             ],
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: AppTextStyles.bodyMedium().copyWith(
-                color: AppColorsDark.textSecondary,
-              ),
-            ),
           ),
-          ElevatedButton(
-            onPressed: () {
-              // TODO: Implement approval/rejection logic
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    isApprove
-                        ? '$riderName has been approved!'
-                        : '$riderName has been rejected!',
-                  ),
-                  backgroundColor: isApprove
-                      ? AppColorsDark.success
-                      : AppColorsDark.error,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isApprove
-                  ? AppColorsDark.success
-                  : AppColorsDark.error,
-            ),
-            child: Text(isApprove ? 'Approve' : 'Reject'),
-          ),
-        ],
-      ),
     );
   }
-} 
+}

@@ -11,7 +11,7 @@ import '../../../../../stores/data/models/store_model.dart';
 class StoreDetailsDialog extends StatelessWidget {
   final StoreModel store;
 
-  const StoreDetailsDialog({super.key, required this.store});
+  const StoreDetailsDialog({required this.store, super.key});
 
   @override
   Widget build(BuildContext context) {

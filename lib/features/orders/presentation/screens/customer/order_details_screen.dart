@@ -17,7 +17,7 @@ import 'package:intl/intl.dart';
 class OrderDetailsScreen extends ConsumerStatefulWidget {
   final String orderId;
 
-  const OrderDetailsScreen({super.key, required this.orderId});
+  const OrderDetailsScreen({required this.orderId, super.key});
 
   @override
   ConsumerState<OrderDetailsScreen> createState() => _OrderDetailsScreenState();
@@ -318,7 +318,7 @@ class _OrderDetailsScreenState extends ConsumerState<OrderDetailsScreen> {
             ],
           ),
           SizedBox(height: 16.h),
-          ...order.items.map((item) => _buildOrderItem(item as CartItemModel)),
+          ...order.items.map((item) => _buildOrderItem(item)),
         ],
       ),
     );

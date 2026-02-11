@@ -17,6 +17,7 @@ class CartModel {
 
   CartModel({
     required this.userId,
+    required this.updatedAt,
     this.items = const [],
     this.totalItems = 0,
     this.subtotal = 0.0,
@@ -25,7 +26,6 @@ class CartModel {
     this.total = 0.0,
     this.storeId,
     this.storeName,
-    required this.updatedAt,
   });
 
   /// Calculate subtotal from items
@@ -66,12 +66,15 @@ class CartModel {
 
   factory CartModel.fromJson(Map<String, dynamic> json) {
     final itemsList = json['items'] as List<dynamic>? ?? [];
-    
+
     return CartModel(
       userId: json['userId'] as String,
-      items: itemsList
-          .map((item) => CartItemModel.fromJson(item as Map<String, dynamic>))
-          .toList(),
+      items:
+          itemsList
+              .map(
+                (item) => CartItemModel.fromJson(item as Map<String, dynamic>),
+              )
+              .toList(),
       totalItems: json['totalItems'] as int? ?? 0,
       subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0.0,
       deliveryFee: (json['deliveryFee'] as num?)?.toDouble() ?? 0.0,
@@ -79,9 +82,10 @@ class CartModel {
       total: (json['total'] as num?)?.toDouble() ?? 0.0,
       storeId: json['storeId'] as String?,
       storeName: json['storeName'] as String?,
-      updatedAt: json['updatedAt'] != null
-          ? (json['updatedAt'] as Timestamp).toDate()
-          : DateTime.now(),
+      updatedAt:
+          json['updatedAt'] != null
+              ? (json['updatedAt'] as Timestamp).toDate()
+              : DateTime.now(),
     );
   }
 

@@ -152,7 +152,7 @@ class CartsCollection {
       }
 
       // Update item
-      List<CartItemModel> updatedItems = List.from(cart.items);
+      final List<CartItemModel> updatedItems = List.from(cart.items);
       updatedItems[itemIndex] = item.copyWith(
         quantity: newQuantity,
         total:
@@ -281,8 +281,8 @@ class CartsCollection {
 
       if (cart.isEmpty) return true;
 
-      bool needsUpdate = false;
-      List<CartItemModel> validItems = [];
+      final bool needsUpdate = false;
+      final List<CartItemModel> validItems = [];
 
       // Check each item
       for (var item in cart.items) {

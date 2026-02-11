@@ -269,12 +269,12 @@ class _RiderSignupScreenState extends ConsumerState<RiderSignupScreen> {
 
                 // Vehicle Type Dropdown
                 DropdownButtonFormField<String>(
-                  value: _selectedVehicleType,
+                  initialValue: _selectedVehicleType,
                   dropdownColor: AppColorsDark.surface,
                   style: AppTextStyles.bodyMedium().copyWith(
                     color: AppColorsDark.textPrimary,
                   ),
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Vehicle Type',
                     prefixIcon: Icon(
                       Icons.two_wheeler,

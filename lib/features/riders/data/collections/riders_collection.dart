@@ -1,12 +1,13 @@
 // lib/features/riders/data/collections/riders_collection.dart
+// FULL REPLACEMENT:
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/rider_model.dart';
-import '../../domain/entities/rider_entity.dart';
+import '../../../auth/data/models/rider_model.dart';
+import '../../../auth/domain/entities/rider_entity.dart';
 
 class RidersCollection {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final String _path = 'riders';
+  final String _path = 'users'; // ✅ Riders are stored in 'users' collection
 
   // Get rider by ID (stream)
   Stream<RiderModel?> getRiderStream(String riderId) {
@@ -30,15 +31,16 @@ class RidersCollection {
   // Get all available riders (for admin assign)
   Future<List<RiderModel>> getAvailableRiders() async {
     try {
-      final snapshot = await _firestore
-          .collection(_path)
-          .where('isApproved', isEqualTo: true)
-          .where('status', isEqualTo: 'available')
-          .get();
+      final snapshot =
+          await _firestore
+              .collection(_path)
+              .where('role', isEqualTo: 'rider')
+              .where('isApproved', isEqualTo: true)
+              .where('status', isEqualTo: 'available')
+              .get();
 
       return snapshot.docs
-          .map((doc) =>
-              RiderModel.fromJson({'id': doc.id, ...doc.data()}))
+          .map((doc) => RiderModel.fromJson({'id': doc.id, ...doc.data()}))
           .toList();
     } catch (e) {
       return [];
@@ -46,8 +48,7 @@ class RidersCollection {
   }
 
   // Update rider status
-  Future<bool> updateRiderStatus(
-      String riderId, RiderStatus status) async {
+  Future<bool> updateRiderStatus(String riderId, RiderStatus status) async {
     try {
       await _firestore.collection(_path).doc(riderId).update({
         'status': status.name,
@@ -60,13 +61,14 @@ class RidersCollection {
   }
 
   // Update current order
-  Future<bool> updateCurrentOrder(
-      String riderId, String? orderId) async {
+  Future<bool> updateCurrentOrder(String riderId, String? orderId) async {
     try {
       await _firestore.collection(_path).doc(riderId).update({
         'currentOrderId': orderId,
         'status':
-            orderId != null ? RiderStatus.busy.name : RiderStatus.available.name,
+            orderId != null
+                ? RiderStatus.busy.name
+                : RiderStatus.available.name,
         'updatedAt': FieldValue.serverTimestamp(),
       });
       return true;
@@ -76,8 +78,7 @@ class RidersCollection {
   }
 
   // Update earnings after delivery
-  Future<bool> updateEarnings(
-      String riderId, double amount) async {
+  Future<bool> updateEarnings(String riderId, double amount) async {
     try {
       await _firestore.collection(_path).doc(riderId).update({
         'totalEarnings': FieldValue.increment(amount),

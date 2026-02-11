@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../../core/theme/colors/app_colors_dark.dart';
 import '../../../../../core/theme/text_styles/app_text_styles.dart';
 import '../dashboard/admin_dashboard_screen.dart';
-import '../riders/rider_approval_screen.dart';
 import '../restaurants/store_management_screen.dart';
 import '../products/product_management_screen.dart';
 import '../users/users_list_screen.dart';

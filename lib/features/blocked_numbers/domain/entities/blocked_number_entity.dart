@@ -15,11 +15,11 @@ class BlockedNumberEntity extends Equatable {
   const BlockedNumberEntity({
     required this.id,
     required this.phoneNumber,
-    this.userId,
     required this.blockedBy,
     required this.blockedByName,
     required this.reason,
     required this.blockedAt,
+    this.userId,
     this.isActive = true,
   });
 

@@ -199,8 +199,8 @@ class _ProductManagementScreenState
   Widget _buildFilterChip({
     required String label,
     required IconData icon,
-    bool isActive = false,
     required VoidCallback onTap,
+    bool isActive = false,
   }) {
     return InkWell(
       onTap: onTap,
@@ -332,7 +332,7 @@ class _ProductManagementScreenState
 
   Widget _buildProductsList(List<ProductModel> allProducts) {
     // Apply filters
-    var filteredProducts =
+    final filteredProducts =
         allProducts.where((product) {
           // Search filter
           if (_searchQuery.isNotEmpty) {

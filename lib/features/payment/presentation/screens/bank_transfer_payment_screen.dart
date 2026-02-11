@@ -15,7 +15,6 @@ import '../../../orders/presentation/providers/orders_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/presentation/providers/auth_state.dart';
 import '../../../orders/domain/entities/order_entity.dart';
-import 'order_confirmation_screen.dart';
 
 class BankTransferPaymentScreen extends ConsumerStatefulWidget {
   const BankTransferPaymentScreen({super.key});
@@ -589,9 +588,10 @@ class _BankTransferPaymentScreenState
           );
 
       if (orderId != null && mounted) {
-        ref.read(checkoutProvider.notifier).reset();
-
         context.goToOrderConfirmation(orderId);
+        Future.delayed(const Duration(milliseconds: 100), () {
+          ref.read(checkoutProvider.notifier).reset();
+        });
       } else {
         throw Exception('Failed to place order');
       }

@@ -14,11 +14,11 @@ class CheckoutModel extends CheckoutEntity {
     required super.items,
     required super.deliveryAddress,
     required super.deliveryTimeSlot,
-    super.specialInstructions,
     required super.subtotal,
     required super.deliveryFee,
     required super.total,
     required super.createdAt,
+    super.specialInstructions,
   });
 
   factory CheckoutModel.fromJson(Map<String, dynamic> json) {
@@ -53,8 +53,8 @@ class CheckoutModel extends CheckoutEntity {
       'userId': userId,
       'storeId': storeId,
       'storeName': storeName,
-      'items': items.map((item) => (item as CartItemModel).toJson()).toList(),
-      'deliveryAddress': (deliveryAddress as AddressModel).toJson(),
+      'items': items.map((item) => (item).toJson()).toList(),
+      'deliveryAddress': (deliveryAddress).toJson(),
       'deliveryTimeSlot': deliveryTimeSlot,
       'specialInstructions': specialInstructions,
       'subtotal': subtotal,

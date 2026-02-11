@@ -31,9 +31,9 @@ class CartItemModel {
     required this.quantity,
     required this.discountedPrice,
     required this.total,
-    this.isAvailable = true,
     required this.maxQuantity,
     required this.unit,
+    this.isAvailable = true,
     // ✅ ADD THESE
     this.selectedVariant,
     this.selectedAddons = const [],

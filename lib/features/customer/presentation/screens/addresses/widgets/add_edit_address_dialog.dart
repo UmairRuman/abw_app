@@ -13,7 +13,7 @@ class AddEditAddressDialog extends ConsumerStatefulWidget {
   final String userId;
   final AddressModel? address;
 
-  const AddEditAddressDialog({super.key, required this.userId, this.address});
+  const AddEditAddressDialog({required this.userId, super.key, this.address});
 
   @override
   ConsumerState<AddEditAddressDialog> createState() =>
@@ -268,7 +268,7 @@ class _AddEditAddressDialogState extends ConsumerState<AddEditAddressDialog> {
 
   Widget _buildTypeDropdown() {
     return DropdownButtonFormField<String>(
-      value: _selectedType,
+      initialValue: _selectedType,
       decoration: const InputDecoration(labelText: 'Type'),
       items:
           _addressTypes.map((type) {

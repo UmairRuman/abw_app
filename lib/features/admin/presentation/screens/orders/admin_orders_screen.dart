@@ -127,7 +127,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
           );
         },
         loading:
-            () => Center(
+            () => const Center(
               child: CircularProgressIndicator(color: AppColorsDark.primary),
             ),
         error:
@@ -188,7 +188,8 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
     }
 
     return RefreshIndicator(
-      onRefresh: () async => await Future.delayed(Duration(milliseconds: 500)),
+      onRefresh:
+          () async => await Future.delayed(const Duration(milliseconds: 500)),
       color: AppColorsDark.primary,
       child: ListView.builder(
         padding: EdgeInsets.all(16.w),
@@ -219,7 +220,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
           border: Border.all(
             color: _getStatusColor(order.status).withOpacity(0.3),
           ),
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
               color: AppColorsDark.shadow,
               blurRadius: 8,
@@ -455,11 +456,11 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
         break;
       case PaymentMethod.jazzcash:
         label = 'JazzCash';
-        color = Color(0xFFFF6B00);
+        color = const Color(0xFFFF6B00);
         break;
       case PaymentMethod.easypaisa:
         label = 'EasyPaisa';
-        color = Color(0xFF00A651);
+        color = const Color(0xFF00A651);
         break;
       case PaymentMethod.bankTransfer:
         label = 'Bank';
@@ -490,7 +491,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
       case OrderStatus.confirmed:
         return AppColorsDark.info;
       case OrderStatus.preparing:
-        return Color(0xFFFF6B00);
+        return const Color(0xFFFF6B00);
       case OrderStatus.outForDelivery:
         return AppColorsDark.primary;
       case OrderStatus.delivered:

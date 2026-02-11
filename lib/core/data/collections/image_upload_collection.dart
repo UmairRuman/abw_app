@@ -10,9 +10,10 @@ import '../../constants/cloudinary_constants.dart';
 
 class ImageUploadCollection {
   // Singleton pattern
-  static final ImageUploadCollection instance = ImageUploadCollection._internal();
+  static final ImageUploadCollection instance =
+      ImageUploadCollection._internal();
   ImageUploadCollection._internal();
-  
+
   factory ImageUploadCollection() {
     return instance;
   }
@@ -37,7 +38,7 @@ class ImageUploadCollection {
       // Add fields
       request.fields['upload_preset'] = CloudinaryConstants.uploadPreset;
       request.fields['folder'] = folder;
-      
+
       if (publicId != null) {
         request.fields['public_id'] = publicId;
       }
@@ -63,10 +64,10 @@ class ImageUploadCollection {
         final secureUrl = jsonResponse['secure_url'] as String;
 
         log('Image uploaded successfully: $secureUrl');
-        
+
         // Clean up compressed file
         await compressedFile.delete();
-        
+
         return publicId; // Return public_id for future transformations
       } else {
         log('Upload failed: ${response.statusCode} - ${response.body}');
@@ -85,7 +86,7 @@ class ImageUploadCollection {
     String? transformation,
     Function(double)? onProgress,
   }) async {
-    List<String> uploadedPublicIds = [];
+    final List<String> uploadedPublicIds = [];
 
     for (int i = 0; i < imageFiles.length; i++) {
       final publicId = await uploadImage(
@@ -177,12 +178,14 @@ class ImageUploadCollection {
     try {
       // Generate signature for deletion (requires API secret)
       final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-      
+
       // Note: For production, you should implement signature generation
       // using cloudinary SDK or server-side API
-      
+
       final response = await http.post(
-        Uri.parse('https://api.cloudinary.com/v1_1/${CloudinaryConstants.cloudName}/image/destroy'),
+        Uri.parse(
+          'https://api.cloudinary.com/v1_1/${CloudinaryConstants.cloudName}/image/destroy',
+        ),
         body: {
           'public_id': publicId,
           'api_key': CloudinaryConstants.apiKey,
@@ -228,12 +231,16 @@ class ImageUploadCollection {
 
       // Save to temp file
       final tempDir = await getTemporaryDirectory();
-      final tempFile = File('${tempDir.path}/compressed_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      final tempFile = File(
+        '${tempDir.path}/compressed_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
       await tempFile.writeAsBytes(compressedBytes);
 
       final originalSize = bytes.length / 1024; // KB
       final compressedSize = compressedBytes.length / 1024; // KB
-      log('Image compressed: ${originalSize.toStringAsFixed(2)} KB → ${compressedSize.toStringAsFixed(2)} KB');
+      log(
+        'Image compressed: ${originalSize.toStringAsFixed(2)} KB → ${compressedSize.toStringAsFixed(2)} KB',
+      );
 
       return tempFile;
     } catch (e) {
@@ -254,7 +261,7 @@ class ImageUploadCollection {
     // Check file extension
     final extension = file.path.split('.').last.toLowerCase();
     final allowedExtensions = ['jpg', 'jpeg', 'png', 'webp'];
-    
+
     if (!allowedExtensions.contains(extension)) {
       log('Invalid image format: $extension');
       return false;

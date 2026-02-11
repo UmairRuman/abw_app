@@ -177,18 +177,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              const Color(0xFFEC4899), // Pink
-              const Color(0xFFDB2777), // Darker Pink
-              const Color(0xFF9333EA), // Purple
-              const Color(0xFF6366F1), // Indigo
-              const Color(0xFF06B6D4), // Cyan
+              Color(0xFFEC4899), // Pink
+              Color(0xFFDB2777), // Darker Pink
+              Color(0xFF9333EA), // Purple
+              Color(0xFF6366F1), // Indigo
+              Color(0xFF06B6D4), // Cyan
             ],
-            stops: const [0.0, 0.25, 0.5, 0.75, 1.0],
+            stops: [0.0, 0.25, 0.5, 0.75, 1.0],
           ),
         ),
         child: Stack(

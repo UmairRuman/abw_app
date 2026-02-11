@@ -22,7 +22,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   bool _isLoading = false;
-  bool _emailSent = false;
+  final bool _emailSent = false;
 
   @override
   void dispose() {
@@ -31,45 +31,45 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   }
 
   Future<void> _handleResetPassword() async {
-  if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) return;
 
-  setState(() => _isLoading = true);
+    setState(() => _isLoading = true);
 
-  await ref.read(authProvider.notifier).sendPasswordResetEmail(
-    _emailController.text.trim(),
-  );
+    await ref
+        .read(authProvider.notifier)
+        .sendPasswordResetEmail(_emailController.text.trim());
 
-  if (mounted) {
-    setState(() => _isLoading = false);
-  }
-
-  final authState = ref.read(authProvider);
-  
-  if (authState is AuthError) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authState.message),
-          backgroundColor: AppColorsDark.error,
-        ),
-      );
+      setState(() => _isLoading = false);
     }
-  } else {
-    // Success
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Password reset email sent! Check your inbox.'),
-          backgroundColor: AppColorsDark.success,
-        ),
-      );
-      await Future.delayed(const Duration(seconds: 2));
+
+    final authState = ref.read(authProvider);
+
+    if (authState is AuthError) {
       if (mounted) {
-        context.go('/login');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(authState.message),
+            backgroundColor: AppColorsDark.error,
+          ),
+        );
+      }
+    } else {
+      // Success
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Password reset email sent! Check your inbox.'),
+            backgroundColor: AppColorsDark.success,
+          ),
+        );
+        await Future.delayed(const Duration(seconds: 2));
+        if (mounted) {
+          context.go('/login');
+        }
       }
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -119,9 +119,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           // Title
           Text(
             'Forgot Password?',
-             style: AppTextStyles.headlineLarge().copyWith(
-                    color: AppColorsDark.textPrimary,
-                  ),
+            style: AppTextStyles.headlineLarge().copyWith(
+              color: AppColorsDark.textPrimary,
+            ),
           ),
 
           SizedBox(height: 12.h),
@@ -149,8 +149,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               if (value == null || value.isEmpty) {
                 return 'Email is required';
               }
-              if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                  .hasMatch(value)) {
+              if (!RegExp(
+                r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+              ).hasMatch(value)) {
                 return 'Invalid email address';
               }
               return null;
@@ -165,9 +166,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             height: 56.h,
             child: ElevatedButton(
               onPressed: _isLoading ? null : _handleResetPassword,
-              child: _isLoading
-                  ? const CircularProgressIndicator(color: AppColorsDark.white)
-                  : const Text('Send Reset Link'),
+              child:
+                  _isLoading
+                      ? const CircularProgressIndicator(
+                        color: AppColorsDark.white,
+                      )
+                      : const Text('Send Reset Link'),
             ),
           ),
 
@@ -177,11 +181,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.arrow_back,
-                size: 16.sp,
-                color: AppColorsDark.primary,
-              ),
+              Icon(Icons.arrow_back, size: 16.sp, color: AppColorsDark.primary),
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: Text(
@@ -250,17 +250,11 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           decoration: BoxDecoration(
             color: AppColorsDark.info.withOpacity(0.1),
             borderRadius: BorderRadius.circular(12.r),
-            border: Border.all(
-              color: AppColorsDark.info.withOpacity(0.3),
-            ),
+            border: Border.all(color: AppColorsDark.info.withOpacity(0.3)),
           ),
           child: Row(
             children: [
-              Icon(
-                Icons.info_outline,
-                color: AppColorsDark.info,
-                size: 24.sp,
-              ),
+              Icon(Icons.info_outline, color: AppColorsDark.info, size: 24.sp),
               SizedBox(width: 12.w),
               Expanded(
                 child: Text(

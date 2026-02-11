@@ -33,7 +33,7 @@ class _PaymentSelectionScreenState
     if (checkoutState is! CheckoutLoaded) {
       return Scaffold(
         appBar: AppBar(title: const Text('Payment')),
-        body: Center(child: Text('Something went wrong')),
+        body: const Center(child: Text('Something went wrong')),
       );
     }
 
@@ -89,7 +89,7 @@ class _PaymentSelectionScreenState
                     icon: Icons.account_balance_wallet,
                     title: 'JazzCash',
                     subtitle: 'Pay via JazzCash mobile wallet',
-                    color: Color(0xFFFF6B00),
+                    color: const Color(0xFFFF6B00),
                   ),
 
                   SizedBox(height: 12.h),
@@ -100,7 +100,7 @@ class _PaymentSelectionScreenState
                     icon: Icons.payment,
                     title: 'EasyPaisa',
                     subtitle: 'Pay via EasyPaisa mobile wallet',
-                    color: Color(0xFF00A651),
+                    color: const Color(0xFF00A651),
                   ),
 
                   SizedBox(height: 12.h),
@@ -135,7 +135,7 @@ class _PaymentSelectionScreenState
           BoxShadow(
             color: AppColorsDark.primary.withOpacity(0.3),
             blurRadius: 15,
-            offset: Offset(0, 5),
+            offset: const Offset(0, 5),
           ),
         ],
       ),
@@ -205,7 +205,7 @@ class _PaymentSelectionScreenState
                     BoxShadow(
                       color: color.withOpacity(0.2),
                       blurRadius: 10,
-                      offset: Offset(0, 4),
+                      offset: const Offset(0, 4),
                     ),
                   ]
                   : null,
@@ -308,16 +308,16 @@ class _PaymentSelectionScreenState
     switch (_selectedMethod!) {
       case PaymentMethod.cod:
         // ✅ USE GoRouter
-        context.goToPaymentCOD();
+        context.push('/customer/payment/cod');
         break;
       case PaymentMethod.jazzcash:
-        context.goToPaymentJazzcash();
+        context.push('/customer/payment/jazzcash');
         break;
       case PaymentMethod.easypaisa:
-        context.goToPaymentEasypaisa();
+        context.push('/customer/payment/easypaisa');
         break;
       case PaymentMethod.bankTransfer:
-        context.goToPaymentBank();
+        context.push('/customer/payment/bank');
         break;
     }
   }

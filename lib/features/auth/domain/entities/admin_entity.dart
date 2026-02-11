@@ -12,20 +12,16 @@ class AdminEntity extends UserEntity {
     required super.email,
     required super.name,
     required super.phone,
-    super.profileImage,
     required super.isActive,
     required super.createdAt,
     required super.updatedAt,
     required this.accessKey,
+    super.profileImage,
     this.permissions = const [],
   }) : super(role: UserRole.admin);
 
   @override
-  List<Object?> get props => [
-        ...super.props,
-        accessKey,
-        permissions,
-      ];
+  List<Object?> get props => [...super.props, accessKey, permissions];
 
   AdminEntity copyWith({
     String? id,

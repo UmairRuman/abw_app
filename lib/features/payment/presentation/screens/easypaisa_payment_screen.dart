@@ -40,7 +40,7 @@ class _EasypaisaPaymentScreenState
     if (checkoutState is! CheckoutLoaded) {
       return Scaffold(
         appBar: AppBar(title: const Text('EasyPaisa Payment')),
-        body: Center(child: Text('Something went wrong')),
+        body: const Center(child: Text('Something went wrong')),
       );
     }
 
@@ -72,8 +72,8 @@ class _EasypaisaPaymentScreenState
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            Color(0xFF00A651).withOpacity(0.15),
-                            Color(0xFF00A651).withOpacity(0.05),
+                            const Color(0xFF00A651).withOpacity(0.15),
+                            const Color(0xFF00A651).withOpacity(0.05),
                           ],
                         ),
                         shape: BoxShape.circle,
@@ -81,7 +81,7 @@ class _EasypaisaPaymentScreenState
                       child: Icon(
                         Icons.payment,
                         size: 80.sp,
-                        color: Color(0xFF00A651),
+                        color: const Color(0xFF00A651),
                       ),
                     ),
                   ),
@@ -94,13 +94,13 @@ class _EasypaisaPaymentScreenState
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          Color(0xFF00A651).withOpacity(0.15),
-                          Color(0xFF00A651).withOpacity(0.05),
+                          const Color(0xFF00A651).withOpacity(0.15),
+                          const Color(0xFF00A651).withOpacity(0.05),
                         ],
                       ),
                       borderRadius: BorderRadius.circular(16.r),
                       border: Border.all(
-                        color: Color(0xFF00A651).withOpacity(0.3),
+                        color: const Color(0xFF00A651).withOpacity(0.3),
                       ),
                     ),
                     child: Row(
@@ -115,7 +115,7 @@ class _EasypaisaPaymentScreenState
                         Text(
                           'PKR ${checkout.total.toInt()}',
                           style: AppTextStyles.headlineSmall().copyWith(
-                            color: Color(0xFF00A651),
+                            color: const Color(0xFF00A651),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -147,10 +147,10 @@ class _EasypaisaPaymentScreenState
                   Container(
                     padding: EdgeInsets.all(16.w),
                     decoration: BoxDecoration(
-                      color: Color(0xFF00A651).withOpacity(0.1),
+                      color: const Color(0xFF00A651).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12.r),
                       border: Border.all(
-                        color: Color(0xFF00A651).withOpacity(0.3),
+                        color: const Color(0xFF00A651).withOpacity(0.3),
                         width: 2,
                       ),
                     ),
@@ -170,7 +170,7 @@ class _EasypaisaPaymentScreenState
                             Text(
                               _easypaisaNumber,
                               style: AppTextStyles.headlineSmall().copyWith(
-                                color: Color(0xFF00A651),
+                                color: const Color(0xFF00A651),
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 1.5,
                               ),
@@ -183,14 +183,17 @@ class _EasypaisaPaymentScreenState
                               ClipboardData(text: _easypaisaNumber),
                             );
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
+                              const SnackBar(
                                 content: Text('Number copied!'),
                                 backgroundColor: AppColorsDark.success,
                                 duration: Duration(seconds: 1),
                               ),
                             );
                           },
-                          icon: Icon(Icons.copy, color: Color(0xFF00A651)),
+                          icon: const Icon(
+                            Icons.copy,
+                            color: Color(0xFF00A651),
+                          ),
                         ),
                       ],
                     ),
@@ -276,7 +279,7 @@ class _EasypaisaPaymentScreenState
         Container(
           width: 32.w,
           height: 32.w,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: Color(0xFF00A651),
             shape: BoxShape.circle,
           ),
@@ -400,7 +403,7 @@ class _EasypaisaPaymentScreenState
                         onTap: _pickImage,
                         child: Container(
                           padding: EdgeInsets.all(8.w),
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             color: AppColorsDark.info,
                             shape: BoxShape.circle,
                             boxShadow: [
@@ -425,7 +428,7 @@ class _EasypaisaPaymentScreenState
                         },
                         child: Container(
                           padding: EdgeInsets.all(8.w),
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             color: AppColorsDark.error,
                             shape: BoxShape.circle,
                             boxShadow: [
@@ -458,7 +461,7 @@ class _EasypaisaPaymentScreenState
 
     return Container(
       padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColorsDark.surface,
         boxShadow: [
           BoxShadow(
@@ -473,7 +476,7 @@ class _EasypaisaPaymentScreenState
           onPressed: canPlaceOrder ? _placeOrder : null,
           style: ElevatedButton.styleFrom(
             minimumSize: Size(double.infinity, 56.h),
-            backgroundColor: Color(0xFF00A651),
+            backgroundColor: const Color(0xFF00A651),
             disabledBackgroundColor: AppColorsDark.surfaceVariant,
           ),
           child:
@@ -484,7 +487,7 @@ class _EasypaisaPaymentScreenState
                       SizedBox(
                         height: 24.h,
                         width: 24.w,
-                        child: CircularProgressIndicator(
+                        child: const CircularProgressIndicator(
                           strokeWidth: 2,
                           color: AppColorsDark.white,
                         ),
@@ -560,9 +563,10 @@ class _EasypaisaPaymentScreenState
           );
 
       if (orderId != null && mounted) {
-        ref.read(checkoutProvider.notifier).reset();
-
         context.goToOrderConfirmation(orderId);
+        Future.delayed(const Duration(milliseconds: 100), () {
+          ref.read(checkoutProvider.notifier).reset();
+        });
       } else {
         throw Exception('Failed to place order');
       }

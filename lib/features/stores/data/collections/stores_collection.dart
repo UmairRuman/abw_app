@@ -87,16 +87,14 @@ class StoresCollection {
 
   /// Get all stores
   Future<List<StoreModel>> getAllStores() async {
-    List<StoreModel> stores = [];
+    final List<StoreModel> stores = [];
 
     try {
       final snapshot =
           await _storesCollection.orderBy('createdAt', descending: true).get();
 
       for (var doc in snapshot.docs) {
-        if (doc.data() != null) {
-          stores.add(StoreModel.fromJson(doc.data()));
-        }
+        stores.add(StoreModel.fromJson(doc.data()));
       }
 
       log('Fetched ${stores.length} stores');
@@ -112,7 +110,7 @@ class StoresCollection {
 
   /// Get stores by category
   Future<List<StoreModel>> getStoresByCategory(String categoryId) async {
-    List<StoreModel> stores = [];
+    final List<StoreModel> stores = [];
 
     try {
       final snapshot =
@@ -124,9 +122,7 @@ class StoresCollection {
               .get();
 
       for (var doc in snapshot.docs) {
-        if (doc.data() != null) {
-          stores.add(StoreModel.fromJson(doc.data()));
-        }
+        stores.add(StoreModel.fromJson(doc.data()));
       }
 
       log('Fetched ${stores.length} stores for category: $categoryId');
@@ -144,7 +140,7 @@ class StoresCollection {
 
   /// Get pending stores (for admin approval)
   Future<List<StoreModel>> getPendingStores() async {
-    List<StoreModel> stores = [];
+    final List<StoreModel> stores = [];
 
     try {
       final snapshot =
@@ -154,9 +150,7 @@ class StoresCollection {
               .get();
 
       for (var doc in snapshot.docs) {
-        if (doc.data() != null) {
-          stores.add(StoreModel.fromJson(doc.data()));
-        }
+        stores.add(StoreModel.fromJson(doc.data()));
       }
 
       log('Fetched ${stores.length} pending stores');
@@ -172,7 +166,7 @@ class StoresCollection {
 
   /// Get approved stores
   Future<List<StoreModel>> getApprovedStores() async {
-    List<StoreModel> stores = [];
+    final List<StoreModel> stores = [];
 
     try {
       final snapshot =
@@ -183,9 +177,7 @@ class StoresCollection {
               .get();
 
       for (var doc in snapshot.docs) {
-        if (doc.data() != null) {
-          stores.add(StoreModel.fromJson(doc.data()));
-        }
+        stores.add(StoreModel.fromJson(doc.data()));
       }
 
       log('Fetched ${stores.length} approved stores');
@@ -201,7 +193,7 @@ class StoresCollection {
 
   /// Get featured stores
   Future<List<StoreModel>> getFeaturedStores() async {
-    List<StoreModel> stores = [];
+    final List<StoreModel> stores = [];
 
     try {
       final snapshot =
@@ -214,9 +206,7 @@ class StoresCollection {
               .get();
 
       for (var doc in snapshot.docs) {
-        if (doc.data() != null) {
-          stores.add(StoreModel.fromJson(doc.data()));
-        }
+        stores.add(StoreModel.fromJson(doc.data()));
       }
 
       log('Fetched ${stores.length} featured stores');
@@ -322,7 +312,7 @@ class StoresCollection {
 
   /// Search stores by name
   Future<List<StoreModel>> searchStores(String query) async {
-    List<StoreModel> stores = [];
+    final List<StoreModel> stores = [];
 
     if (query.isEmpty) return stores;
 
@@ -337,11 +327,9 @@ class StoresCollection {
       // Filter locally
       final lowerQuery = query.toLowerCase();
       for (var doc in snapshot.docs) {
-        if (doc.data() != null) {
-          final store = StoreModel.fromJson(doc.data());
-          if (store.name.toLowerCase().contains(lowerQuery)) {
-            stores.add(store);
-          }
+        final store = StoreModel.fromJson(doc.data());
+        if (store.name.toLowerCase().contains(lowerQuery)) {
+          stores.add(store);
         }
       }
 
@@ -358,7 +346,7 @@ class StoresCollection {
 
   /// Get stores by owner
   Future<List<StoreModel>> getStoresByOwner(String ownerId) async {
-    List<StoreModel> stores = [];
+    final List<StoreModel> stores = [];
 
     try {
       final snapshot =
@@ -368,9 +356,7 @@ class StoresCollection {
               .get();
 
       for (var doc in snapshot.docs) {
-        if (doc.data() != null) {
-          stores.add(StoreModel.fromJson(doc.data()));
-        }
+        stores.add(StoreModel.fromJson(doc.data()));
       }
 
       log('Fetched ${stores.length} stores for owner: $ownerId');
