@@ -190,4 +190,35 @@ class OrdersCollection {
       return false;
     }
   }
+
+
+  Stream<List<OrderModel>> getRiderOrders(String riderId) {
+  return _firestore
+      .collection(_collectionPath)
+      .where('riderId', isEqualTo: riderId)
+      .where('status', isEqualTo: OrderStatus.outForDelivery.name)
+      .orderBy('createdAt', descending: true)
+      .snapshots()
+      .map((snapshot) => snapshot.docs
+          .map((doc) =>
+              OrderModel.fromJson({'id': doc.id, ...doc.data()}))
+          .toList());
+}
+
+// Get rider's delivered orders (last 5 days for earnings)
+Stream<List<OrderModel>> getRiderDeliveredOrders(String riderId) {
+  final startDate = DateTime.now().subtract(Duration(days: 5));
+  return _firestore
+      .collection(_collectionPath)
+      .where('riderId', isEqualTo: riderId)
+      .where('status', isEqualTo: OrderStatus.delivered.name)
+      .where('createdAt', isGreaterThan: Timestamp.fromDate(startDate))
+      .orderBy('createdAt', descending: true)
+      .snapshots()
+      .map((snapshot) => snapshot.docs
+          .map((doc) =>
+              OrderModel.fromJson({'id': doc.id, ...doc.data()}))
+          .toList());
+}
+
 }

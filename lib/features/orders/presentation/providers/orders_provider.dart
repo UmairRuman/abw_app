@@ -226,3 +226,16 @@ final userOrderHistoryStreamProvider =
     StreamProvider.family<List<OrderModel>, String>((ref, userId) {
       return ref.read(ordersProvider.notifier).getUserOrderHistory(userId);
     });
+
+
+// Stream for rider's assigned orders
+final riderAssignedOrdersProvider =
+    StreamProvider.family<List<OrderModel>, String>((ref, riderId) {
+  return OrdersCollection().getRiderOrders(riderId);
+});
+
+// Stream for rider's delivered orders (earnings history)
+final riderDeliveredOrdersProvider =
+    StreamProvider.family<List<OrderModel>, String>((ref, riderId) {
+  return OrdersCollection().getRiderDeliveredOrders(riderId);
+});

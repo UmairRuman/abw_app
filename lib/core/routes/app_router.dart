@@ -236,19 +236,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       // ============================================================
       // RIDER ROUTES
       // ============================================================
-      GoRoute(
-        path: '/rider/dashboard',
-        name: 'rider-dashboard',
-        builder:
-            (context, state) => const Scaffold(
-              body: Center(
-                child: Text(
-                  'Rider Dashboard - Coming Soon',
-                  style: TextStyle(fontSize: 18),
-                ),
-              ),
-            ),
-      ),
+     // REPLACE the rider-dashboard route:
+GoRoute(
+  path: '/rider/dashboard',
+  name: 'rider-dashboard',
+  builder: (context, state) => const RiderMainScreen(),
+),
 
       // ============================================================
       // ERROR ROUTE
