@@ -36,6 +36,24 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     state = CheckoutLoading();
 
     try {
+      final userDoc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .get();
+
+      if (!userDoc.exists) {
+        state = CheckoutError('User not found');
+        return;
+      }
+
+      final userData = userDoc.data()!;
+      final isPhoneVerified = userData['isPhoneVerified'] as bool? ?? false;
+
+      if (!isPhoneVerified) {
+        state = CheckoutError('phone_not_verified'); // ✅ SPECIAL ERROR CODE
+        return;
+      }
       // ── Step 1: Get cart ──────────────────────────
       final cartState = ref.read(cartProvider);
       if (cartState is! CartLoaded || cartState.cart.items.isEmpty) {

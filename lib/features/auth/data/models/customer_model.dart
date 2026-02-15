@@ -17,6 +17,7 @@ class CustomerModel extends CustomerEntity {
     super.address,
     super.latitude,
     super.longitude,
+    super.isPhoneVerified = false, // ✅ NEW
   });
 
   // From JSON
@@ -33,6 +34,7 @@ class CustomerModel extends CustomerEntity {
       address: json['address'] as String?,
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
+      isPhoneVerified: json['isPhoneVerified'] as bool? ?? false,
     );
   }
 
@@ -51,6 +53,7 @@ class CustomerModel extends CustomerEntity {
       'address': address,
       'latitude': latitude,
       'longitude': longitude,
+      'isPhoneVerified': isPhoneVerified,
     };
   }
 
@@ -68,6 +71,7 @@ class CustomerModel extends CustomerEntity {
       address: entity.address,
       latitude: entity.latitude,
       longitude: entity.longitude,
+      isPhoneVerified: entity.isPhoneVerified,
     );
   }
 
@@ -87,6 +91,7 @@ class CustomerModel extends CustomerEntity {
     String? address,
     double? latitude,
     double? longitude,
+    bool? isPhoneVerified,
   }) {
     return CustomerModel(
       id: id ?? this.id,
@@ -100,6 +105,7 @@ class CustomerModel extends CustomerEntity {
       address: address ?? this.address,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
+      isPhoneVerified: isPhoneVerified ?? this.isPhoneVerified,
     );
   }
 }

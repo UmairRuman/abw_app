@@ -145,6 +145,16 @@ class AuthRemoteDataSource {
       }
 
       final data = doc.data();
+
+      if (!data!.containsKey('isPhoneVerified')) {
+        await _firestore.collection(role.collectionName).doc(uid).update({
+          'isPhoneVerified': false, // Default to false for existing users
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        // Add field to data for immediate use
+        data['isPhoneVerified'] = false;
+      }
       if (data == null) {
         throw NotFoundException(message: 'User data is null');
       }

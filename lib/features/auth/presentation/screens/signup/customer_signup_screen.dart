@@ -1,6 +1,7 @@
 // lib/features/auth/presentation/screens/signup/customer_signup_screen.dart
 
 import 'package:abw_app/core/utils/validators.dart';
+import 'package:abw_app/features/auth/domain/entities/customer_entity.dart';
 import 'package:abw_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:abw_app/features/auth/presentation/providers/auth_state.dart';
 import 'package:flutter/material.dart';
@@ -170,10 +171,16 @@ class _CustomerSignupScreenState extends ConsumerState<CustomerSignupScreen>
       }
     } else if (authState is Authenticated) {
       if (mounted) {
-        _showSnackBar('Account created successfully!', isError: false);
-        // Wait a bit for user to see success message
-        await Future.delayed(const Duration(milliseconds: 500));
-        if (mounted) {
+        // ✅ CHECK IF PHONE IS VERIFIED
+        final user = authState.user;
+        if (user is CustomerEntity && !user.isPhoneVerified) {
+          // Navigate to phone verification
+          context.push(
+            '/verify-phone',
+            extra: {'userId': user.id, 'phoneNumber': user.phone},
+          );
+        } else {
+          // Already verified, go to home
           context.go('/customer/home');
         }
       }

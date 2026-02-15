@@ -64,80 +64,139 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         ),
         backgroundColor: AppColorsDark.surface,
       ),
-      body:
-          checkoutState is CheckoutLoading
-              ? const Center(
-                child: CircularProgressIndicator(color: AppColorsDark.primary),
-              )
-              : checkoutState is CheckoutError
-              ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      size: 64.sp,
-                      color: AppColorsDark.error,
-                    ),
-                    SizedBox(height: 16.h),
-                    Text(
-                      checkoutState.message,
-                      style: AppTextStyles.bodyMedium().copyWith(
-                        color: AppColorsDark.error,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 24.h),
-                    ElevatedButton(
-                      onPressed: () => context.pop(),
-                      child: const Text('Go Back'),
-                    ),
-                  ],
+      body: switch (checkoutState) {
+        // ── Loading ──────────────────────────────────
+        CheckoutLoading() => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(color: AppColorsDark.primary),
+              SizedBox(height: 16.h),
+              Text(
+                'Preparing your order...',
+                style: AppTextStyles.bodyMedium().copyWith(
+                  color: AppColorsDark.textSecondary,
                 ),
-              )
-              : checkoutState is CheckoutLoaded
-              ? _buildCheckoutContent(checkoutState)
-              : const Center(child: Text('Please try again')),
-    );
-  }
+              ),
+            ],
+          ),
+        ),
 
-  Widget _buildCheckoutContent(CheckoutLoaded state) {
-    final checkout = state.checkout;
-
-    return Column(
-      children: [
-        Expanded(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.all(16.w),
+        // ── Error ────────────────────────────────────
+        CheckoutError() => Center(
+          child: Padding(
+            padding: EdgeInsets.all(24.w),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Delivery Address Section
-                _buildDeliveryAddressSection(checkout.deliveryAddress),
-                SizedBox(height: 20.h),
+                Icon(
+                  checkoutState.message == 'phone_not_verified'
+                      ? Icons.phone_locked
+                      : Icons.error_outline,
+                  size: 64.sp,
+                  color: AppColorsDark.error,
+                ),
+                SizedBox(height: 16.h),
+                Text(
+                  checkoutState.message == 'phone_not_verified'
+                      ? 'Phone Verification Required'
+                      : 'Error',
+                  style: AppTextStyles.titleMedium().copyWith(
+                    color: AppColorsDark.textPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 8.h),
+                Text(
+                  checkoutState.message == 'phone_not_verified'
+                      ? 'Please verify your phone number to place orders'
+                      : checkoutState.message,
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textSecondary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 24.h),
 
-                // Estimated Delivery Time
-                _buildDeliveryTimeSection(),
-                SizedBox(height: 20.h),
-
-                // Order Items
-                _buildOrderItemsSection(checkout.items),
-                SizedBox(height: 20.h),
-
-                // Special Instructions
-                _buildSpecialInstructionsSection(),
-                SizedBox(height: 20.h),
-
-                // Price Breakdown
-                _buildPriceBreakdown(checkout),
+                // Button based on error type
+                if (checkoutState.message == 'phone_not_verified')
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      final authState = ref.read(authProvider);
+                      if (authState is Authenticated) {
+                        final user = authState.user;
+                        context.push(
+                          '/verify-phone',
+                          extra: {'userId': user.id, 'phoneNumber': user.phone},
+                        );
+                      }
+                    },
+                    icon: Icon(Icons.verified_user, size: 20.sp),
+                    label: const Text('Verify Phone Number'),
+                    style: ElevatedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24.w,
+                        vertical: 14.h,
+                      ),
+                    ),
+                  )
+                else if (checkoutState.message.contains('address'))
+                  Column(
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () => context.push('/customer/addresses'),
+                        icon: Icon(Icons.add_location, size: 18.sp),
+                        label: const Text('Add Address'),
+                      ),
+                      SizedBox(height: 12.h),
+                      ElevatedButton(
+                        onPressed: _loadCheckout,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  )
+                else
+                  ElevatedButton(
+                    onPressed: _loadCheckout,
+                    child: const Text('Retry'),
+                  ),
               ],
             ),
           ),
         ),
 
-        // Bottom Bar - Proceed to Payment
-        _buildBottomBar(checkout.total),
-      ],
+        // ── Loaded ───────────────────────────────────
+        CheckoutLoaded(:final checkout) => Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.all(16.w),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildDeliveryAddressSection(checkout.deliveryAddress),
+                    SizedBox(height: 20.h),
+                    _buildDeliveryTimeSection(),
+                    SizedBox(height: 20.h),
+                    _buildOrderItemsSection(checkout.items),
+                    SizedBox(height: 20.h),
+                    _buildSpecialInstructionsSection(),
+                    SizedBox(height: 20.h),
+                    _buildPriceBreakdown(checkout),
+                  ],
+                ),
+              ),
+            ),
+            _buildBottomBar(checkout.total),
+          ],
+        ),
+
+        // ── Initial (fallback) ───────────────────────
+        _ => const Center(
+          child: CircularProgressIndicator(color: AppColorsDark.primary),
+        ),
+      },
     );
   }
 

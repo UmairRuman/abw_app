@@ -2,7 +2,9 @@
 
 import 'package:abw_app/features/admin/presentation/screens/orders/admin_orders_screen.dart';
 import 'package:abw_app/features/admin/presentation/screens/settings/payment_settings_dialog.dart';
+import 'package:abw_app/features/admin/presentation/widgets/admin_drawer.dart';
 import 'package:abw_app/features/auth/presentation/providers/auth_state.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -64,6 +66,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: const AdminDrawer(),
       backgroundColor: AppColorsDark.background,
       body: RefreshIndicator(
         onRefresh: _loadDashboardData,
@@ -97,6 +100,17 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
     }
 
     return SliverAppBar(
+      leading: Builder(
+        builder:
+            (context) => IconButton(
+              icon: Icon(
+                Icons.menu_rounded,
+                color: AppColorsDark.white,
+                size: 24.sp,
+              ),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
+      ),
       expandedHeight: 120.h,
       floating: false,
       pinned: true,
@@ -517,6 +531,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
               ],
             ),
             SizedBox(height: 16.h),
+            // ✅ ONLY 4 QUICK ACTIONS (most used)
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -525,56 +540,47 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
               crossAxisSpacing: 12.w,
               childAspectRatio: 1.8,
               children: [
-                _buildActionCard(
-                  icon: Icons.category_rounded,
-                  label: 'Categories',
-                  color: const Color(0xFF667eea),
-                  onTap: () => _showAddCategoryDialog(),
-                ),
+                // 1. Add Store (most common)
                 _buildActionCard(
                   icon: Icons.store_rounded,
                   label: 'Add Store',
                   color: const Color(0xFF56ab2f),
                   onTap: () => _showAddStoreDialog(),
                 ),
+
+                // 2. Add Product (most common)
                 _buildActionCard(
                   icon: Icons.inventory_rounded,
                   label: 'Add Product',
                   color: const Color(0xFFf093fb),
                   onTap: () => _showAddProductDialog(),
                 ),
-                _buildActionCard(
-                  icon: Icons.people_rounded,
-                  label: 'View Users',
-                  color: const Color(0xFF4facfe),
-                  onTap: () {
-                    context.push('/admin/users');
+
+                // 3. View Orders (critical)
+                StreamBuilder<QuerySnapshot>(
+                  stream:
+                      FirebaseFirestore.instance
+                          .collection('orders')
+                          .where('status', isEqualTo: 'pending')
+                          .snapshots(),
+                  builder: (context, snapshot) {
+                    final pendingCount = snapshot.data?.docs.length ?? 0;
+                    return _buildActionCard(
+                      icon: Icons.receipt_long,
+                      label: 'Orders',
+                      color: AppColorsDark.warning,
+                      badge: pendingCount > 0 ? pendingCount.toString() : null,
+                      onTap: () => context.push('/admin/orders'),
+                    );
                   },
                 ),
 
+                // 4. Analytics (important)
                 _buildActionCard(
-                  icon: Icons.receipt_long,
-                  label: 'All Orders',
-                  color: AppColorsDark.warning,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AdminOrdersScreen(),
-                      ),
-                    );
-                  },
-                ),
-                _buildActionCard(
-                  icon: Icons.payment,
-                  label: 'Payment Settings',
-                  color: const Color(0xFF00A651),
-                  onTap: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => const PaymentSettingsDialog(),
-                    );
-                  },
+                  icon: Icons.analytics,
+                  label: 'Analytics',
+                  color: AppColorsDark.info,
+                  onTap: () => context.push('/admin/analytics'),
                 ),
               ],
             ),
@@ -589,6 +595,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
     required String label,
     required Color color,
     required VoidCallback onTap,
+    String? badge, // ✅ ADD THIS
   }) {
     return InkWell(
       onTap: onTap,
@@ -609,13 +616,45 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
         ),
         child: Row(
           children: [
-            Container(
-              padding: EdgeInsets.all(12.w),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(12.r),
-              ),
-              child: Icon(icon, color: color, size: 24.sp),
+            // ✅ ADD BADGE SUPPORT
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  padding: EdgeInsets.all(12.w),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Icon(icon, color: color, size: 24.sp),
+                ),
+                if (badge != null)
+                  Positioned(
+                    top: -6.h,
+                    right: -6.w,
+                    child: Container(
+                      padding: EdgeInsets.all(4.w),
+                      decoration: const BoxDecoration(
+                        color: AppColorsDark.error,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: BoxConstraints(
+                        minWidth: 20.w,
+                        minHeight: 20.w,
+                      ),
+                      child: Center(
+                        child: Text(
+                          badge,
+                          style: AppTextStyles.labelSmall().copyWith(
+                            color: AppColorsDark.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10.sp,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             SizedBox(width: 12.w),
             Expanded(

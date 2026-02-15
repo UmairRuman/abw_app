@@ -1,5 +1,8 @@
 // lib/core/routes/app_router.dart
 
+import 'package:abw_app/features/admin/presentation/screens/analytics/analytics_screen.dart';
+import 'package:abw_app/features/admin/presentation/screens/riders/rider_details_screen.dart';
+import 'package:abw_app/features/admin/presentation/screens/riders/riders_list_screen.dart';
 import 'package:abw_app/features/auth/presentation/screens/signup/admin_signup_screen.dart';
 import 'package:abw_app/features/rider/presentation/screens/main/rider_main_screen.dart';
 import 'package:flutter/material.dart';
@@ -206,6 +209,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       // ADMIN ROUTES
       // ============================================================
       GoRoute(
+        path: '/admin/analytics',
+        name: 'admin-analytics',
+        builder: (context, state) => const AnalyticsScreen(),
+      ),
+      GoRoute(
         path: '/admin/dashboard',
         name: 'admin-dashboard',
         builder: (context, state) => const AdminMainScreen(),
@@ -244,6 +252,27 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const RiderMainScreen(),
       ),
 
+      // ── Admin Riders ────────────────────────────────────
+      GoRoute(
+        path: '/admin/riders',
+        name: 'admin-riders',
+        builder: (context, state) => const RidersListScreen(),
+      ),
+
+      GoRoute(
+        path: '/admin/riders/pending',
+        name: 'admin-riders-pending',
+        builder: (context, state) => const RidersListScreen(),
+      ),
+
+      GoRoute(
+        path: '/admin/riders/:riderId',
+        name: 'admin-rider-details',
+        builder: (context, state) {
+          final riderId = state.pathParameters['riderId'] ?? '';
+          return RiderDetailsScreen(riderId: riderId);
+        },
+      ),
       // ============================================================
       // ERROR ROUTE
       // ============================================================
@@ -351,6 +380,11 @@ extension NavigationExtensions on BuildContext {
   // ✅ NEW - Admin Orders
   void goToAdminOrders() => go('/admin/orders');
   void goToAdminOrderDetails(String orderId) => go('/admin/orders/$orderId');
+
+  // ── Admin Riders ──────────────────────────────────
+  void goToAdminRiders() => go('/admin/riders');
+  void goToAdminRidersPending() => go('/admin/riders/pending');
+  void goToAdminRiderDetails(String riderId) => go('/admin/riders/$riderId');
 
   // ── Rider ─────────────────────────────────────────────
   void goToRiderDashboard() => go('/rider/dashboard');

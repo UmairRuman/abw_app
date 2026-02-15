@@ -1,13 +1,13 @@
 // lib/features/auth/domain/entities/customer_entity.dart
 
 import 'package:abw_app/shared/enums/user_role.dart';
-
 import 'user_entity.dart';
 
 class CustomerEntity extends UserEntity {
   final String? address;
   final double? latitude;
   final double? longitude;
+  final bool isPhoneVerified; // ✅ NEW FIELD
 
   const CustomerEntity({
     required super.id,
@@ -21,10 +21,17 @@ class CustomerEntity extends UserEntity {
     this.address,
     this.latitude,
     this.longitude,
+    this.isPhoneVerified = false, // ✅ DEFAULT FALSE
   }) : super(role: UserRole.customer);
 
   @override
-  List<Object?> get props => [...super.props, address, latitude, longitude];
+  List<Object?> get props => [
+    ...super.props,
+    address,
+    latitude,
+    longitude,
+    isPhoneVerified, // ✅ ADD TO PROPS
+  ];
 
   CustomerEntity copyWith({
     String? id,
@@ -38,6 +45,7 @@ class CustomerEntity extends UserEntity {
     String? address,
     double? latitude,
     double? longitude,
+    bool? isPhoneVerified, // ✅ ADD TO COPYWITH
   }) {
     return CustomerEntity(
       id: id ?? this.id,
@@ -51,6 +59,7 @@ class CustomerEntity extends UserEntity {
       address: address ?? this.address,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
+      isPhoneVerified: isPhoneVerified ?? this.isPhoneVerified, // ✅
     );
   }
 }
