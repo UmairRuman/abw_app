@@ -1,11 +1,13 @@
 // lib/features/auth/presentation/screens/phone_verification/phone_verification_screen.dart
+// REPLACE ENTIRE FILE:
 
-import 'package:abw_app/features/auth/data/services/otp_service.dart';
+import 'dart:developer';
+
+import 'package:abw_app/features/auth/data/services/firebase_otp_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:pinput/pinput.dart';
-import 'package:sms_autofill/sms_autofill.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../../core/theme/colors/app_colors_dark.dart';
@@ -13,13 +15,8 @@ import '../../../../../core/theme/text_styles/app_text_styles.dart';
 
 class PhoneVerificationScreen extends ConsumerStatefulWidget {
   final String userId;
-  final String phoneNumber;
 
-  const PhoneVerificationScreen({
-    super.key,
-    required this.userId,
-    required this.phoneNumber,
-  });
+  const PhoneVerificationScreen({super.key, required this.userId});
 
   @override
   ConsumerState<PhoneVerificationScreen> createState() =>
@@ -27,44 +24,86 @@ class PhoneVerificationScreen extends ConsumerStatefulWidget {
 }
 
 class _PhoneVerificationScreenState
-    extends ConsumerState<PhoneVerificationScreen>
-    with CodeAutoFill {
+    extends ConsumerState<PhoneVerificationScreen> {
   final _otpController = TextEditingController();
-  final _otpService = OTPService();
+  final _otpService = FirebaseOTPService();
 
   bool _isLoading = false;
   bool _isResending = false;
+  bool _codeSent = false;
+  bool _isFetchingUser = true;
   int _resendCountdown = 60;
   bool _canResend = false;
+
+  String? _phoneNumber; // ✅ STORE PHONE NUMBER
+  String? _userName; // ✅ STORE USER NAME
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _sendOTP();
-    _startCountdown();
-    _listenForCode(); // ✅ Listen for SMS autofill
+    _fetchUserDataAndSendOTP();
   }
 
   @override
   void dispose() {
     _otpController.dispose();
-    cancel(); // Cancel SMS listener
     super.dispose();
   }
 
-  // ✅ SMS AUTOFILL LISTENER
-  void _listenForCode() async {
-    await SmsAutoFill().listenForCode();
-  }
+  // ✅ NEW: FETCH USER DATA FROM FIRESTORE
+  Future<void> _fetchUserDataAndSendOTP() async {
+    setState(() => _isFetchingUser = true);
 
-  @override
-  void codeUpdated() {
-    // ✅ AUTOMATICALLY CALLED WHEN SMS RECEIVED
-    if (code != null && code!.length == 6) {
+    try {
+      print('🔍 Fetching user data for: ${widget.userId}');
+
+      final userDoc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(widget.userId)
+              .get();
+
+      if (!userDoc.exists) {
+        throw Exception('User not found');
+      }
+
+      final userData = userDoc.data()!;
+      final phone = userData['phone'] as String?;
+      final name = userData['name'] as String?;
+
+      log('🔍 User data fetched:');
+      log('   Name: $name');
+      log('   Phone: $phone');
+
+      // ✅ CHECK IF PHONE IS MISSING OR EMPTY
+      if (phone == null || phone.isEmpty) {
+        log('⚠️ Phone number not found, redirecting to phone input');
+
+        if (mounted) {
+          // Navigate to phone input screen
+          context.pushReplacement(
+            '/phone-input',
+            extra: {'userId': widget.userId, 'currentPhone': null},
+          );
+        }
+        return;
+      }
+
       setState(() {
-        _otpController.text = code!;
+        _phoneNumber = phone;
+        _userName = name;
+        _isFetchingUser = false;
       });
-      _verifyOTP(); // Auto-verify
+
+      // Now send OTP
+      await _sendOTP();
+    } catch (e) {
+      log('❌ Error fetching user: $e');
+      setState(() {
+        _errorMessage = e.toString();
+        _isFetchingUser = false;
+      });
     }
   }
 
@@ -80,29 +119,47 @@ class _PhoneVerificationScreenState
   }
 
   Future<void> _sendOTP() async {
+    if (_phoneNumber == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Phone number not available'),
+          backgroundColor: AppColorsDark.error,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isResending = true);
 
-    final success = await _otpService.sendOTP(widget.phoneNumber);
-
-    if (mounted) {
-      setState(() => _isResending = false);
-
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('OTP sent to ${widget.phoneNumber}'),
-            backgroundColor: AppColorsDark.success,
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to send OTP. Please try again.'),
-            backgroundColor: AppColorsDark.error,
-          ),
-        );
-      }
-    }
+    await _otpService.sendOTP(
+      _phoneNumber!,
+      onError: (error) {
+        if (mounted) {
+          setState(() => _isResending = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: $error'),
+              backgroundColor: AppColorsDark.error,
+            ),
+          );
+        }
+      },
+      onCodeSent: () {
+        if (mounted) {
+          setState(() {
+            _isResending = false;
+            _codeSent = true;
+          });
+          _startCountdown();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('OTP sent to $_phoneNumber'),
+              backgroundColor: AppColorsDark.success,
+            ),
+          );
+        }
+      },
+    );
   }
 
   Future<void> _resendOTP() async {
@@ -111,9 +168,9 @@ class _PhoneVerificationScreenState
     setState(() {
       _resendCountdown = 60;
       _canResend = false;
+      _otpController.clear();
     });
 
-    _startCountdown();
     await _sendOTP();
   }
 
@@ -131,17 +188,13 @@ class _PhoneVerificationScreenState
     setState(() => _isLoading = true);
 
     try {
-      // Verify OTP with Supabase
-      final isValid = await _otpService.verifyOTP(
-        widget.phoneNumber,
-        _otpController.text,
-      );
+      final isValid = await _otpService.verifyOTP(_otpController.text);
 
       if (!isValid) {
         throw Exception('Invalid OTP');
       }
 
-      // Update Firestore user to mark phone as verified
+      // Update Firestore
       await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.userId)
@@ -157,8 +210,6 @@ class _PhoneVerificationScreenState
             backgroundColor: AppColorsDark.success,
           ),
         );
-
-        // Navigate to customer home
         context.go('/customer/home');
       }
     } catch (e) {
@@ -177,6 +228,90 @@ class _PhoneVerificationScreenState
 
   @override
   Widget build(BuildContext context) {
+    // ✅ SHOW ERROR STATE
+    if (_errorMessage != null) {
+      return Scaffold(
+        backgroundColor: AppColorsDark.background,
+        appBar: AppBar(
+          title: Text(
+            'Verify Phone Number',
+            style: AppTextStyles.titleLarge().copyWith(
+              color: AppColorsDark.textPrimary,
+            ),
+          ),
+          backgroundColor: AppColorsDark.surface,
+        ),
+        body: Center(
+          child: Padding(
+            padding: EdgeInsets.all(24.w),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 64.sp,
+                  color: AppColorsDark.error,
+                ),
+                SizedBox(height: 16.h),
+                Text(
+                  'Error Loading User Data',
+                  style: AppTextStyles.titleMedium().copyWith(
+                    color: AppColorsDark.textPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                Text(
+                  _errorMessage!,
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textSecondary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 24.h),
+                ElevatedButton(
+                  onPressed: () => context.pop(),
+                  child: const Text('Go Back'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // ✅ SHOW LOADING STATE WHILE FETCHING
+    if (_isFetchingUser || _phoneNumber == null) {
+      return Scaffold(
+        backgroundColor: AppColorsDark.background,
+        appBar: AppBar(
+          title: Text(
+            'Verify Phone Number',
+            style: AppTextStyles.titleLarge().copyWith(
+              color: AppColorsDark.textPrimary,
+            ),
+          ),
+          backgroundColor: AppColorsDark.surface,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(color: AppColorsDark.primary),
+              SizedBox(height: 16.h),
+              Text(
+                'Loading user data...',
+                style: AppTextStyles.bodyMedium().copyWith(
+                  color: AppColorsDark.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // ✅ MAIN VERIFICATION UI
     final defaultPinTheme = PinTheme(
       width: 56.w,
       height: 60.h,
@@ -241,7 +376,7 @@ class _PhoneVerificationScreenState
 
               // Title
               Text(
-                'Enter Verification Code',
+                _codeSent ? 'Enter Verification Code' : 'Sending Code...',
                 style: AppTextStyles.headlineMedium().copyWith(
                   color: AppColorsDark.textPrimary,
                   fontWeight: FontWeight.bold,
@@ -252,13 +387,15 @@ class _PhoneVerificationScreenState
 
               // Subtitle
               Text(
-                'We sent a 6-digit code to',
+                _codeSent
+                    ? 'We sent a 6-digit code to'
+                    : 'Please wait while we send the code',
                 style: AppTextStyles.bodyMedium().copyWith(
                   color: AppColorsDark.textSecondary,
                 ),
               ),
               Text(
-                widget.phoneNumber,
+                _phoneNumber ?? '',
                 style: AppTextStyles.bodyMedium().copyWith(
                   color: AppColorsDark.primary,
                   fontWeight: FontWeight.w600,
@@ -267,75 +404,79 @@ class _PhoneVerificationScreenState
 
               SizedBox(height: 40.h),
 
-              // OTP Input with Pinput
-              Pinput(
-                controller: _otpController,
-                length: 6,
-                defaultPinTheme: defaultPinTheme,
-                focusedPinTheme: focusedPinTheme,
-                submittedPinTheme: submittedPinTheme,
-                onCompleted: (pin) => _verifyOTP(),
-                autofocus: true,
-                enableSuggestions: true,
-                // ✅ No androidSmsAutofillMethod needed - works by default
-              ),
+              // OTP Input
+              if (_codeSent)
+                Pinput(
+                  controller: _otpController,
+                  length: 6,
+                  defaultPinTheme: defaultPinTheme,
+                  focusedPinTheme: focusedPinTheme,
+                  submittedPinTheme: submittedPinTheme,
+                  onCompleted: (pin) => _verifyOTP(),
+                  autofocus: true,
+                  enableSuggestions: true,
+                )
+              else
+                const CircularProgressIndicator(color: AppColorsDark.primary),
 
               SizedBox(height: 32.h),
 
-              // Resend OTP
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    "Didn't receive the code? ",
-                    style: AppTextStyles.bodySmall().copyWith(
-                      color: AppColorsDark.textSecondary,
+              // Resend
+              if (_codeSent)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      "Didn't receive the code? ",
+                      style: AppTextStyles.bodySmall().copyWith(
+                        color: AppColorsDark.textSecondary,
+                      ),
                     ),
-                  ),
-                  if (_canResend)
-                    GestureDetector(
-                      onTap: _resendOTP,
-                      child: Text(
-                        'Resend',
+                    if (_canResend)
+                      GestureDetector(
+                        onTap: _resendOTP,
+                        child: Text(
+                          'Resend',
+                          style: AppTextStyles.bodySmall().copyWith(
+                            color: AppColorsDark.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      )
+                    else
+                      Text(
+                        'Resend in $_resendCountdown s',
                         style: AppTextStyles.bodySmall().copyWith(
-                          color: AppColorsDark.primary,
-                          fontWeight: FontWeight.w600,
+                          color: AppColorsDark.textTertiary,
                         ),
                       ),
-                    )
-                  else
-                    Text(
-                      'Resend in $_resendCountdown s',
-                      style: AppTextStyles.bodySmall().copyWith(
-                        color: AppColorsDark.textTertiary,
-                      ),
-                    ),
-                ],
-              ),
+                  ],
+                ),
 
               const Spacer(),
 
               // Verify Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _verifyOTP,
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(vertical: 16.h),
+              if (_codeSent)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _verifyOTP,
+                    style: ElevatedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 16.h),
+                    ),
+                    child:
+                        _isLoading
+                            ? SizedBox(
+                              height: 20.h,
+                              width: 20.w,
+                              child: const CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColorsDark.white,
+                              ),
+                            )
+                            : Text('Verify', style: AppTextStyles.button()),
                   ),
-                  child:
-                      _isLoading
-                          ? SizedBox(
-                            height: 20.h,
-                            width: 20.w,
-                            child: const CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColorsDark.white,
-                            ),
-                          )
-                          : Text('Verify', style: AppTextStyles.button()),
                 ),
-              ),
             ],
           ),
         ),

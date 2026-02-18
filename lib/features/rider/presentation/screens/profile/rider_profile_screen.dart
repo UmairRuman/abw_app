@@ -86,42 +86,42 @@ class RiderProfileScreen extends ConsumerWidget {
                       ),
                       SizedBox(height: 12.h),
                       // Status Badge
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 16.w,
-                          vertical: 8.h,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _getStatusColor(rider.status).withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(20.r),
-                          border: Border.all(
-                            color: _getStatusColor(
-                              rider.status,
-                            ).withOpacity(0.5),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 8.w,
-                              height: 8.w,
-                              decoration: BoxDecoration(
-                                color: _getStatusColor(rider.status),
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            SizedBox(width: 8.w),
-                            Text(
-                              rider.status.name.toUpperCase(),
-                              style: AppTextStyles.labelMedium().copyWith(
-                                color: AppColorsDark.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      // Container(
+                      //   padding: EdgeInsets.symmetric(
+                      //     horizontal: 16.w,
+                      //     vertical: 8.h,
+                      //   ),
+                      //   decoration: BoxDecoration(
+                      //     color: _getStatusColor(rider.status).withOpacity(0.2),
+                      //     borderRadius: BorderRadius.circular(20.r),
+                      //     border: Border.all(
+                      //       color: _getStatusColor(
+                      //         rider.status,
+                      //       ).withOpacity(0.5),
+                      //     ),
+                      //   ),
+                      //   child: Row(
+                      //     mainAxisSize: MainAxisSize.min,
+                      //     children: [
+                      //       Container(
+                      //         width: 8.w,
+                      //         height: 8.w,
+                      //         decoration: BoxDecoration(
+                      //           color: _getStatusColor(rider.status),
+                      //           shape: BoxShape.circle,
+                      //         ),
+                      //       ),
+                      //       SizedBox(width: 8.w),
+                      //       Text(
+                      //         rider.status.name.toUpperCase(),
+                      //         style: AppTextStyles.labelMedium().copyWith(
+                      //           color: AppColorsDark.white,
+                      //           fontWeight: FontWeight.bold,
+                      //         ),
+                      //       ),
+                      //     ],
+                      //   ),
+                      // ),
                     ],
                   ),
                 ),

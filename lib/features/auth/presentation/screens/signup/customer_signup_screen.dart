@@ -1,5 +1,7 @@
 // lib/features/auth/presentation/screens/signup/customer_signup_screen.dart
 
+import 'dart:developer';
+
 import 'package:abw_app/core/utils/validators.dart';
 import 'package:abw_app/features/auth/domain/entities/customer_entity.dart';
 import 'package:abw_app/features/auth/presentation/providers/auth_provider.dart';
@@ -174,11 +176,7 @@ class _CustomerSignupScreenState extends ConsumerState<CustomerSignupScreen>
         // ✅ CHECK IF PHONE IS VERIFIED
         final user = authState.user;
         if (user is CustomerEntity && !user.isPhoneVerified) {
-          // Navigate to phone verification
-          context.push(
-            '/verify-phone',
-            extra: {'userId': user.id, 'phoneNumber': user.phone},
-          );
+          context.push('/phone-confirm', extra: user.id);
         } else {
           // Already verified, go to home
           context.go('/customer/home');

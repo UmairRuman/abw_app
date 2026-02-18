@@ -196,12 +196,6 @@ class _RiderHomeContent extends ConsumerWidget {
                           ),
                         ),
                         SizedBox(width: 6.w),
-                        Text(
-                          isOnline ? 'Online' : 'Offline',
-                          style: AppTextStyles.bodySmall().copyWith(
-                            color: AppColorsDark.white.withOpacity(0.9),
-                          ),
-                        ),
                       ],
                     ),
                   ],

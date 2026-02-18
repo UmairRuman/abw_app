@@ -64,8 +64,9 @@ final signUpRiderUseCaseProvider = Provider<SignUpRiderUseCase>((ref) {
   return SignUpRiderUseCase(ref.watch(authRepositoryProvider));
 });
 
-final sendPasswordResetUseCaseProvider =
-    Provider<SendPasswordResetUseCase>((ref) {
+final sendPasswordResetUseCaseProvider = Provider<SendPasswordResetUseCase>((
+  ref,
+) {
   return SendPasswordResetUseCase(ref.watch(authRepositoryProvider));
 });
 

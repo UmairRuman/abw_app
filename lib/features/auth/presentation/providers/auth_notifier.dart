@@ -1,6 +1,14 @@
 // lib/features/auth/presentation/providers/auth_notifier.dart
 
+import 'dart:developer';
+
+import 'package:abw_app/features/auth/data/models/admin_model.dart';
+import 'package:abw_app/features/auth/data/models/customer_model.dart';
+import 'package:abw_app/features/auth/data/models/rider_model.dart';
+import 'package:abw_app/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:abw_app/features/auth/domain/entities/user_entity.dart';
 import 'package:abw_app/features/auth/domain/usecases/create_admin_usecase.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/enums/user_role.dart';
 import '../../domain/entities/rider_entity.dart';
@@ -71,6 +79,72 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = Authenticated(admin);
       },
     );
+  }
+
+  Future<void> refreshUser() async {
+    final currentState = state;
+
+    if (currentState is! Authenticated &&
+        currentState is! RiderPendingApproval) {
+      return;
+    }
+
+    try {
+      log('🔄 Refreshing user...');
+
+      final userId =
+          currentState is Authenticated
+              ? (currentState as Authenticated).user.id
+              : (currentState as RiderPendingApproval).user.id;
+
+      final role =
+          currentState is Authenticated
+              ? (currentState as Authenticated).user.role
+              : (currentState as RiderPendingApproval).user.role;
+
+      log('   User ID: $userId, Role: $role');
+
+      // ✅ DETERMINE CORRECT COLLECTION
+      final collection =
+          role == UserRole.rider ? 'riders' : role.collectionName;
+      log('   Reading from collection: $collection');
+
+      final doc =
+          await FirebaseFirestore.instance
+              .collection(collection)
+              .doc(userId)
+              .get();
+
+      if (!doc.exists) {
+        log('❌ Document not found in $collection');
+        return;
+      }
+
+      final userData = {'id': userId, ...doc.data()!};
+
+      switch (role) {
+        case UserRole.customer:
+          state = Authenticated(CustomerModel.fromJson(userData));
+          break;
+        case UserRole.admin:
+          state = Authenticated(AdminModel.fromJson(userData));
+          break;
+        case UserRole.rider:
+          final rider = RiderModel.fromJson(userData);
+          log('   isApproved: ${rider.isApproved}');
+
+          if (!rider.isApproved) {
+            state = RiderPendingApproval(rider);
+          } else {
+            state = Authenticated(rider);
+          }
+          break;
+      }
+
+      log('✅ User refreshed: ${state.runtimeType}');
+    } catch (e) {
+      log('❌ refreshUser error: $e');
+    }
   }
 
   /// Check current auth status on initialization

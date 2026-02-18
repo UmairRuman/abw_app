@@ -49,6 +49,12 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
 
       final userData = userDoc.data()!;
       final isPhoneVerified = userData['isPhoneVerified'] as bool? ?? false;
+      final phone = userData['phone'] as String?;
+      // ✅ CHECK IF PHONE EXISTS
+      if (phone == null || phone.isEmpty) {
+        state = CheckoutError('phone_missing'); // ✅ NEW ERROR CODE
+        return;
+      }
 
       if (!isPhoneVerified) {
         state = CheckoutError('phone_not_verified'); // ✅ SPECIAL ERROR CODE

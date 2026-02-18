@@ -2,6 +2,7 @@
 
 import 'package:abw_app/features/auth/data/models/rider_model.dart';
 import 'package:abw_app/features/auth/domain/entities/rider_entity.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/collections/riders_collection.dart';
 
@@ -37,13 +38,49 @@ class RidersNotifier extends StateNotifier<RidersState> {
 
   RidersNotifier() : super(RidersInitial());
 
-  // Get available riders (for admin assign dialog)
   Future<void> getAvailableRiders() async {
     state = RidersLoading();
+
     try {
-      final riders = await _collection.getAvailableRiders();
+      // ✅ QUERY: ALL APPROVED RIDERS (not just available status)
+      // Riders can be assigned even if offline
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('riders')
+              .where('isApproved', isEqualTo: true)
+              .where('isActive', isEqualTo: true)
+              .get();
+
+      // ✅ ALSO CHECK users COLLECTION AS FALLBACK
+      if (snapshot.docs.isEmpty) {
+        final usersSnapshot =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .where('role', isEqualTo: 'rider')
+                .where('isApproved', isEqualTo: true)
+                .where('isActive', isEqualTo: true)
+                .get();
+
+        final riders =
+            usersSnapshot.docs
+                .map(
+                  (doc) => RiderModel.fromJson({'id': doc.id, ...doc.data()}),
+                )
+                .toList();
+
+        state = RidersLoaded(riders);
+        return;
+      }
+
+      final riders =
+          snapshot.docs
+              .map((doc) => RiderModel.fromJson({'id': doc.id, ...doc.data()}))
+              .toList();
+
+      print('✅ Found ${riders.length} approved riders');
       state = RidersLoaded(riders);
     } catch (e) {
+      print('❌ Error loading riders: $e');
       state = RidersError(e.toString());
     }
   }

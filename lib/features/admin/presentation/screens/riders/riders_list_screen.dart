@@ -1,4 +1,7 @@
 // lib/features/admin/presentation/screens/riders/riders_list_screen.dart
+// REPLACE ENTIRE FILE:
+
+import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,7 +28,7 @@ class _RidersListScreenState extends ConsumerState<RidersListScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 2, vsync: this); // ✅ ONLY 2 TABS
   }
 
   @override
@@ -73,10 +76,9 @@ class _RidersListScreenState extends ConsumerState<RidersListScreen>
                 ),
               ),
 
-              // Tab Bar
+              // Tab Bar - ✅ ONLY 2 TABS
               TabBar(
                 controller: _tabController,
-                isScrollable: true,
                 indicatorColor: AppColorsDark.primary,
                 labelColor: AppColorsDark.primary,
                 unselectedLabelColor: AppColorsDark.textSecondary,
@@ -84,10 +86,8 @@ class _RidersListScreenState extends ConsumerState<RidersListScreen>
                   fontWeight: FontWeight.w600,
                 ),
                 tabs: const [
-                  Tab(text: 'All Riders'),
-                  Tab(text: 'Pending Approval'),
-                  Tab(text: 'Active'),
-                  Tab(text: 'Offline'),
+                  Tab(text: 'Pending Approvals'),
+                  Tab(text: 'Active Riders'),
                 ],
               ),
             ],
@@ -97,18 +97,22 @@ class _RidersListScreenState extends ConsumerState<RidersListScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildRidersList(filter: 'all'),
-          _buildRidersList(filter: 'pending'),
-          _buildRidersList(filter: 'active'),
-          _buildRidersList(filter: 'offline'),
+          _buildPendingRequestsList(), // ✅ From rider_requests collection
+          _buildActiveRidersList(), // ✅ From users collection
         ],
       ),
     );
   }
 
-  Widget _buildRidersList({required String filter}) {
+  // ✅ NEW: BUILD PENDING REQUESTS FROM rider_requests COLLECTION
+  Widget _buildPendingRequestsList() {
     return StreamBuilder<QuerySnapshot>(
-      stream: _getRidersStream(filter),
+      stream:
+          FirebaseFirestore.instance
+              .collection('rider_requests')
+              .where('status', isEqualTo: 'pending')
+              .orderBy('requestedAt', descending: true)
+              .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
@@ -119,7 +123,7 @@ class _RidersListScreenState extends ConsumerState<RidersListScreen>
         if (snapshot.hasError) {
           return Center(
             child: Text(
-              'Error loading riders',
+              'Error loading requests: ${snapshot.error}',
               style: AppTextStyles.bodyMedium().copyWith(
                 color: AppColorsDark.error,
               ),
@@ -128,7 +132,76 @@ class _RidersListScreenState extends ConsumerState<RidersListScreen>
         }
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return _buildEmptyState(filter);
+          return _buildEmptyState('pending');
+        }
+
+        final requests = snapshot.data!.docs;
+
+        // Apply search filter
+        final filteredRequests =
+            _searchQuery.isEmpty
+                ? requests
+                : requests.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final name =
+                      (data['riderName'] as String? ?? '').toLowerCase();
+                  final phone =
+                      (data['riderPhone'] as String? ?? '').toLowerCase();
+                  final vehicle =
+                      (data['vehicleNumber'] as String? ?? '').toLowerCase();
+
+                  return name.contains(_searchQuery) ||
+                      phone.contains(_searchQuery) ||
+                      vehicle.contains(_searchQuery);
+                }).toList();
+
+        if (filteredRequests.isEmpty) {
+          return _buildSearchEmptyState();
+        }
+
+        return ListView.builder(
+          padding: EdgeInsets.all(16.w),
+          itemCount: filteredRequests.length,
+          itemBuilder: (context, index) {
+            final doc = filteredRequests[index];
+            final data = doc.data() as Map<String, dynamic>;
+            return _buildPendingRequestCard(doc.id, data);
+          },
+        );
+      },
+    );
+  }
+
+  // ✅ BUILD ACTIVE RIDERS FROM users COLLECTION
+  Widget _buildActiveRidersList() {
+    return StreamBuilder<QuerySnapshot>(
+      stream:
+          FirebaseFirestore.instance
+              .collection('users')
+              .where('role', isEqualTo: 'rider')
+              .where('isApproved', isEqualTo: true)
+              .orderBy('createdAt', descending: true)
+              .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: AppColorsDark.primary),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Text(
+              'Error loading riders: ${snapshot.error}',
+              style: AppTextStyles.bodyMedium().copyWith(
+                color: AppColorsDark.error,
+              ),
+            ),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return _buildEmptyState('active');
         }
 
         final riders =
@@ -152,67 +225,188 @@ class _RidersListScreenState extends ConsumerState<RidersListScreen>
                 }).toList();
 
         if (filteredRiders.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.search_off,
-                  size: 64.sp,
-                  color: AppColorsDark.textTertiary,
-                ),
-                SizedBox(height: 16.h),
-                Text(
-                  'No riders found',
-                  style: AppTextStyles.bodyMedium().copyWith(
-                    color: AppColorsDark.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          );
+          return _buildSearchEmptyState();
         }
 
         return ListView.builder(
           padding: EdgeInsets.all(16.w),
           itemCount: filteredRiders.length,
           itemBuilder: (context, index) {
-            return _buildRiderCard(filteredRiders[index]);
+            return _buildActiveRiderCard(filteredRiders[index]);
           },
         );
       },
     );
   }
 
-  Stream<QuerySnapshot> _getRidersStream(String filter) {
-    var query = FirebaseFirestore.instance
-        .collection('users')
-        .where('role', isEqualTo: 'rider');
+  // ✅ PENDING REQUEST CARD
+  Widget _buildPendingRequestCard(String requestId, Map<String, dynamic> data) {
+    final name = data['riderName'] as String? ?? 'Unknown';
+    final phone = data['riderPhone'] as String? ?? '';
+    final email = data['riderEmail'] as String? ?? '';
+    final vehicleType = data['vehicleType'] as String? ?? '';
+    final vehicleNumber = data['vehicleNumber'] as String? ?? '';
 
-    switch (filter) {
-      case 'pending':
-        return query
-            .where('isApproved', isEqualTo: false)
-            .orderBy('createdAt', descending: true)
-            .snapshots();
-      case 'active':
-        return query
-            .where('isApproved', isEqualTo: true)
-            .where('status', isEqualTo: 'available')
-            .orderBy('createdAt', descending: true)
-            .snapshots();
-      case 'offline':
-        return query
-            .where('isApproved', isEqualTo: true)
-            .where('status', isEqualTo: 'offline')
-            .orderBy('createdAt', descending: true)
-            .snapshots();
-      default:
-        return query.orderBy('createdAt', descending: true).snapshots();
-    }
+    return Container(
+      margin: EdgeInsets.only(bottom: 12.h),
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: AppColorsDark.cardBackground,
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(
+          color: AppColorsDark.warning.withOpacity(0.3),
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColorsDark.warning.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              // Avatar
+              Container(
+                width: 56.w,
+                height: 56.w,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColorsDark.warning,
+                      AppColorsDark.warning.withOpacity(0.7),
+                    ],
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    name.substring(0, 1).toUpperCase(),
+                    style: AppTextStyles.titleLarge().copyWith(
+                      color: AppColorsDark.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+
+              SizedBox(width: 12.w),
+
+              // Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: AppTextStyles.titleSmall().copyWith(
+                        color: AppColorsDark.textPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 4.h),
+                    Text(
+                      phone,
+                      style: AppTextStyles.bodySmall().copyWith(
+                        color: AppColorsDark.textSecondary,
+                      ),
+                    ),
+                    SizedBox(height: 2.h),
+                    Text(
+                      email,
+                      style: AppTextStyles.bodySmall().copyWith(
+                        color: AppColorsDark.textSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+
+              // Pending Badge
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+                decoration: BoxDecoration(
+                  color: AppColorsDark.warning.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(6.r),
+                ),
+                child: Text(
+                  'PENDING',
+                  style: AppTextStyles.labelSmall().copyWith(
+                    color: AppColorsDark.warning,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          SizedBox(height: 12.h),
+          const Divider(color: AppColorsDark.border),
+          SizedBox(height: 12.h),
+
+          // Vehicle Info
+          Row(
+            children: [
+              Icon(
+                Icons.delivery_dining,
+                size: 16.sp,
+                color: AppColorsDark.textTertiary,
+              ),
+              SizedBox(width: 8.w),
+              Text(
+                '$vehicleType • $vehicleNumber',
+                style: AppTextStyles.bodySmall().copyWith(
+                  color: AppColorsDark.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+
+          SizedBox(height: 16.h),
+
+          // Action Buttons
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => _approveRequest(requestId, data),
+                  icon: Icon(Icons.check, size: 18.sp),
+                  label: const Text('Approve'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColorsDark.success,
+                    padding: EdgeInsets.symmetric(vertical: 10.h),
+                  ),
+                ),
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _rejectRequest(requestId),
+                  icon: Icon(Icons.close, size: 18.sp),
+                  label: const Text('Reject'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColorsDark.error,
+                    side: const BorderSide(color: AppColorsDark.error),
+                    padding: EdgeInsets.symmetric(vertical: 10.h),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
-  Widget _buildRiderCard(RiderModel rider) {
+  // ✅ ACTIVE RIDER CARD
+  Widget _buildActiveRiderCard(RiderModel rider) {
     return InkWell(
       onTap: () => context.push('/admin/riders/${rider.id}'),
       borderRadius: BorderRadius.circular(16.r),
@@ -222,14 +416,9 @@ class _RidersListScreenState extends ConsumerState<RidersListScreen>
         decoration: BoxDecoration(
           color: AppColorsDark.cardBackground,
           borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(
-            color:
-                rider.isApproved
-                    ? AppColorsDark.border
-                    : AppColorsDark.warning.withOpacity(0.3),
-          ),
-          boxShadow: [
-            const BoxShadow(
+          border: Border.all(color: AppColorsDark.border),
+          boxShadow: const [
+            BoxShadow(
               color: AppColorsDark.shadow,
               blurRadius: 8,
               offset: Offset(0, 2),
@@ -299,19 +488,18 @@ class _RidersListScreenState extends ConsumerState<RidersListScreen>
               ),
             ),
 
-            // Status Badge
+            // Status & Stats
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 _buildStatusBadge(rider),
                 SizedBox(height: 8.h),
-                if (rider.isApproved)
-                  Text(
-                    '${rider.totalDeliveries} deliveries',
-                    style: AppTextStyles.bodySmall().copyWith(
-                      color: AppColorsDark.textSecondary,
-                    ),
+                Text(
+                  '${rider.totalDeliveries} deliveries',
+                  style: AppTextStyles.bodySmall().copyWith(
+                    color: AppColorsDark.textSecondary,
                   ),
+                ),
               ],
             ),
           ],
@@ -321,23 +509,6 @@ class _RidersListScreenState extends ConsumerState<RidersListScreen>
   }
 
   Widget _buildStatusBadge(RiderModel rider) {
-    if (!rider.isApproved) {
-      return Container(
-        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
-        decoration: BoxDecoration(
-          color: AppColorsDark.warning.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(6.r),
-        ),
-        child: Text(
-          'Pending',
-          style: AppTextStyles.labelSmall().copyWith(
-            color: AppColorsDark.warning,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      );
-    }
-
     Color color;
     String text;
     switch (rider.status) {
@@ -382,36 +553,226 @@ class _RidersListScreenState extends ConsumerState<RidersListScreen>
     );
   }
 
-  Widget _buildEmptyState(String filter) {
-    String message;
-    IconData icon;
+  // ✅ APPROVE REQUEST
+  Future<void> _approveRequest(
+    String requestId,
+    Map<String, dynamic> data,
+  ) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            backgroundColor: AppColorsDark.surface,
+            title: const Text('Approve Rider?'),
+            content: Text('Approve ${data['riderName']} as a rider?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColorsDark.success,
+                ),
+                child: const Text('Approve'),
+              ),
+            ],
+          ),
+    );
 
-    switch (filter) {
-      case 'pending':
-        message = 'No pending rider approvals';
-        icon = Icons.check_circle_outline;
-        break;
-      case 'active':
-        message = 'No riders online';
-        icon = Icons.delivery_dining;
-        break;
-      case 'offline':
-        message = 'No offline riders';
-        icon = Icons.offline_bolt;
-        break;
-      default:
-        message = 'No riders yet';
-        icon = Icons.person_outline;
+    if (confirm != true) return;
+
+    try {
+      final riderId = data['riderId'] as String;
+      log('🔄 Approving rider: $riderId');
+
+      final approvalData = {
+        'isApproved': true,
+        'approvedAt': FieldValue.serverTimestamp(),
+        'approvedBy': 'admin',
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      final fullRiderData = {
+        'id': riderId,
+        'email': data['riderEmail'] ?? '',
+        'name': data['riderName'] ?? '',
+        'phone': data['riderPhone'] ?? '',
+        'vehicleType': data['vehicleType'] ?? '',
+        'vehicleNumber': data['vehicleNumber'] ?? '',
+        'licenseNumber': data['licenseNumber'],
+        'role': 'rider',
+        'isActive': true,
+        'isAvailable': false,
+        'isPhoneVerified': false,
+        'rating': 0.0,
+        'totalDeliveries': 0,
+        'totalEarnings': 0.0,
+        'status': 'offline',
+        'currentOrderId': null,
+        'profileImage': null,
+        ...approvalData, // ✅ includes isApproved: true
+      };
+
+      // ✅ STEP 1: UPDATE `riders` COLLECTION (rider listens here)
+      log('🔄 Updating riders collection...');
+      await FirebaseFirestore.instance
+          .collection('riders')
+          .doc(riderId)
+          .set(fullRiderData, SetOptions(merge: true));
+      log('✅ riders collection updated');
+
+      // ✅ STEP 2: UPDATE `users` COLLECTION (auth reads here)
+      log('🔄 Updating users collection...');
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(riderId)
+          .set(fullRiderData, SetOptions(merge: true));
+      log('✅ users collection updated');
+
+      // ✅ STEP 3: UPDATE rider_requests STATUS
+      log('🔄 Updating rider_requests...');
+      await FirebaseFirestore.instance
+          .collection('rider_requests')
+          .doc(requestId)
+          .update({
+            'status': 'approved',
+            'approvedAt': FieldValue.serverTimestamp(),
+          });
+      log('✅ rider_requests updated');
+
+      // ✅ VERIFY
+      final verifyDoc =
+          await FirebaseFirestore.instance
+              .collection('riders')
+              .doc(riderId)
+              .get();
+      log('🔍 riders.isApproved: ${verifyDoc.data()?['isApproved']}');
+
+      final verifyDoc2 =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(riderId)
+              .get();
+      log('🔍 users.isApproved: ${verifyDoc2.data()?['isApproved']}');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ ${data['riderName']} approved!'),
+            backgroundColor: AppColorsDark.success,
+          ),
+        );
+      }
+    } catch (e) {
+      log('❌ Error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed: ${e.toString()}'),
+            backgroundColor: AppColorsDark.error,
+          ),
+        );
+      }
     }
+  }
 
+  // ✅ REJECT REQUEST
+  Future<void> _rejectRequest(String requestId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            backgroundColor: AppColorsDark.surface,
+            title: const Text('Reject Rider?'),
+            content: const Text(
+              'This will delete the rider request permanently.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColorsDark.error,
+                ),
+                child: const Text('Reject'),
+              ),
+            ],
+          ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('rider_requests')
+          .doc(requestId)
+          .update({
+            'status': 'rejected',
+            'rejectedAt': FieldValue.serverTimestamp(),
+          });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Request rejected'),
+            backgroundColor: AppColorsDark.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppColorsDark.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildEmptyState(String type) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 64.sp, color: AppColorsDark.textTertiary),
+          Icon(
+            type == 'pending'
+                ? Icons.check_circle_outline
+                : Icons.delivery_dining,
+            size: 64.sp,
+            color: AppColorsDark.textTertiary,
+          ),
           SizedBox(height: 16.h),
           Text(
-            message,
+            type == 'pending' ? 'No pending requests' : 'No active riders yet',
+            style: AppTextStyles.bodyMedium().copyWith(
+              color: AppColorsDark.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.search_off,
+            size: 64.sp,
+            color: AppColorsDark.textTertiary,
+          ),
+          SizedBox(height: 16.h),
+          Text(
+            'No results found',
             style: AppTextStyles.bodyMedium().copyWith(
               color: AppColorsDark.textSecondary,
             ),

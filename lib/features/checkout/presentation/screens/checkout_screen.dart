@@ -90,7 +90,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  checkoutState.message == 'phone_not_verified'
+                  checkoutState.message == 'phone_missing' ||
+                          checkoutState.message == 'phone_not_verified'
                       ? Icons.phone_locked
                       : Icons.error_outline,
                   size: 64.sp,
@@ -98,7 +99,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 ),
                 SizedBox(height: 16.h),
                 Text(
-                  checkoutState.message == 'phone_not_verified'
+                  checkoutState.message == 'phone_missing'
+                      ? 'Phone Number Required'
+                      : checkoutState.message == 'phone_not_verified'
                       ? 'Phone Verification Required'
                       : 'Error',
                   style: AppTextStyles.titleMedium().copyWith(
@@ -109,7 +112,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 ),
                 SizedBox(height: 8.h),
                 Text(
-                  checkoutState.message == 'phone_not_verified'
+                  checkoutState.message == 'phone_missing'
+                      ? 'Please add your phone number to place orders'
+                      : checkoutState.message == 'phone_not_verified'
                       ? 'Please verify your phone number to place orders'
                       : checkoutState.message,
                   style: AppTextStyles.bodyMedium().copyWith(
@@ -119,16 +124,39 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 ),
                 SizedBox(height: 24.h),
 
-                // Button based on error type
-                if (checkoutState.message == 'phone_not_verified')
+                // ✅ ADD PHONE BUTTON
+                if (checkoutState.message == 'phone_missing')
                   ElevatedButton.icon(
                     onPressed: () {
                       final authState = ref.read(authProvider);
                       if (authState is Authenticated) {
-                        final user = authState.user;
                         context.push(
-                          '/verify-phone',
-                          extra: {'userId': user.id, 'phoneNumber': user.phone},
+                          '/phone-input',
+                          extra: {
+                            'userId': authState.user.id,
+                            'currentPhone': null,
+                          },
+                        );
+                      }
+                    },
+                    icon: Icon(Icons.phone_android, size: 20.sp),
+                    label: const Text('Add Phone Number'),
+                    style: ElevatedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24.w,
+                        vertical: 14.h,
+                      ),
+                    ),
+                  )
+                // ✅ VERIFY PHONE BUTTON
+                else if (checkoutState.message == 'phone_not_verified')
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      final authState = ref.read(authProvider);
+                      if (authState is Authenticated) {
+                        context.push(
+                          '/phone-confirm',
+                          extra: authState.user.id,
                         );
                       }
                     },

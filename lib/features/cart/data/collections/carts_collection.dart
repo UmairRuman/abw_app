@@ -39,7 +39,11 @@ class CartsCollection {
     }
   }
 
-  Future<bool> addItemToCart(String userId, CartItemModel item) async {
+  Future<bool> addItemToCart(
+    String userId,
+    CartItemModel item, {
+    double deliveryFee = 50.0,
+  }) async {
     try {
       final cartDoc = await _cartsCollection.doc(userId).get();
 
@@ -47,71 +51,105 @@ class CartsCollection {
         final cartData = cartDoc.data()!;
         final currentStoreId = cartData['storeId'] as String?;
 
-        // ✅ CHECK IF DIFFERENT STORE
-        if (currentStoreId != null && currentStoreId != item.storeId) {
-          // Don't throw exception, return false to handle in provider
+        // ✅ CHECK DIFFERENT STORE
+        if (currentStoreId != null &&
+            currentStoreId.isNotEmpty &&
+            currentStoreId != item.storeId) {
           return false;
         }
 
-        // Same store or empty cart - proceed
-        final items = List<Map<String, dynamic>>.from(
+        // ✅ GET EXISTING ITEMS
+        final rawItems = List<Map<String, dynamic>>.from(
           cartData['items'] as List? ?? [],
         );
 
-        // Check if item already exists
-        final existingIndex = items.indexWhere(
+        // ✅ CHECK IF ITEM ALREADY EXISTS
+        final existingIndex = rawItems.indexWhere(
           (i) => i['productId'] == item.productId,
         );
 
         if (existingIndex >= 0) {
-          // Update quantity
-          items[existingIndex]['quantity'] =
-              (items[existingIndex]['quantity'] as int) + item.quantity;
-          items[existingIndex]['total'] =
-              items[existingIndex]['quantity'] * item.discountedPrice;
+          // ✅ UPDATE EXISTING ITEM
+          final newQty =
+              (rawItems[existingIndex]['quantity'] as int) + item.quantity;
+          final unitPrice =
+              (rawItems[existingIndex]['discountedPrice'] as num).toDouble();
+          rawItems[existingIndex]['quantity'] = newQty;
+          rawItems[existingIndex]['total'] =
+              unitPrice * newQty; // ✅ RECALCULATE
         } else {
-          // Add new item
-          items.add(item.toJson());
+          // ✅ ADD NEW ITEM WITH CORRECT TOTAL
+          final newItem = item.toJson();
+          newItem['total'] =
+              item.discountedPrice * item.quantity; // ✅ ENSURE CORRECT
+          rawItems.add(newItem);
         }
 
-        // Calculate totals
+        // ✅ RECALCULATE SUBTOTAL FROM ALL ITEMS
         double subtotal = 0;
         int totalItems = 0;
-        for (var item in items) {
-          subtotal += (item['total'] as num).toDouble();
-          totalItems += (item['quantity'] as int);
+        for (final i in rawItems) {
+          final qty = (i['quantity'] as num).toInt();
+          final price = (i['discountedPrice'] as num).toDouble();
+          final itemTotal = price * qty; // ✅ ALWAYS RECALCULATE
+          i['total'] = itemTotal; // ✅ SYNC ITEM TOTAL
+          subtotal += itemTotal;
+          totalItems += qty;
         }
 
+        // ✅ GET CURRENT DELIVERY FEE
+        final currentDeliveryFee =
+            (cartData['deliveryFee'] as num?)?.toDouble() ?? deliveryFee;
+
         await _cartsCollection.doc(userId).update({
-          'items': items,
+          'items': rawItems,
+          'storeId': item.storeId,
+          'storeName': item.storeName,
           'subtotal': subtotal,
-          'total': subtotal + (cartData['deliveryFee'] as num).toDouble(),
+          'deliveryFee': currentDeliveryFee,
+          'total': subtotal + currentDeliveryFee,
           'totalItems': totalItems,
           'updatedAt': FieldValue.serverTimestamp(),
         });
 
+        log(
+          '✅ Cart updated - subtotal: $subtotal, deliveryFee: $currentDeliveryFee, total: ${subtotal + currentDeliveryFee}',
+        );
         return true;
       } else {
-        // Create new cart
-        final cart = CartModel(
-          userId: userId,
-          storeId: item.storeId,
-          storeName: item.storeName,
-          items: [item],
-          subtotal: item.total,
-          deliveryFee: 50.0, // TODO: Get from store
-          discount: 0,
-          total: item.total + 50.0,
-          totalItems: item.quantity,
+        // ✅ CREATE NEW CART
+        final itemTotal = item.discountedPrice * item.quantity;
+        final subtotal = itemTotal;
+        final total = subtotal + deliveryFee;
 
-          updatedAt: DateTime.now(),
+        final cartData = {
+          'userId': userId,
+          'storeId': item.storeId,
+          'storeName': item.storeName,
+          'items': [
+            {
+              ...item.toJson(),
+              'total': itemTotal, // ✅ ENSURE CORRECT TOTAL
+            },
+          ],
+          'subtotal': subtotal,
+          'deliveryFee': deliveryFee, // ✅ FROM STORE
+          'discount': 0.0,
+          'total': total,
+          'totalItems': item.quantity,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+
+        await _cartsCollection.doc(userId).set(cartData);
+
+        log(
+          '✅ New cart created - subtotal: $subtotal, deliveryFee: $deliveryFee, total: $total',
         );
-
-        await _cartsCollection.doc(userId).set(cart.toJson());
         return true;
       }
     } catch (e) {
-      log('Error adding item to cart: ${e.toString()}');
+      log('❌ Error adding item to cart: $e');
       rethrow;
     }
   }
@@ -189,6 +227,106 @@ class CartsCollection {
       log('Error updating quantity: ${e.toString()}');
       rethrow;
     }
+  }
+
+  Future<void> incrementQuantity(String userId, String productId) async {
+    try {
+      final cartDoc = await _cartsCollection.doc(userId).get();
+      if (!cartDoc.exists) return;
+
+      final cartData = cartDoc.data()!;
+      final rawItems = List<Map<String, dynamic>>.from(
+        cartData['items'] as List? ?? [],
+      );
+
+      final index = rawItems.indexWhere((i) => i['productId'] == productId);
+      if (index < 0) return;
+
+      // ✅ INCREMENT AND RECALCULATE
+      rawItems[index]['quantity'] = (rawItems[index]['quantity'] as int) + 1;
+      rawItems[index]['total'] =
+          (rawItems[index]['discountedPrice'] as num).toDouble() *
+          (rawItems[index]['quantity'] as num);
+
+      // ✅ RECALCULATE ALL TOTALS
+      _recalculateAndUpdate(userId, cartData, rawItems);
+    } catch (e) {
+      log('Error incrementing: $e');
+      rethrow;
+    }
+  }
+
+  // REPLACE decrementQuantity:
+  Future<void> decrementQuantity(String userId, String productId) async {
+    try {
+      final cartDoc = await _cartsCollection.doc(userId).get();
+      if (!cartDoc.exists) return;
+
+      final cartData = cartDoc.data()!;
+      final rawItems = List<Map<String, dynamic>>.from(
+        cartData['items'] as List? ?? [],
+      );
+
+      final index = rawItems.indexWhere((i) => i['productId'] == productId);
+      if (index < 0) return;
+
+      final currentQty = rawItems[index]['quantity'] as int;
+
+      if (currentQty <= 1) {
+        // Remove item
+        rawItems.removeAt(index);
+      } else {
+        // ✅ DECREMENT AND RECALCULATE
+        rawItems[index]['quantity'] = currentQty - 1;
+        rawItems[index]['total'] =
+            (rawItems[index]['discountedPrice'] as num).toDouble() *
+            (rawItems[index]['quantity'] as num);
+      }
+
+      _recalculateAndUpdate(userId, cartData, rawItems);
+    } catch (e) {
+      log('Error decrementing: $e');
+      rethrow;
+    }
+  }
+
+  // ✅ ADD THIS HELPER METHOD:
+  Future<void> _recalculateAndUpdate(
+    String userId,
+    Map<String, dynamic> cartData,
+    List<Map<String, dynamic>> items,
+  ) async {
+    double subtotal = 0;
+    int totalItems = 0;
+
+    for (final item in items) {
+      final qty = (item['quantity'] as num).toInt();
+      final price = (item['discountedPrice'] as num).toDouble();
+      final itemTotal = price * qty;
+      item['total'] = itemTotal;
+      subtotal += itemTotal;
+      totalItems += qty;
+    }
+
+    final deliveryFee =
+        items.isEmpty
+            ? 0.0
+            : (cartData['deliveryFee'] as num?)?.toDouble() ?? 50.0;
+
+    final total = subtotal + deliveryFee;
+
+    await _cartsCollection.doc(userId).update({
+      'items': items,
+      'subtotal': subtotal,
+      'deliveryFee': items.isEmpty ? 0.0 : deliveryFee,
+      'total': total,
+      'totalItems': totalItems,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    log(
+      '✅ Recalculated - subtotal: $subtotal, fee: $deliveryFee, total: $total, items: $totalItems',
+    );
   }
 
   /// Remove item from cart

@@ -64,24 +64,36 @@ class CartModel {
     };
   }
 
+  // lib/features/cart/data/models/cart_model.dart
+  // UPDATE fromJson - READ STORED VALUES, DON'T RECOMPUTE:
+
   factory CartModel.fromJson(Map<String, dynamic> json) {
-    final itemsList = json['items'] as List<dynamic>? ?? [];
+    final items =
+        (json['items'] as List<dynamic>? ?? [])
+            .map((i) => CartItemModel.fromJson(i as Map<String, dynamic>))
+            .toList();
+
+    // ✅ READ FROM FIRESTORE DIRECTLY (don't recompute)
+    final deliveryFee = (json['deliveryFee'] as num?)?.toDouble() ?? 50.0;
+    final discount = (json['discount'] as num?)?.toDouble() ?? 0.0;
+
+    // ✅ COMPUTE SUBTOTAL FROM ITEMS (as source of truth)
+    final subtotal = items.fold<double>(
+      0,
+      (sum, item) => sum + (item.discountedPrice * item.quantity),
+    );
+    final totalItems = items.fold<int>(0, (sum, item) => sum + item.quantity);
 
     return CartModel(
-      userId: json['userId'] as String,
-      items:
-          itemsList
-              .map(
-                (item) => CartItemModel.fromJson(item as Map<String, dynamic>),
-              )
-              .toList(),
-      totalItems: json['totalItems'] as int? ?? 0,
-      subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0.0,
-      deliveryFee: (json['deliveryFee'] as num?)?.toDouble() ?? 0.0,
-      discount: (json['discount'] as num?)?.toDouble() ?? 0.0,
-      total: (json['total'] as num?)?.toDouble() ?? 0.0,
+      userId: json['userId'] as String? ?? '',
       storeId: json['storeId'] as String?,
       storeName: json['storeName'] as String?,
+      items: items,
+      subtotal: subtotal, // ✅ COMPUTED FROM ITEMS
+      deliveryFee: deliveryFee, // ✅ FROM FIRESTORE
+      discount: discount,
+      total: subtotal + deliveryFee - discount, // ✅ COMPUTED
+      totalItems: totalItems, // ✅ COMPUTED FROM ITEMS
       updatedAt:
           json['updatedAt'] != null
               ? (json['updatedAt'] as Timestamp).toDate()

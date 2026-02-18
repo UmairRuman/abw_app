@@ -1,8 +1,13 @@
 // lib/core/routes/app_router.dart
 
+import 'dart:developer';
+
 import 'package:abw_app/features/admin/presentation/screens/analytics/analytics_screen.dart';
 import 'package:abw_app/features/admin/presentation/screens/riders/rider_details_screen.dart';
 import 'package:abw_app/features/admin/presentation/screens/riders/riders_list_screen.dart';
+import 'package:abw_app/features/auth/presentation/screens/phone_verification/phone_confirm_screen.dart';
+import 'package:abw_app/features/auth/presentation/screens/phone_verification/phone_input_screen.dart';
+import 'package:abw_app/features/auth/presentation/screens/phone_verification/phone_verification_screen.dart';
 import 'package:abw_app/features/auth/presentation/screens/signup/admin_signup_screen.dart';
 import 'package:abw_app/features/rider/presentation/screens/main/rider_main_screen.dart';
 import 'package:flutter/material.dart';
@@ -183,6 +188,55 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
 
+      GoRoute(
+        path: '/verify-phone',
+        name: 'verify-phone',
+        builder: (context, state) {
+          // ✅ NOW ONLY NEEDS USER ID
+          final userId = state.extra as String?;
+
+          if (userId == null) {
+            return const Scaffold(
+              body: Center(child: Text('Error: User ID not provided')),
+            );
+          }
+
+          return PhoneVerificationScreen(userId: userId);
+        },
+      ),
+
+      GoRoute(
+        path: '/phone-confirm',
+        name: 'phone-confirm',
+        builder: (context, state) {
+          final userId = state.extra as String?;
+          if (userId == null) {
+            return const Scaffold(
+              body: Center(child: Text('Error: User ID missing')),
+            );
+          }
+          return PhoneConfirmScreen(userId: userId);
+        },
+      ),
+
+      GoRoute(
+        path: '/phone-input',
+        name: 'phone-input',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+
+          if (extra == null || extra['userId'] == null) {
+            return const Scaffold(
+              body: Center(child: Text('Error: User ID not provided')),
+            );
+          }
+
+          return PhoneInputScreen(
+            userId: extra['userId'] as String,
+            currentPhone: extra['currentPhone'] as String?,
+          );
+        },
+      ),
       // ============================================================
       // ORDER ROUTES - CUSTOMER
       // ============================================================

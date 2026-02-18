@@ -2,6 +2,7 @@
 
 import 'dart:developer';
 import 'package:abw_app/features/products/data/models/product_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/collections/carts_collection.dart';
 import '../../data/models/cart_model.dart';
@@ -40,7 +41,28 @@ class CartNotifier extends Notifier<CartState> {
     int quantity,
   ) async {
     try {
-      // Convert ProductModel to CartItemModel
+      // ✅ STEP 1: FETCH DELIVERY FEE FROM STORE
+      double deliveryFee = 50.0; // fallback default
+
+      try {
+        final storeDoc =
+            await FirebaseFirestore.instance
+                .collection('stores')
+                .doc(product.storeId)
+                .get();
+
+        if (storeDoc.exists) {
+          final storeData = storeDoc.data()!;
+          deliveryFee = (storeData['deliveryFee'] as num?)?.toDouble() ?? 50.0;
+          log('✅ Delivery fee from store: $deliveryFee');
+        } else {
+          log('⚠️ Store not found, using default delivery fee: $deliveryFee');
+        }
+      } catch (e) {
+        log('⚠️ Could not fetch delivery fee, using default: $e');
+      }
+
+      // ✅ STEP 2: BUILD CART ITEM
       final cartItem = CartItemModel(
         productId: product.id,
         productName: product.name,
@@ -56,15 +78,19 @@ class CartNotifier extends Notifier<CartState> {
         unit: product.unit,
       );
 
-      // Try to add item
-      final success = await _collection.addItemToCart(userId, cartItem);
+      // ✅ STEP 3: ADD ITEM TO CART
+      final success = await _collection.addItemToCart(
+        userId,
+        cartItem,
+        deliveryFee: deliveryFee, // ✅ PASS DELIVERY FEE
+      );
 
       if (!success) {
-        // Different store detected - return false to show dialog in UI
+        // Different store detected
         return false;
       }
 
-      // Success - reload cart
+      // ✅ STEP 4: RELOAD CART
       await loadCart(userId);
       return true;
     } catch (e) {

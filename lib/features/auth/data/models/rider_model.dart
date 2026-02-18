@@ -39,8 +39,8 @@ class RiderModel extends RiderEntity {
       phone: json['phone'] as String,
       profileImage: json['profileImage'] as String?,
       isActive: json['isActive'] as bool? ?? true,
-      createdAt: (json['createdAt'] as Timestamp).toDate(),
-      updatedAt: (json['updatedAt'] as Timestamp).toDate(),
+      createdAt: _parseTimestamp(json['createdAt']), // ✅ LINE 1
+      updatedAt: _parseTimestamp(json['updatedAt']),
       vehicleType: json['vehicleType'] as String? ?? '',
       vehicleNumber: json['vehicleNumber'] as String? ?? '',
       licenseNumber: json['licenseNumber'] as String?,
@@ -61,6 +61,14 @@ class RiderModel extends RiderEntity {
       totalEarnings: (json['totalEarnings'] as num?)?.toDouble() ?? 0.0,
       currentOrderId: json['currentOrderId'] as String?,
     );
+  }
+  // ✅ ADD THIS STATIC HELPER AT BOTTOM OF CLASS (before closing })
+  static DateTime _parseTimestamp(dynamic value) {
+    if (value == null) return DateTime.now();
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
+    return DateTime.now();
   }
 
   Map<String, dynamic> toJson() {
