@@ -329,7 +329,7 @@ class _PhoneConfirmScreenState extends ConsumerState<PhoneConfirmScreen> {
                             ? SizedBox(
                               height: 20.h,
                               width: 20.w,
-                              child: CircularProgressIndicator(
+                              child: const CircularProgressIndicator(
                                 strokeWidth: 2,
                                 color: AppColorsDark.white,
                               ),
@@ -347,7 +347,12 @@ class _PhoneConfirmScreenState extends ConsumerState<PhoneConfirmScreen> {
                 if (hasPhone)
                   Center(
                     child: TextButton(
-                      onPressed: () => context.go('/customer/home'),
+                      onPressed: () {
+                        context.go(
+                          '/location-capture',
+                          extra: {'userId': widget.userId, 'role': 'customer'},
+                        );
+                      },
                       child: Text(
                         'Skip for now',
                         style: AppTextStyles.bodyMedium().copyWith(

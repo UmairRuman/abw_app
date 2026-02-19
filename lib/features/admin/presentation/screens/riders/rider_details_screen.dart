@@ -43,7 +43,7 @@ class _RiderDetailsScreenState extends ConsumerState<RiderDetailsScreen> {
                 .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(
+            return const Center(
               child: CircularProgressIndicator(color: AppColorsDark.primary),
             );
           }

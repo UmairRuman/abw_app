@@ -5,11 +5,13 @@ import 'dart:developer';
 import 'package:abw_app/features/admin/presentation/screens/analytics/analytics_screen.dart';
 import 'package:abw_app/features/admin/presentation/screens/riders/rider_details_screen.dart';
 import 'package:abw_app/features/admin/presentation/screens/riders/riders_list_screen.dart';
+import 'package:abw_app/features/auth/presentation/screens/location/location_capture_screen.dart';
 import 'package:abw_app/features/auth/presentation/screens/phone_verification/phone_confirm_screen.dart';
 import 'package:abw_app/features/auth/presentation/screens/phone_verification/phone_input_screen.dart';
 import 'package:abw_app/features/auth/presentation/screens/phone_verification/phone_verification_screen.dart';
 import 'package:abw_app/features/auth/presentation/screens/signup/admin_signup_screen.dart';
 import 'package:abw_app/features/rider/presentation/screens/main/rider_main_screen.dart';
+import 'package:abw_app/features/rider/presentation/screens/orders/rider_order_details_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -296,6 +298,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
 
+      // Add route
+      GoRoute(
+        path: '/admin/analytics',
+        name: 'admin-analytics',
+        builder: (context, state) => const AnalyticsScreen(),
+      ),
+
       // ============================================================
       // RIDER ROUTES
       // ============================================================
@@ -325,6 +334,42 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final riderId = state.pathParameters['riderId'] ?? '';
           return RiderDetailsScreen(riderId: riderId);
+        },
+      ),
+
+      // ✅ LOCATION CAPTURE ROUTE
+      GoRoute(
+        path: '/location-capture',
+        name: 'location-capture',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final userId = extra?['userId'] as String?;
+          final role = extra?['role'] as String? ?? 'customer';
+
+          if (userId == null) {
+            return const Scaffold(
+              body: Center(child: Text('Error: User ID missing')),
+            );
+          }
+
+          return LocationCaptureScreen(userId: userId, role: role);
+        },
+      ),
+
+      // ✅ RIDER ORDER DETAILS ROUTE
+      GoRoute(
+        path: '/rider/orders/:orderId',
+        name: 'rider-order-details',
+        builder: (context, state) {
+          final orderId = state.pathParameters['orderId'];
+
+          if (orderId == null) {
+            return const Scaffold(
+              body: Center(child: Text('Error: Order ID missing')),
+            );
+          }
+
+          return RiderOrderDetailsScreen(orderId: orderId);
         },
       ),
       // ============================================================

@@ -6,6 +6,7 @@ import 'package:abw_app/features/rider/presentation/screens/home/rider_active_de
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../../core/theme/colors/app_colors_dark.dart';
 import '../../../../../core/theme/text_styles/app_text_styles.dart';
@@ -329,145 +330,151 @@ class _RiderHomeContent extends ConsumerWidget {
     OrderModel order,
     RiderModel rider,
   ) {
-    return Container(
-      margin: EdgeInsets.fromLTRB(16.w, 0, 16.w, 12.h),
-      decoration: BoxDecoration(
-        color: AppColorsDark.cardBackground,
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: AppColorsDark.border),
-        boxShadow: const [
-          BoxShadow(
-            color: AppColorsDark.shadow,
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Header
-          Container(
-            padding: EdgeInsets.all(16.w),
-            decoration: BoxDecoration(
-              color: AppColorsDark.primary.withOpacity(0.05),
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(16.r),
-                topRight: Radius.circular(16.r),
+    return InkWell(
+      onTap: () {
+        context.push('/rider/orders/${order.id}');
+      },
+      child: Container(
+        margin: EdgeInsets.fromLTRB(16.w, 0, 16.w, 12.h),
+        decoration: BoxDecoration(
+          color: AppColorsDark.cardBackground,
+          borderRadius: BorderRadius.circular(16.r),
+          border: Border.all(color: AppColorsDark.border),
+          boxShadow: const [
+            BoxShadow(
+              color: AppColorsDark.shadow,
+              blurRadius: 8,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: EdgeInsets.all(16.w),
+              decoration: BoxDecoration(
+                color: AppColorsDark.primary.withOpacity(0.05),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(16.r),
+                  topRight: Radius.circular(16.r),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Order #${order.id.substring(order.id.length - 6)}',
+                    style: AppTextStyles.titleSmall().copyWith(
+                      color: AppColorsDark.textPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'PKR ${order.deliveryFee.toInt()} delivery fee',
+                    style: AppTextStyles.bodySmall().copyWith(
+                      color: AppColorsDark.success,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Order #${order.id.substring(order.id.length - 6)}',
-                  style: AppTextStyles.titleSmall().copyWith(
-                    color: AppColorsDark.textPrimary,
-                    fontWeight: FontWeight.bold,
+
+            // Content
+            Padding(
+              padding: EdgeInsets.all(16.w),
+              child: Column(
+                children: [
+                  // Store
+                  _buildInfoRow(
+                    icon: Icons.store,
+                    label: 'Pickup from',
+                    value: order.storeName,
+                    color: AppColorsDark.primary,
                   ),
-                ),
-                Text(
-                  'PKR ${order.deliveryFee.toInt()} delivery fee',
-                  style: AppTextStyles.bodySmall().copyWith(
-                    color: AppColorsDark.success,
-                    fontWeight: FontWeight.w600,
+                  SizedBox(height: 12.h),
+
+                  // Customer
+                  _buildInfoRow(
+                    icon: Icons.person,
+                    label: 'Deliver to',
+                    value: order.userName,
+                    color: AppColorsDark.info,
                   ),
-                ),
-              ],
+                  SizedBox(height: 12.h),
+
+                  // Address
+                  _buildInfoRow(
+                    icon: Icons.location_on,
+                    label: 'Address',
+                    value:
+                        '${order.deliveryAddress.addressLine1}, ${order.deliveryAddress.area}',
+                    color: AppColorsDark.error,
+                  ),
+                  SizedBox(height: 12.h),
+
+                  // Items + Total
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildChip(
+                        '${order.items.length} items',
+                        AppColorsDark.warning,
+                      ),
+                      _buildChip(
+                        order.paymentMethod == PaymentMethod.cod
+                            ? 'Collect PKR ${order.total.toInt()}'
+                            : 'Online Paid',
+                        order.paymentMethod == PaymentMethod.cod
+                            ? AppColorsDark.error
+                            : AppColorsDark.success,
+                      ),
+                    ],
+                  ),
+
+                  SizedBox(height: 16.h),
+
+                  // Accept Button
+                  if (rider.currentOrderId == null)
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed:
+                            () => _acceptOrder(context, ref, order, rider),
+                        icon: Icon(Icons.check, size: 20.sp),
+                        label: const Text('Accept Order'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColorsDark.success,
+                          padding: EdgeInsets.symmetric(vertical: 14.h),
+                        ),
+                      ),
+                    )
+                  else
+                    Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.symmetric(vertical: 12.h),
+                      decoration: BoxDecoration(
+                        color: AppColorsDark.warning.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12.r),
+                        border: Border.all(
+                          color: AppColorsDark.warning.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Text(
+                        'Complete current delivery first',
+                        style: AppTextStyles.bodySmall().copyWith(
+                          color: AppColorsDark.warning,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-
-          // Content
-          Padding(
-            padding: EdgeInsets.all(16.w),
-            child: Column(
-              children: [
-                // Store
-                _buildInfoRow(
-                  icon: Icons.store,
-                  label: 'Pickup from',
-                  value: order.storeName,
-                  color: AppColorsDark.primary,
-                ),
-                SizedBox(height: 12.h),
-
-                // Customer
-                _buildInfoRow(
-                  icon: Icons.person,
-                  label: 'Deliver to',
-                  value: order.userName,
-                  color: AppColorsDark.info,
-                ),
-                SizedBox(height: 12.h),
-
-                // Address
-                _buildInfoRow(
-                  icon: Icons.location_on,
-                  label: 'Address',
-                  value:
-                      '${order.deliveryAddress.addressLine1}, ${order.deliveryAddress.area}',
-                  color: AppColorsDark.error,
-                ),
-                SizedBox(height: 12.h),
-
-                // Items + Total
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildChip(
-                      '${order.items.length} items',
-                      AppColorsDark.warning,
-                    ),
-                    _buildChip(
-                      order.paymentMethod == PaymentMethod.cod
-                          ? 'Collect PKR ${order.total.toInt()}'
-                          : 'Online Paid',
-                      order.paymentMethod == PaymentMethod.cod
-                          ? AppColorsDark.error
-                          : AppColorsDark.success,
-                    ),
-                  ],
-                ),
-
-                SizedBox(height: 16.h),
-
-                // Accept Button
-                if (rider.currentOrderId == null)
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _acceptOrder(context, ref, order, rider),
-                      icon: Icon(Icons.check, size: 20.sp),
-                      label: const Text('Accept Order'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColorsDark.success,
-                        padding: EdgeInsets.symmetric(vertical: 14.h),
-                      ),
-                    ),
-                  )
-                else
-                  Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.symmetric(vertical: 12.h),
-                    decoration: BoxDecoration(
-                      color: AppColorsDark.warning.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12.r),
-                      border: Border.all(
-                        color: AppColorsDark.warning.withOpacity(0.3),
-                      ),
-                    ),
-                    child: Text(
-                      'Complete current delivery first',
-                      style: AppTextStyles.bodySmall().copyWith(
-                        color: AppColorsDark.warning,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
