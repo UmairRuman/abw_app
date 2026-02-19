@@ -1,4 +1,5 @@
 // lib/features/orders/data/models/order_model.dart
+// UPDATED WITH MILESTONE 3 FIELDS
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../domain/entities/order_entity.dart';
@@ -30,6 +31,13 @@ class OrderModel extends OrderEntity {
     super.paymentTransactionId,
     super.riderId,
     super.riderName,
+    super.riderPhone,
+    super.pickupLatitude,
+    super.pickupLongitude,
+    super.deliveryLatitude,
+    super.deliveryLongitude,
+    super.distance,
+    super.storeCommission,
     super.estimatedDeliveryTime,
     super.statusHistory,
   });
@@ -83,6 +91,16 @@ class OrderModel extends OrderEntity {
       ),
       riderId: json['riderId'] as String?,
       riderName: json['riderName'] as String?,
+
+      // ✅ NEW MILESTONE 3 FIELDS
+      riderPhone: json['riderPhone'] as String?,
+      pickupLatitude: (json['pickupLatitude'] as num?)?.toDouble(),
+      pickupLongitude: (json['pickupLongitude'] as num?)?.toDouble(),
+      deliveryLatitude: (json['deliveryLatitude'] as num?)?.toDouble(),
+      deliveryLongitude: (json['deliveryLongitude'] as num?)?.toDouble(),
+      distance: (json['distance'] as num?)?.toDouble(),
+      storeCommission: (json['storeCommission'] as num?)?.toDouble(),
+
       estimatedDeliveryTime:
           json['estimatedDeliveryTime'] != null
               ? (json['estimatedDeliveryTime'] as Timestamp).toDate()
@@ -116,6 +134,16 @@ class OrderModel extends OrderEntity {
       'status': status.name,
       'riderId': riderId,
       'riderName': riderName,
+
+      // ✅ NEW MILESTONE 3 FIELDS
+      'riderPhone': riderPhone,
+      'pickupLatitude': pickupLatitude,
+      'pickupLongitude': pickupLongitude,
+      'deliveryLatitude': deliveryLatitude,
+      'deliveryLongitude': deliveryLongitude,
+      'distance': distance,
+      'storeCommission': storeCommission,
+
       'estimatedDeliveryTime':
           estimatedDeliveryTime != null
               ? Timestamp.fromDate(estimatedDeliveryTime!)
@@ -151,6 +179,13 @@ class OrderModel extends OrderEntity {
     OrderStatus? status,
     String? riderId,
     String? riderName,
+    String? riderPhone,
+    double? pickupLatitude,
+    double? pickupLongitude,
+    double? deliveryLatitude,
+    double? deliveryLongitude,
+    double? distance,
+    double? storeCommission,
     DateTime? estimatedDeliveryTime,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -178,6 +213,13 @@ class OrderModel extends OrderEntity {
       status: status ?? this.status,
       riderId: riderId ?? this.riderId,
       riderName: riderName ?? this.riderName,
+      riderPhone: riderPhone ?? this.riderPhone,
+      pickupLatitude: pickupLatitude ?? this.pickupLatitude,
+      pickupLongitude: pickupLongitude ?? this.pickupLongitude,
+      deliveryLatitude: deliveryLatitude ?? this.deliveryLatitude,
+      deliveryLongitude: deliveryLongitude ?? this.deliveryLongitude,
+      distance: distance ?? this.distance,
+      storeCommission: storeCommission ?? this.storeCommission,
       estimatedDeliveryTime:
           estimatedDeliveryTime ?? this.estimatedDeliveryTime,
       createdAt: createdAt ?? this.createdAt,

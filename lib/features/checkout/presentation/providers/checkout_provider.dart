@@ -1,13 +1,15 @@
 // lib/features/checkout/presentation/providers/checkout_provider.dart
-// FULL REPLACEMENT:
+// UPDATED WITH DISTANCE CALCULATION - MERGED WITH YOUR EXISTING STRUCTURE
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:developer' as dev;
 import '../../data/models/checkout_model.dart';
 import '../../../cart/presentation/providers/cart_provider.dart';
 import '../../../addresses/presentation/providers/addresses_provider.dart';
 import '../../../addresses/data/models/address_model.dart';
 import '../../../stores/data/models/store_model.dart';
+import '../../../../core/services/location_service.dart'; // ✅ NEW
 
 // States
 abstract class CheckoutState {}
@@ -50,16 +52,18 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       final userData = userDoc.data()!;
       final isPhoneVerified = userData['isPhoneVerified'] as bool? ?? false;
       final phone = userData['phone'] as String?;
+
       // ✅ CHECK IF PHONE EXISTS
       if (phone == null || phone.isEmpty) {
-        state = CheckoutError('phone_missing'); // ✅ NEW ERROR CODE
+        state = CheckoutError('phone_missing');
         return;
       }
 
       if (!isPhoneVerified) {
-        state = CheckoutError('phone_not_verified'); // ✅ SPECIAL ERROR CODE
+        state = CheckoutError('phone_not_verified');
         return;
       }
+
       // ── Step 1: Get cart ──────────────────────────
       final cartState = ref.read(cartProvider);
       if (cartState is! CartLoaded || cartState.cart.items.isEmpty) {
@@ -74,7 +78,6 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       }
 
       // ── Step 2: Load store DIRECTLY from Firestore ─
-      // ✅ Don't rely on storesProvider being loaded
       StoreModel? store;
       try {
         final doc =
@@ -88,6 +91,9 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
           return;
         }
         store = StoreModel.fromJson({'id': doc.id, ...doc.data()!});
+        dev.log('✅ Store loaded: ${store.name}');
+        dev.log('✅ Store location: ${store.latitude}, ${store.longitude}');
+        dev.log('✅ Store commission: PKR ${store.commission}');
       } catch (e) {
         state = CheckoutError('Failed to load store details: $e');
         return;
@@ -105,13 +111,11 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
 
       if (freshAddressesState is AddressesLoaded &&
           freshAddressesState.addresses.isNotEmpty) {
-        // Try default address first
         try {
           deliveryAddress = freshAddressesState.addresses.firstWhere(
             (a) => a.isDefault,
           );
         } catch (_) {
-          // Fall back to first address
           deliveryAddress = freshAddressesState.addresses.first;
         }
       }
@@ -119,6 +123,29 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       if (deliveryAddress == null) {
         state = CheckoutError('Please add a delivery address first');
         return;
+      }
+
+      dev.log(
+        '✅ Delivery address: ${deliveryAddress.latitude}, ${deliveryAddress.longitude}',
+      );
+
+      // ✅ NEW: CALCULATE DISTANCE
+      double distance = 0.0;
+      if (store.latitude != 0.0 &&
+          store.longitude != 0.0 &&
+          deliveryAddress.latitude != 0.0 &&
+          deliveryAddress.longitude != 0.0) {
+        distance = LocationService.calculateDistance(
+          startLat: store.latitude,
+          startLng: store.longitude,
+          endLat: deliveryAddress.latitude,
+          endLng: deliveryAddress.longitude,
+        );
+        dev.log(
+          '✅ Distance calculated: ${LocationService.formatDistance(distance)}',
+        );
+      } else {
+        dev.log('⚠️ Missing coordinates, distance set to 0');
       }
 
       // ── Step 5: Calculate totals ───────────────────
@@ -168,15 +195,12 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
 
   // Calculate estimated delivery time
   DateTime calculateEstimatedDeliveryTime() {
-    // Default 30 mins if we can't read store data
     return DateTime.now().add(const Duration(minutes: 30));
   }
 
   // Get delivery time range string
   String getDeliveryTimeRange() {
     if (state is CheckoutLoaded) {
-      // You can store deliveryTime in checkout if needed
-      // For now return a reasonable default
       return '25-35 mins';
     }
     return '25-35 mins';

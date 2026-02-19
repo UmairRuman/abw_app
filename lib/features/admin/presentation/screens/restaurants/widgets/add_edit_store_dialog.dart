@@ -1,4 +1,5 @@
 // lib/features/admin/presentation/screens/restaurants/widgets/add_edit_store_dialog.dart
+// UPDATED WITH COMMISSION + LOCATION FIELDS FOR MILESTONE 3
 
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -13,7 +14,7 @@ import '../../../../../stores/presentation/providers/stores_provider.dart';
 import '../../../../../stores/data/models/store_model.dart';
 
 class AddEditStoreDialog extends ConsumerStatefulWidget {
-  final StoreModel? store; // null for add, populated for edit
+  final StoreModel? store;
 
   const AddEditStoreDialog({super.key, this.store});
 
@@ -36,6 +37,11 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
   final _minOrderController = TextEditingController();
   final _openingTimeController = TextEditingController();
   final _closingTimeController = TextEditingController();
+
+  // ✅ NEW MILESTONE 3 FIELDS
+  final _commissionController = TextEditingController();
+  final _latitudeController = TextEditingController();
+  final _longitudeController = TextEditingController();
 
   String _selectedCategory = '';
   String _selectedType = 'restaurant';
@@ -86,6 +92,12 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
     _minOrderController.text = store.minimumOrder.toString();
     _openingTimeController.text = store.openingTime;
     _closingTimeController.text = store.closingTime;
+
+    // ✅ POPULATE NEW FIELDS
+    _commissionController.text = store.commission.toString();
+    _latitudeController.text = store.latitude.toString();
+    _longitudeController.text = store.longitude.toString();
+
     _selectedCategory = store.categoryId;
     _selectedType = store.type;
     _selectedWorkingDays.addAll(store.workingDays);
@@ -111,6 +123,9 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
     _minOrderController.dispose();
     _openingTimeController.dispose();
     _closingTimeController.dispose();
+    _commissionController.dispose();
+    _latitudeController.dispose();
+    _longitudeController.dispose();
     super.dispose();
   }
 
@@ -126,10 +141,7 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
         constraints: BoxConstraints(maxHeight: 700.h),
         child: Column(
           children: [
-            // Header
             _buildHeader(),
-
-            // Form
             Expanded(
               child: Form(
                 key: _formKey,
@@ -138,11 +150,9 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Images Section
                       _buildImagesSection(),
                       SizedBox(height: 24.h),
 
-                      // Basic Info
                       _buildSectionTitle('Basic Information'),
                       SizedBox(height: 12.h),
                       _buildTextField(
@@ -163,7 +173,6 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
                       ),
                       SizedBox(height: 16.h),
 
-                      // Category & Type
                       Row(
                         children: [
                           Flexible(
@@ -181,7 +190,6 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
                       ),
                       SizedBox(height: 24.h),
 
-                      // Owner Info
                       _buildSectionTitle('Owner Information'),
                       SizedBox(height: 12.h),
                       _buildTextField(
@@ -208,7 +216,6 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
                       ),
                       SizedBox(height: 24.h),
 
-                      // Location
                       _buildSectionTitle('Location'),
                       SizedBox(height: 12.h),
                       _buildTextField(
@@ -240,9 +247,103 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
                           ),
                         ],
                       ),
+                      SizedBox(height: 16.h),
+
+                      // ✅ NEW: LOCATION COORDINATES
+                      Container(
+                        padding: EdgeInsets.all(12.w),
+                        decoration: BoxDecoration(
+                          color: AppColorsDark.info.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8.r),
+                          border: Border.all(
+                            color: AppColorsDark.info.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.location_on,
+                                  size: 16.sp,
+                                  color: AppColorsDark.info,
+                                ),
+                                SizedBox(width: 8.w),
+                                Text(
+                                  'GPS Coordinates (for distance calculation)',
+                                  style: AppTextStyles.labelSmall().copyWith(
+                                    color: AppColorsDark.info,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 12.h),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildTextField(
+                                    controller: _latitudeController,
+                                    label: 'Latitude',
+                                    hint: 'e.g., 31.5204',
+                                    keyboardType:
+                                        TextInputType.numberWithOptions(
+                                          decimal: true,
+                                        ),
+                                    validator: (v) {
+                                      if (v == null || v.isEmpty) {
+                                        return 'Required';
+                                      }
+                                      final lat = double.tryParse(v);
+                                      if (lat == null ||
+                                          lat < -90 ||
+                                          lat > 90) {
+                                        return 'Invalid';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                                SizedBox(width: 12.w),
+                                Expanded(
+                                  child: _buildTextField(
+                                    controller: _longitudeController,
+                                    label: 'Longitude',
+                                    hint: 'e.g., 74.3587',
+                                    keyboardType:
+                                        TextInputType.numberWithOptions(
+                                          decimal: true,
+                                        ),
+                                    validator: (v) {
+                                      if (v == null || v.isEmpty) {
+                                        return 'Required';
+                                      }
+                                      final lng = double.tryParse(v);
+                                      if (lng == null ||
+                                          lng < -180 ||
+                                          lng > 180) {
+                                        return 'Invalid';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 8.h),
+                            Text(
+                              'Tip: Use Google Maps to find exact coordinates',
+                              style: AppTextStyles.bodySmall().copyWith(
+                                color: AppColorsDark.textSecondary,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       SizedBox(height: 24.h),
 
-                      // Delivery Info
                       _buildSectionTitle('Delivery Information'),
                       SizedBox(height: 12.h),
                       Row(
@@ -269,16 +370,68 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
                         ],
                       ),
                       SizedBox(height: 16.h),
-                      _buildTextField(
-                        controller: _minOrderController,
-                        label: 'Minimum Order (PKR)',
-                        keyboardType: TextInputType.number,
-                        validator:
-                            (v) => v?.isEmpty ?? true ? 'Required' : null,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildTextField(
+                              controller: _minOrderController,
+                              label: 'Minimum Order (PKR)',
+                              keyboardType: TextInputType.number,
+                              validator:
+                                  (v) => v?.isEmpty ?? true ? 'Required' : null,
+                            ),
+                          ),
+                          SizedBox(width: 12.w),
+
+                          // ✅ NEW: COMMISSION FIELD
+                          Expanded(
+                            child: _buildTextField(
+                              controller: _commissionController,
+                              label: 'Commission (PKR)',
+                              hint: 'Per order',
+                              keyboardType: TextInputType.number,
+                              validator: (v) {
+                                if (v == null || v.isEmpty) {
+                                  return 'Required';
+                                }
+                                final comm = double.tryParse(v);
+                                if (comm == null || comm < 0) {
+                                  return 'Invalid';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 8.h),
+                      Container(
+                        padding: EdgeInsets.all(10.w),
+                        decoration: BoxDecoration(
+                          color: AppColorsDark.warning.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6.r),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 14.sp,
+                              color: AppColorsDark.warning,
+                            ),
+                            SizedBox(width: 8.w),
+                            Expanded(
+                              child: Text(
+                                'Commission is deducted per order from this store',
+                                style: AppTextStyles.bodySmall().copyWith(
+                                  color: AppColorsDark.warning,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                       SizedBox(height: 24.h),
 
-                      // Operating Hours
                       _buildSectionTitle('Operating Hours'),
                       SizedBox(height: 12.h),
                       Row(
@@ -306,8 +459,6 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
                 ),
               ),
             ),
-
-            // Actions
             _buildActions(),
           ],
         ),
@@ -397,15 +548,12 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
     }
 
     return DropdownButtonFormField<String>(
-      isExpanded: true, // <<< CRITICAL
-      initialValue: _selectedCategory.isEmpty ? null : _selectedCategory,
+      isExpanded: true,
+      value: _selectedCategory.isEmpty ? null : _selectedCategory,
       decoration: InputDecoration(
         labelText: 'Category',
-        isDense: true, // <<< CRITICAL
-        contentPadding: EdgeInsets.symmetric(
-          horizontal: 12.w,
-          vertical: 10.h,
-        ), // <<< CRITICAL
+        isDense: true,
+        contentPadding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
       ),
       items:
           state.categories.map((category) {
@@ -427,8 +575,8 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
 
   Widget _buildTypeDropdown() {
     return DropdownButtonFormField<String>(
-      isExpanded: true, // <<< CRITICAL
-      initialValue: _selectedType,
+      isExpanded: true,
+      value: _selectedType,
       decoration: InputDecoration(
         labelText: 'Type',
         isDense: true,
@@ -519,16 +667,12 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
       children: [
         _buildSectionTitle('Store Images'),
         SizedBox(height: 12.h),
-
-        // Logo
         _buildImagePicker(
           label: 'Logo',
           image: _logoImage,
           onTap: () => _pickImage(ImageType.logo),
         ),
         SizedBox(height: 12.h),
-
-        // Banner
         _buildImagePicker(
           label: 'Banner',
           image: _bannerImage,
@@ -536,8 +680,6 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
           aspectRatio: 3,
         ),
         SizedBox(height: 12.h),
-
-        // Gallery
         _buildGalleryPicker(),
       ],
     );
@@ -778,7 +920,6 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
     setState(() => _isLoading = true);
 
     try {
-      // Upload images
       String logoUrl = widget.store?.logoUrl ?? '';
       String bannerUrl = widget.store?.bannerUrl ?? '';
       List<String> imageUrls = widget.store?.images ?? [];
@@ -822,7 +963,6 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
                 .toList();
       }
 
-      // Get category name
       final categoriesState = ref.read(categoriesProvider);
       String categoryName = '';
       if (categoriesState is CategoriesLoaded) {
@@ -832,7 +972,6 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
         categoryName = category.name;
       }
 
-      // Create store model
       final store = StoreModel(
         id: storeId,
         name: _nameController.text.trim(),
@@ -840,7 +979,7 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
         categoryId: _selectedCategory,
         categoryName: categoryName,
         type: _selectedType,
-        ownerId: 'admin-id', // TODO: Get from auth
+        ownerId: 'admin-id',
         ownerName: _ownerNameController.text.trim(),
         ownerEmail: _ownerEmailController.text.trim(),
         ownerPhone: _ownerPhoneController.text.trim(),
@@ -850,20 +989,23 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
         address: _addressController.text.trim(),
         city: _cityController.text.trim(),
         area: _areaController.text.trim(),
-        latitude: 0.0, // TODO: Get from map
-        longitude: 0.0,
+
+        // ✅ PARSE NEW FIELDS
+        latitude: double.parse(_latitudeController.text),
+        longitude: double.parse(_longitudeController.text),
+        commission: double.parse(_commissionController.text),
+
         deliveryFee: double.parse(_deliveryFeeController.text),
         deliveryTime: int.parse(_deliveryTimeController.text),
         minimumOrder: double.parse(_minOrderController.text),
         openingTime: _openingTimeController.text,
         closingTime: _closingTimeController.text,
         workingDays: _selectedWorkingDays,
-        isApproved: true, // Admin added, auto-approve
+        isApproved: true,
         createdAt: widget.store?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
       );
 
-      // Save to database
       final success =
           widget.store == null
               ? await ref.read(storesProvider.notifier).addStore(store)

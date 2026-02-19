@@ -1,4 +1,5 @@
 // lib/features/stores/data/models/store_model.dart
+// UPDATED WITH COMMISSION FIELD FOR MILESTONE 3
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -37,6 +38,9 @@ class StoreModel {
   final int deliveryTime;
   final double deliveryFee;
   final double minimumOrder;
+
+  // ✅ NEW: Commission per order
+  final double commission;
 
   // Status flags
   final bool isActive;
@@ -87,6 +91,7 @@ class StoreModel {
     required this.workingDays,
     required this.createdAt,
     required this.updatedAt,
+    this.commission = 0.0, // ✅ Default 0 PKR commission
     this.rating = 0.0,
     this.totalReviews = 0,
     this.totalOrders = 0,
@@ -127,6 +132,7 @@ class StoreModel {
       'deliveryTime': deliveryTime,
       'deliveryFee': deliveryFee,
       'minimumOrder': minimumOrder,
+      'commission': commission, // ✅
       'isActive': isActive,
       'isApproved': isApproved,
       'isFeatured': isFeatured,
@@ -170,6 +176,7 @@ class StoreModel {
       deliveryTime: json['deliveryTime'] as int,
       deliveryFee: (json['deliveryFee'] as num).toDouble(),
       minimumOrder: (json['minimumOrder'] as num).toDouble(),
+      commission: (json['commission'] as num?)?.toDouble() ?? 0.0, // ✅
       isActive: json['isActive'] as bool? ?? true,
       isApproved: json['isApproved'] as bool? ?? false,
       isFeatured: json['isFeatured'] as bool? ?? false,
@@ -218,6 +225,7 @@ class StoreModel {
     int? deliveryTime,
     double? deliveryFee,
     double? minimumOrder,
+    double? commission,
     bool? isActive,
     bool? isApproved,
     bool? isFeatured,
@@ -258,6 +266,7 @@ class StoreModel {
       deliveryTime: deliveryTime ?? this.deliveryTime,
       deliveryFee: deliveryFee ?? this.deliveryFee,
       minimumOrder: minimumOrder ?? this.minimumOrder,
+      commission: commission ?? this.commission, // ✅
       isActive: isActive ?? this.isActive,
       isApproved: isApproved ?? this.isApproved,
       isFeatured: isFeatured ?? this.isFeatured,
@@ -298,6 +307,7 @@ class StoreModel {
       deliveryTime: 0,
       deliveryFee: 0.0,
       minimumOrder: 0.0,
+      commission: 0.0,
       openingTime: '',
       closingTime: '',
       workingDays: [],
@@ -308,6 +318,6 @@ class StoreModel {
 
   @override
   String toString() {
-    return 'StoreModel(id: $id, name: $name, isApproved: $isApproved, isActive: $isActive)';
+    return 'StoreModel(id: $id, name: $name, isApproved: $isApproved, isActive: $isActive, commission: $commission)';
   }
 }

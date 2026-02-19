@@ -1,4 +1,5 @@
 // lib/features/orders/domain/entities/order_entity.dart
+// UPDATED WITH MILESTONE 3 FIELDS
 
 import 'package:abw_app/features/addresses/data/models/address_model.dart';
 import 'package:abw_app/features/cart/data/models/cart_item_model.dart';
@@ -34,11 +35,21 @@ class OrderEntity extends Equatable {
   final double total;
   final PaymentMethod paymentMethod;
   final PaymentStatus paymentStatus;
-  final String? paymentProofUrl; // Screenshot URL
+  final String? paymentProofUrl;
   final String? paymentTransactionId;
   final OrderStatus status;
   final String? riderId;
   final String? riderName;
+
+  // ✅ NEW MILESTONE 3 FIELDS
+  final String? riderPhone; // Rider contact for customer
+  final double? pickupLatitude; // Store pickup location
+  final double? pickupLongitude;
+  final double? deliveryLatitude; // Customer delivery location
+  final double? deliveryLongitude;
+  final double? distance; // Distance in kilometers
+  final double? storeCommission; // Per-order commission
+
   final DateTime? estimatedDeliveryTime;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -68,6 +79,13 @@ class OrderEntity extends Equatable {
     this.paymentTransactionId,
     this.riderId,
     this.riderName,
+    this.riderPhone,
+    this.pickupLatitude,
+    this.pickupLongitude,
+    this.deliveryLatitude,
+    this.deliveryLongitude,
+    this.distance,
+    this.storeCommission,
     this.estimatedDeliveryTime,
     this.statusHistory = const [],
   });
@@ -95,6 +113,13 @@ class OrderEntity extends Equatable {
     status,
     riderId,
     riderName,
+    riderPhone,
+    pickupLatitude,
+    pickupLongitude,
+    deliveryLatitude,
+    deliveryLongitude,
+    distance,
+    storeCommission,
     estimatedDeliveryTime,
     createdAt,
     updatedAt,
