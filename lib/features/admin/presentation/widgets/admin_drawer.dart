@@ -122,16 +122,6 @@ class AdminDrawer extends ConsumerWidget {
                     },
                   ),
 
-                  _buildDrawerItem(
-                    context,
-                    icon: Icons.analytics_rounded,
-                    title: 'View Analytics',
-                    onTap: () {
-                      Navigator.pop(context);
-                      context.push('/admin/analytics');
-                    },
-                  ),
-
                   _buildDivider(),
                   _buildSectionHeader('SETTINGS'),
 

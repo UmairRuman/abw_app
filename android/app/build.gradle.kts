@@ -6,6 +6,7 @@ plugins {
     id("com.google.gms.google-services")
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
+    
 }
 
 val keystoreProperties = Properties()
@@ -24,6 +25,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -64,4 +66,20 @@ android {
 
 flutter {
     source = "../.."
+}
+
+
+dependencies {
+    // ✅ FIREBASE BOM (Bill of Materials) - Manages versions
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+    
+    // ✅ FIREBASE MESSAGING (FCM)
+
+    
+    // ✅ FIREBASE ANALYTICS (Optional but recommended)
+
+    
+    // ✅ MULTIDEX SUPPORT (if needed)
+    implementation("androidx.multidex:multidex:2.0.1")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

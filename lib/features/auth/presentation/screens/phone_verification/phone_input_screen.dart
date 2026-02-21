@@ -88,7 +88,7 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
 
       if (mounted) {
         // Navigate to verification
-        context.pushReplacement('/verify-phone', extra: widget.userId);
+        context.pushReplacement('/phone-confirm', extra: widget.userId);
       }
     } catch (e) {
       if (mounted) {

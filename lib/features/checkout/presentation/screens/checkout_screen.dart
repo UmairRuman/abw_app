@@ -93,6 +93,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   checkoutState.message == 'phone_missing' ||
                           checkoutState.message == 'phone_not_verified'
                       ? Icons.phone_locked
+                      : checkoutState.message.contains('address')
+                      ? Icons.location_off
                       : Icons.error_outline,
                   size: 64.sp,
                   color: AppColorsDark.error,
@@ -103,6 +105,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       ? 'Phone Number Required'
                       : checkoutState.message == 'phone_not_verified'
                       ? 'Phone Verification Required'
+                      : checkoutState.message.contains('address')
+                      ? 'Delivery Address Required'
                       : 'Error',
                   style: AppTextStyles.titleMedium().copyWith(
                     color: AppColorsDark.textPrimary,
@@ -116,6 +120,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       ? 'Please add your phone number to place orders'
                       : checkoutState.message == 'phone_not_verified'
                       ? 'Please verify your phone number to place orders'
+                      : checkoutState.message.contains('address')
+                      ? 'We need your delivery location to complete the order'
                       : checkoutState.message,
                   style: AppTextStyles.bodyMedium().copyWith(
                     color: AppColorsDark.textSecondary,
@@ -154,10 +160,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     onPressed: () {
                       final authState = ref.read(authProvider);
                       if (authState is Authenticated) {
-                        context.push(
-                          '/phone-confirm',
-                          extra: authState.user.id,
-                        );
+                        context.push('/verify-phone', extra: authState.user.id);
                       }
                     },
                     icon: Icon(Icons.verified_user, size: 20.sp),
@@ -169,18 +172,37 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       ),
                     ),
                   )
+                // ✅ ADD ADDRESS BUTTON (FOODPANDA-STYLE)
                 else if (checkoutState.message.contains('address'))
                   Column(
                     children: [
-                      OutlinedButton.icon(
-                        onPressed: () => context.push('/customer/addresses'),
-                        icon: Icon(Icons.add_location, size: 18.sp),
-                        label: const Text('Add Address'),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          // Navigate to FoodPanda-style location picker
+                          context.push('/location-picker').then((_) {
+                            // Reload checkout after adding address
+                            _loadCheckout();
+                          });
+                        },
+                        icon: Icon(Icons.add_location_alt, size: 20.sp),
+                        label: const Text('Add Delivery Location'),
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 24.w,
+                            vertical: 14.h,
+                          ),
+                        ),
                       ),
                       SizedBox(height: 12.h),
-                      ElevatedButton(
-                        onPressed: _loadCheckout,
-                        child: const Text('Retry'),
+                      // Optional: Link to old addresses screen (for advanced users)
+                      TextButton(
+                        onPressed: () => context.push('/customer/addresses'),
+                        child: Text(
+                          'Or manage addresses manually',
+                          style: AppTextStyles.bodySmall().copyWith(
+                            color: AppColorsDark.textSecondary,
+                          ),
+                        ),
                       ),
                     ],
                   )

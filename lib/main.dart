@@ -22,9 +22,6 @@ void main() async {
   runApp(const ProviderScope(child: MyApp()));
 }
 
-// ✅ ADD HELPER GETTER
-final supabase = Supabase.instance.client;
-
 class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 

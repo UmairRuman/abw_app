@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../../../core/theme/colors/app_colors_dark.dart';
 import '../../../../../../core/theme/text_styles/app_text_styles.dart';
 import '../../../../../../core/presentation/providers/image_upload_provider.dart';
+import '../../../../../../core/services/location_service.dart'; // ✅ NEW: Import location service
 import '../../../../../categories/presentation/providers/categories_provider.dart';
 import '../../../../../stores/presentation/providers/stores_provider.dart';
 import '../../../../../stores/data/models/store_model.dart';
@@ -49,6 +50,7 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
   File? _bannerImage;
   final List<File> _storeImages = [];
   bool _isLoading = false;
+  bool _isGettingLocation = false; // ✅ NEW: Track location fetching state
 
   final List<String> _storeTypes = [
     'restaurant',
@@ -263,18 +265,63 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Icon(
-                                  Icons.location_on,
-                                  size: 16.sp,
-                                  color: AppColorsDark.info,
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.location_on,
+                                      size: 16.sp,
+                                      color: AppColorsDark.info,
+                                    ),
+                                    SizedBox(width: 8.w),
+                                    Text(
+                                      'GPS Coordinates',
+                                      style: AppTextStyles.labelSmall()
+                                          .copyWith(
+                                            color: AppColorsDark.info,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                  ],
                                 ),
-                                SizedBox(width: 8.w),
-                                Text(
-                                  'GPS Coordinates (for distance calculation)',
-                                  style: AppTextStyles.labelSmall().copyWith(
-                                    color: AppColorsDark.info,
-                                    fontWeight: FontWeight.w600,
+                                // ✅ GET CURRENT LOCATION BUTTON
+                                TextButton.icon(
+                                  onPressed:
+                                      _isGettingLocation
+                                          ? null
+                                          : _getCurrentLocation,
+                                  icon:
+                                      _isGettingLocation
+                                          ? SizedBox(
+                                            width: 14.w,
+                                            height: 14.h,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: AppColorsDark.info,
+                                            ),
+                                          )
+                                          : Icon(
+                                            Icons.my_location,
+                                            size: 14.sp,
+                                            color: AppColorsDark.info,
+                                          ),
+                                  label: Text(
+                                    _isGettingLocation
+                                        ? 'Getting...'
+                                        : 'Use Current',
+                                    style: AppTextStyles.bodySmall().copyWith(
+                                      color: AppColorsDark.info,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 8.w,
+                                      vertical: 4.h,
+                                    ),
+                                    backgroundColor: AppColorsDark.info
+                                        .withOpacity(0.1),
                                   ),
                                 ),
                               ],
@@ -333,7 +380,7 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
                             ),
                             SizedBox(height: 8.h),
                             Text(
-                              'Tip: Use Google Maps to find exact coordinates',
+                              'Tip: Use "Use Current" button or Google Maps to find exact coordinates',
                               style: AppTextStyles.bodySmall().copyWith(
                                 color: AppColorsDark.textSecondary,
                                 fontStyle: FontStyle.italic,
@@ -893,6 +940,81 @@ class _AddEditStoreDialogState extends ConsumerState<AddEditStoreDialog> {
             break;
         }
       });
+    }
+  }
+
+  // ✅ NEW: Get current location and populate coordinates
+  Future<void> _getCurrentLocation() async {
+    setState(() => _isGettingLocation = true);
+
+    try {
+      final position = await LocationService.getCurrentLocation();
+
+      if (position == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.white),
+                  SizedBox(width: 8.w),
+                  const Expanded(
+                    child: Text(
+                      'Unable to get location. Please check permissions.',
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: AppColorsDark.error,
+              action: SnackBarAction(
+                label: 'Settings',
+                textColor: Colors.white,
+                onPressed: () {
+                  LocationService.openAppSettings();
+                },
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
+      // Update text controllers with coordinates
+      setState(() {
+        _latitudeController.text = position.latitude.toStringAsFixed(6);
+        _longitudeController.text = position.longitude.toStringAsFixed(6);
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8.w),
+                const Expanded(
+                  child: Text('Location captured successfully! ✅'),
+                ),
+              ],
+            ),
+            backgroundColor: AppColorsDark.success,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: AppColorsDark.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isGettingLocation = false);
+      }
     }
   }
 

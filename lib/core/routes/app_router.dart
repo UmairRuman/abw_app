@@ -10,6 +10,7 @@ import 'package:abw_app/features/auth/presentation/screens/phone_verification/ph
 import 'package:abw_app/features/auth/presentation/screens/phone_verification/phone_input_screen.dart';
 import 'package:abw_app/features/auth/presentation/screens/phone_verification/phone_verification_screen.dart';
 import 'package:abw_app/features/auth/presentation/screens/signup/admin_signup_screen.dart';
+import 'package:abw_app/features/customer/presentation/screens/location/location_picker_screen.dart';
 import 'package:abw_app/features/rider/presentation/screens/main/rider_main_screen.dart';
 import 'package:abw_app/features/rider/presentation/screens/orders/rider_order_details_screen.dart';
 import 'package:flutter/material.dart';
@@ -298,13 +299,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
 
-      // Add route
-      GoRoute(
-        path: '/admin/analytics',
-        name: 'admin-analytics',
-        builder: (context, state) => const AnalyticsScreen(),
-      ),
-
       // ============================================================
       // RIDER ROUTES
       // ============================================================
@@ -354,6 +348,12 @@ final routerProvider = Provider<GoRouter>((ref) {
 
           return LocationCaptureScreen(userId: userId, role: role);
         },
+      ),
+
+      GoRoute(
+        path: '/location-picker',
+        name: 'location-picker',
+        builder: (context, state) => const LocationPickerScreen(),
       ),
 
       // ✅ RIDER ORDER DETAILS ROUTE

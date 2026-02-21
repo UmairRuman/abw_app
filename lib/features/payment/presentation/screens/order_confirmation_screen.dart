@@ -437,7 +437,7 @@ class _OrderConfirmationScreenState
           children: [
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: () => context.goToActiveOrders(),
+                onPressed: () => context.push('/customer/orders/active'),
                 icon: Icon(Icons.local_shipping_outlined, size: 18.sp),
                 label: const Text('Track Order'),
                 style: OutlinedButton.styleFrom(

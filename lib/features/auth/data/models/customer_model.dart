@@ -1,4 +1,5 @@
 // lib/features/auth/data/models/customer_model.dart
+// FIXED VERSION - Better null handling
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../shared/enums/user_role.dart';
@@ -17,25 +18,38 @@ class CustomerModel extends CustomerEntity {
     super.address,
     super.latitude,
     super.longitude,
-    super.isPhoneVerified = false, // ✅ NEW
+    super.isPhoneVerified = false,
   });
 
-  // From JSON
+  // ✅ FIXED: Better null handling
   factory CustomerModel.fromJson(Map<String, dynamic> json) {
     return CustomerModel(
-      id: json['userId'] as String,
-      email: json['email'] as String,
-      name: json['name'] as String,
-      phone: json['phone'] as String,
+      id: json['userId'] as String? ?? json['id'] as String? ?? '',
+      email: json['email'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      phone: json['phone'] as String? ?? '',
       profileImage: json['profileImage'] as String?,
       isActive: json['isActive'] as bool? ?? true,
       createdAt: _parseTimestamp(json['createdAt']),
       updatedAt: _parseTimestamp(json['updatedAt']),
-      address: json['address'] as String?,
-      latitude: (json['latitude'] as num?)?.toDouble(),
-      longitude: (json['longitude'] as num?)?.toDouble(),
+      // ✅ SAFE NULL HANDLING
+      address: json['address'] as String?, // Can be null
+      latitude: _parseDouble(json['latitude']), // Safe parsing
+      longitude: _parseDouble(json['longitude']), // Safe parsing
       isPhoneVerified: json['isPhoneVerified'] as bool? ?? false,
     );
+  }
+
+  // ✅ SAFE DOUBLE PARSING
+  static double? _parseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is num) return value.toDouble();
+    if (value is String) {
+      return double.tryParse(value);
+    }
+    return null;
   }
 
   static DateTime _parseTimestamp(dynamic value) {
@@ -58,9 +72,9 @@ class CustomerModel extends CustomerEntity {
       'isActive': isActive,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
-      'address': address,
-      'latitude': latitude,
-      'longitude': longitude,
+      'address': address, // Can be null
+      'latitude': latitude, // Can be null
+      'longitude': longitude, // Can be null
       'isPhoneVerified': isPhoneVerified,
     };
   }
@@ -85,6 +99,15 @@ class CustomerModel extends CustomerEntity {
 
   // To Entity
   CustomerEntity toEntity() => this;
+
+  // ✅ HELPER: Check if user has location
+  bool get hasLocation => latitude != null && longitude != null;
+
+  // ✅ HELPER: Get formatted location string
+  String get locationString {
+    if (!hasLocation) return 'No location set';
+    return '${latitude!.toStringAsFixed(6)}, ${longitude!.toStringAsFixed(6)}';
+  }
 
   @override
   CustomerModel copyWith({
