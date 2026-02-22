@@ -1,5 +1,7 @@
 // lib/features/customer/presentation/screens/search/search_screen.dart
 
+import 'dart:async';
+
 import 'package:abw_app/features/products/data/models/product_model.dart';
 import 'package:abw_app/features/stores/data/models/store_model.dart';
 import 'package:flutter/material.dart';
@@ -21,12 +23,26 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
     with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   late TabController _tabController;
+  Timer? _debounceTimer;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadRecentSearches();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  void _onSearchChanged() {
+    // Cancel previous timer
+    _debounceTimer?.cancel();
+
+    // Start new timer
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      if (_searchController.text.trim().isNotEmpty) {
+        _performSearch(_searchController.text);
+      }
+    });
   }
 
   Future<void> _loadRecentSearches() async {
@@ -35,14 +51,22 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _tabController.dispose();
     super.dispose();
   }
 
   void _performSearch(String query) {
-    if (query.trim().isEmpty) return;
-    ref.read(searchProvider.notifier).searchAll(query);
+    final trimmedQuery = query.trim(); // ✅ Trim whitespace
+    if (trimmedQuery.isEmpty) return;
+
+    // Save to recent searches
+    ref.read(searchProvider.notifier).saveRecentSearch(trimmedQuery);
+
+    // Perform search with trimmed query
+    ref.read(searchProvider.notifier).searchAll(trimmedQuery); // ✅ CORRECT
   }
 
   @override
@@ -305,7 +329,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
               child: Container(
                 height: 120.h,
                 color: AppColorsDark.surfaceContainer,
-                child: Icon(Icons.fastfood, size: 40.sp),
+                child: Image.network(
+                  product.images.isNotEmpty ? product.images[0] : '',
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
             Padding(

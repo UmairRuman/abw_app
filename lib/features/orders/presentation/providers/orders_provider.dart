@@ -1,5 +1,9 @@
 // lib/features/orders/presentation/providers/orders_provider.dart
 
+import 'dart:developer';
+
+import 'package:abw_app/core/services/notification_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/collections/orders_collection.dart';
 import '../../data/models/order_model.dart';
@@ -35,6 +39,7 @@ class OrdersError extends OrdersState {
 class OrdersNotifier extends StateNotifier<OrdersState> {
   final Ref ref;
   final OrdersCollection _collection = OrdersCollection();
+  final _firestore = FirebaseFirestore.instance;
 
   OrdersNotifier(this.ref) : super(OrdersInitial());
 
@@ -175,36 +180,186 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
     }
   }
 
-  // Update order status (admin)
+  // ✅ NEW: Update order status with customer notification
   Future<bool> updateOrderStatus(
     String orderId,
     OrderStatus newStatus,
     String? note,
-    String? updatedBy,
+    String updatedBy, // 'admin', 'rider', 'customer'
   ) async {
     try {
-      return await _collection.updateOrderStatus(
-        orderId,
-        newStatus,
-        note,
-        updatedBy,
-      );
+      log('📝 Updating order $orderId to ${newStatus.name} by $updatedBy');
+
+      // Get order details first
+      final orderDoc = await _firestore.collection('orders').doc(orderId).get();
+
+      if (!orderDoc.exists) {
+        log('❌ Order not found');
+        return false;
+      }
+
+      final orderData = orderDoc.data()!;
+      final userId = orderData['userId'] as String;
+      final storeName = orderData['storeName'] as String;
+
+      // Update order status
+      await _firestore.collection('orders').doc(orderId).update({
+        'status': newStatus.name,
+        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedBy': updatedBy, // Track who updated it
+        'statusHistory': FieldValue.arrayUnion([
+          {
+            'status': newStatus.name,
+            'timestamp': FieldValue.serverTimestamp(),
+            'note': note ?? 'Status updated to ${newStatus.name}',
+            'updatedBy': updatedBy,
+          },
+        ]),
+      });
+
+      // ✅ SEND NOTIFICATIONS (only when admin confirms/updates)
+      // DON'T send customer notifications when rider updates status
+
+      if (updatedBy == 'admin') {
+        // Admin confirmed order → Notify customer
+        if (newStatus == OrderStatus.confirmed) {
+          await NotificationService.sendNotificationToUser(
+            userId: userId,
+            title: '✅ Order Confirmed!',
+            body:
+                'Your order from $storeName has been confirmed. Preparing your food now!',
+            data: {
+              'type': 'order_confirmed',
+              'orderId': orderId,
+              'storeName': storeName,
+            },
+          );
+          log('✅ Customer notification sent: order confirmed');
+        }
+        // Admin marked as preparing → Notify customer
+        else if (newStatus == OrderStatus.preparing) {
+          await NotificationService.sendNotificationToUser(
+            userId: userId,
+            title: '👨‍🍳 Preparing Your Order',
+            body: '$storeName is preparing your order. It will be ready soon!',
+            data: {
+              'type': 'order_preparing',
+              'orderId': orderId,
+              'storeName': storeName,
+            },
+          );
+          log('✅ Customer notification sent: order preparing');
+        }
+      }
+      // Rider picked up order → Notify customer (optional)
+      else if (updatedBy == 'rider' &&
+          newStatus == OrderStatus.outForDelivery) {
+        await NotificationService.sendNotificationToUser(
+          userId: userId,
+          title: '🚚 Order Out for Delivery!',
+          body: 'Your order from $storeName is on its way!',
+          data: {
+            'type': 'order_out_for_delivery',
+            'orderId': orderId,
+            'storeName': storeName,
+          },
+        );
+        log('✅ Customer notification sent: out for delivery');
+      }
+      // Order delivered → Notify customer (from rider or admin)
+      else if (newStatus == OrderStatus.delivered) {
+        await NotificationService.sendNotificationToUser(
+          userId: userId,
+          title: '🎉 Order Delivered!',
+          body:
+              'Your order has been delivered. Enjoy your meal from $storeName!',
+          data: {
+            'type': 'order_delivered',
+            'orderId': orderId,
+            'storeName': storeName,
+          },
+        );
+        log('✅ Customer notification sent: order delivered');
+      }
+
+      log('✅ Order status updated successfully');
+      return true;
     } catch (e) {
-      print('Error updating order status: $e');
+      log('❌ Error updating order status: $e');
       return false;
     }
   }
 
   // Assign rider (admin)
+  /// Assign rider to order and send notification
   Future<bool> assignRider(
     String orderId,
     String riderId,
     String riderName,
   ) async {
     try {
-      return await _collection.assignRider(orderId, riderId, riderName);
+      log('🚚 Assigning rider $riderName to order $orderId');
+
+      // Get order details
+      final orderDoc = await _firestore.collection('orders').doc(orderId).get();
+
+      if (!orderDoc.exists) {
+        log('❌ Order not found');
+        return false;
+      }
+
+      final orderData = orderDoc.data()!;
+      final storeName = orderData['storeName'] as String;
+      final userName = orderData['userName'] as String;
+      final deliveryAddress =
+          orderData['deliveryAddress'] as Map<String, dynamic>;
+      final deliveryFee = orderData['deliveryFee'] as double;
+
+      // Get rider phone
+      final riderDoc = await _firestore.collection('riders').doc(riderId).get();
+
+      final riderPhone = riderDoc.data()?['phone'] as String? ?? '';
+
+      // Update order with rider info
+      await _firestore.collection('orders').doc(orderId).update({
+        'riderId': riderId,
+        'riderName': riderName,
+        'riderPhone': riderPhone,
+        'status': OrderStatus.outForDelivery.name,
+        'updatedAt': FieldValue.serverTimestamp(),
+        'statusHistory': FieldValue.arrayUnion([
+          {
+            'status': OrderStatus.outForDelivery.name,
+            'timestamp': FieldValue.serverTimestamp(),
+            'note': 'Assigned to $riderName',
+          },
+        ]),
+      });
+
+      // Update rider with current order
+      await _firestore.collection('riders').doc(riderId).update({
+        'currentOrderId': orderId,
+        'status': 'busy',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // ✅ SEND NOTIFICATION TO RIDER
+      final addressString =
+          '${deliveryAddress['addressLine1']}, ${deliveryAddress['area']}, ${deliveryAddress['city']}';
+
+      await NotificationService.sendOrderAssignedNotificationToRider(
+        riderId: riderId,
+        orderId: orderId,
+        customerName: userName,
+        storeName: storeName,
+        deliveryAddress: addressString,
+        deliveryFee: deliveryFee,
+      );
+
+      log('✅ Rider assigned and notified');
+      return true;
     } catch (e) {
-      print('Error assigning rider: $e');
+      log('❌ Error assigning rider: $e');
       return false;
     }
   }

@@ -9,6 +9,24 @@
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.READ_SMS" />
 
+     <queries>
+        <!-- For opening WhatsApp -->
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
+        
+        <!-- For general web browsing -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        
+        <!-- For general sharing -->
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+            <data android:mimeType="text/plain" />
+        </intent>
+    </queries>
+
     <!-- ✅ SINGLE APPLICATION TAG - Everything goes inside here -->
     <application
         android:label="abw_app"

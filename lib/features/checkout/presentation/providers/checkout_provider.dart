@@ -1,6 +1,9 @@
 // lib/features/checkout/presentation/providers/checkout_provider.dart
 // UPDATED WITH DISTANCE CALCULATION - MERGED WITH YOUR EXISTING STRUCTURE
 
+import 'dart:developer';
+
+import 'package:abw_app/core/services/notification_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:developer' as dev;
@@ -33,6 +36,92 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
   final Ref ref;
 
   CheckoutNotifier(this.ref) : super(CheckoutInitial());
+
+  
+  // ✅ UPDATED: Place order with admin notification
+  Future<String?> placeOrder({
+    required String userId,
+    required String userName,
+    required String userPhone,
+    required CheckoutModel checkout,
+    required String paymentMethod,
+    String? paymentProofUrl,
+    String? paymentTransactionId,
+  }) async {
+    state = CheckoutLoading();
+
+    try {
+      // Generate order ID
+      final orderId = DateTime.now().millisecondsSinceEpoch.toString();
+
+      // Create order document
+      final orderData = {
+        'id': orderId,
+        'userId': userId,
+        'userName': userName,
+        'userPhone': userPhone,
+        'storeId': checkout.storeId,
+        'storeName': checkout.storeName,
+        'items': checkout.items.map((item) => {
+          'productId': item.productId,
+          'productName': item.productName,
+          'quantity': item.quantity,
+          'price': item.price,
+          'total': item.total,
+        }).toList(),
+        'deliveryAddress': {
+          'addressLine1': checkout.deliveryAddress.addressLine1,
+          'addressLine2': checkout.deliveryAddress.addressLine2,
+          'area': checkout.deliveryAddress.area,
+          'city': checkout.deliveryAddress.city,
+          'latitude': checkout.deliveryAddress.latitude,
+          'longitude': checkout.deliveryAddress.longitude,
+        },
+        'subtotal': checkout.subtotal,
+        'deliveryFee': checkout.deliveryFee,
+        'total': checkout.total,
+        'paymentMethod': paymentMethod,
+        'paymentStatus': paymentMethod == 'cod' ? 'pending' : 'completed',
+        'paymentProofUrl': paymentProofUrl,
+        'paymentTransactionId': paymentTransactionId,
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      // Save order to Firestore
+      await FirebaseFirestore.instance
+          .collection('orders')
+          .doc(orderId)
+          .set(orderData);
+
+      dev.log('✅ Order created: $orderId');
+
+      // ✅ SEND NOTIFICATION TO ALL ADMINS
+      await NotificationService.sendNewOrderNotificationToAdmin(
+        orderId: orderId,
+        customerName: userName,
+        total: checkout.total,
+        paymentMethod: paymentMethod,
+        paymentProofUrl: paymentProofUrl,
+      );
+
+      log('✅ Admin notifications sent');
+
+      // Clear cart
+      await FirebaseFirestore.instance
+          .collection('carts')
+          .doc(userId)
+          .delete();
+           log('✅ Cart cleared');
+
+      state = CheckoutInitial(); // Reset state
+  return orderId; // ✅ Return the orderId
+    } catch (e) {
+      dev.log('❌ Error placing order: $e');
+      state = CheckoutError(e.toString());
+    }
+  }
 
   Future<void> prepareCheckout(String userId) async {
     state = CheckoutLoading();

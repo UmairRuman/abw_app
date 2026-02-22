@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../../core/theme/colors/app_colors_dark.dart';
 import '../../../../../core/theme/text_styles/app_text_styles.dart';
 import '../../../../stores/presentation/providers/stores_provider.dart';
@@ -126,6 +128,169 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
     );
   }
 
+  // ✅ SHARE TO WHATSAPP
+  Future<void> _shareToWhatsApp(StoreModel store) async {
+    try {
+      final shareText =
+          '''
+🍽️ ${store.name}
+
+${store.description}
+
+⭐ ${store.rating.toStringAsFixed(1)}/5 • 🚚 ${store.deliveryTime} min
+💰 PKR ${store.deliveryFee.toInt()} delivery fee
+
+Order now on ABW app!
+    '''.trim();
+
+      // Encode the text for URL
+      final encodedText = Uri.encodeComponent(shareText);
+
+      // WhatsApp URL scheme
+      final whatsappUrl = 'whatsapp://send?text=$encodedText';
+      final uri = Uri.parse(whatsappUrl);
+
+      // Check if WhatsApp can be launched
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        // WhatsApp not installed - use general share
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('WhatsApp not installed. Using system share...'),
+              backgroundColor: AppColorsDark.warning,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+
+        // Fallback to general share
+        await Share.share(shareText, subject: 'Check out ${store.name}');
+      }
+    } catch (e) {
+      // Error launching WhatsApp - use general share as fallback
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Opening share options...'),
+            backgroundColor: AppColorsDark.info,
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+
+      // Fallback to general share
+      try {
+        final shareText =
+            '''
+🍽️ ${store.name}
+
+${store.description}
+
+⭐ ${store.rating.toStringAsFixed(1)}/5 • 🚚 ${store.deliveryTime} min
+💰 PKR ${store.deliveryFee.toInt()} delivery fee
+
+Order now on ABW app!
+      '''.trim();
+
+        await Share.share(shareText, subject: 'Check out ${store.name}');
+      } catch (shareError) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to share. Please try again.'),
+              backgroundColor: AppColorsDark.error,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  void _showShareOptions(StoreModel store) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColorsDark.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder:
+          (context) => Padding(
+            padding: EdgeInsets.all(20.w),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Handle
+                Container(
+                  width: 40.w,
+                  height: 4.h,
+                  decoration: BoxDecoration(
+                    color: AppColorsDark.textTertiary,
+                    borderRadius: BorderRadius.circular(2.r),
+                  ),
+                ),
+
+                SizedBox(height: 20.h),
+
+                Text(
+                  'Share ${store.name}',
+                  style: AppTextStyles.titleMedium().copyWith(
+                    color: AppColorsDark.textPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
+                SizedBox(height: 20.h),
+
+                // WhatsApp
+                ListTile(
+                  leading: Container(
+                    padding: EdgeInsets.all(8.w),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF25D366).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    child: Icon(
+                      Icons.chat,
+                      color: const Color(0xFF25D366),
+                      size: 24.sp,
+                    ),
+                  ),
+                  title: const Text('Share on WhatsApp'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _shareToWhatsApp(store);
+                  },
+                ),
+
+                // More Options
+                // ListTile(
+                //   leading: Container(
+                //     padding: EdgeInsets.all(8.w),
+                //     decoration: BoxDecoration(
+                //       color: AppColorsDark.primary.withOpacity(0.2),
+                //       borderRadius: BorderRadius.circular(8.r),
+                //     ),
+                //     child: Icon(
+                //       Icons.share,
+                //       color: AppColorsDark.primary,
+                //       size: 24.sp,
+                //     ),
+                //   ),
+                //   title: Text('More Options'),
+                //   onTap: () {
+                //     Navigator.pop(context);
+                //     _shareStore(store);
+                //   },
+                // ),
+                SizedBox(height: 10.h),
+              ],
+            ),
+          ),
+    );
+  }
+
   Widget _buildSliverAppBar(StoreModel store) {
     return SliverAppBar(
       expandedHeight: 250.h,
@@ -184,39 +349,9 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
                 ),
               ],
             ),
-            child: Icon(
-              Icons.favorite_border,
-              color: AppColorsDark.white,
-              size: 20.sp,
-            ),
-          ),
-          onPressed: () {
-            // TODO: Add to favorites
-          },
-        ),
-        IconButton(
-          icon: Container(
-            padding: EdgeInsets.all(10.w),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.5),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: AppColorsDark.white.withOpacity(0.3),
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
             child: Icon(Icons.share, color: AppColorsDark.white, size: 20.sp),
           ),
-          onPressed: () {
-            // TODO: Share store
-          },
+          onPressed: () => _showShareOptions(store),
         ),
         SizedBox(width: 8.w),
       ],
@@ -383,27 +518,52 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
                           : AppColorsDark.error.withOpacity(0.3),
                 ),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    store.isOpen ? Icons.check_circle : Icons.schedule,
-                    color:
-                        store.isOpen
-                            ? AppColorsDark.success
-                            : AppColorsDark.error,
-                    size: 20.sp,
+                  // Status Row
+                  Row(
+                    children: [
+                      Icon(
+                        store.isOpen ? Icons.check_circle : Icons.schedule,
+                        color:
+                            store.isOpen
+                                ? AppColorsDark.success
+                                : AppColorsDark.error,
+                        size: 20.sp,
+                      ),
+                      SizedBox(width: 8.w),
+                      Text(
+                        store.isOpen ? 'Open Now' : 'Closed',
+                        style: AppTextStyles.bodyMedium().copyWith(
+                          color:
+                              store.isOpen
+                                  ? AppColorsDark.success
+                                  : AppColorsDark.error,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
-                  SizedBox(width: 8.w),
-                  Text(
-                    store.isOpen
-                        ? 'Open Now • Accepting Orders'
-                        : 'Closed • Opens at ${store.openingTime}',
-                    style: AppTextStyles.bodyMedium().copyWith(
-                      color:
-                          store.isOpen
-                              ? AppColorsDark.success
-                              : AppColorsDark.error,
-                    ),
+
+                  SizedBox(height: 6.h),
+
+                  // Store Hours Row
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        size: 16.sp,
+                        color: AppColorsDark.textSecondary,
+                      ),
+                      SizedBox(width: 6.w),
+                      Text(
+                        '${store.openingTime} - ${store.closingTime}',
+                        style: AppTextStyles.bodySmall().copyWith(
+                          color: AppColorsDark.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
