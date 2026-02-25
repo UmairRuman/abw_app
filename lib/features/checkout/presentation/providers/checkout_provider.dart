@@ -37,7 +37,6 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
 
   CheckoutNotifier(this.ref) : super(CheckoutInitial());
 
-  
   // ✅ UPDATED: Place order with admin notification
   Future<String?> placeOrder({
     required String userId,
@@ -62,13 +61,18 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         'userPhone': userPhone,
         'storeId': checkout.storeId,
         'storeName': checkout.storeName,
-        'items': checkout.items.map((item) => {
-          'productId': item.productId,
-          'productName': item.productName,
-          'quantity': item.quantity,
-          'price': item.price,
-          'total': item.total,
-        }).toList(),
+        'items':
+            checkout.items
+                .map(
+                  (item) => {
+                    'productId': item.productId,
+                    'productName': item.productName,
+                    'quantity': item.quantity,
+                    'price': item.price,
+                    'total': item.total,
+                  },
+                )
+                .toList(),
         'deliveryAddress': {
           'addressLine1': checkout.deliveryAddress.addressLine1,
           'addressLine2': checkout.deliveryAddress.addressLine2,
@@ -109,14 +113,11 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       log('✅ Admin notifications sent');
 
       // Clear cart
-      await FirebaseFirestore.instance
-          .collection('carts')
-          .doc(userId)
-          .delete();
-           log('✅ Cart cleared');
+      await FirebaseFirestore.instance.collection('carts').doc(userId).delete();
+      log('✅ Cart cleared');
 
       state = CheckoutInitial(); // Reset state
-  return orderId; // ✅ Return the orderId
+      return orderId; // ✅ Return the orderId
     } catch (e) {
       dev.log('❌ Error placing order: $e');
       state = CheckoutError(e.toString());

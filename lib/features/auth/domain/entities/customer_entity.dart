@@ -1,4 +1,5 @@
 // lib/features/auth/domain/entities/customer_entity.dart
+// UPDATED: Added FCM token fields
 
 import 'package:abw_app/shared/enums/user_role.dart';
 import 'user_entity.dart';
@@ -7,7 +8,7 @@ class CustomerEntity extends UserEntity {
   final String? address;
   final double? latitude;
   final double? longitude;
-  final bool isPhoneVerified; // ✅ NEW FIELD
+  final bool isPhoneVerified;
 
   const CustomerEntity({
     required super.id,
@@ -18,10 +19,12 @@ class CustomerEntity extends UserEntity {
     required super.createdAt,
     required super.updatedAt,
     super.profileImage,
+    super.fcmToken, // ✅ Pass to parent
+    super.fcmTokenUpdatedAt, // ✅ Pass to parent
     this.address,
     this.latitude,
     this.longitude,
-    this.isPhoneVerified = false, // ✅ DEFAULT FALSE
+    this.isPhoneVerified = false,
   }) : super(role: UserRole.customer);
 
   @override
@@ -30,7 +33,7 @@ class CustomerEntity extends UserEntity {
     address,
     latitude,
     longitude,
-    isPhoneVerified, // ✅ ADD TO PROPS
+    isPhoneVerified,
   ];
 
   CustomerEntity copyWith({
@@ -42,10 +45,12 @@ class CustomerEntity extends UserEntity {
     bool? isActive,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? fcmToken, // ✅ NEW
+    DateTime? fcmTokenUpdatedAt, // ✅ NEW
     String? address,
     double? latitude,
     double? longitude,
-    bool? isPhoneVerified, // ✅ ADD TO COPYWITH
+    bool? isPhoneVerified,
   }) {
     return CustomerEntity(
       id: id ?? this.id,
@@ -56,10 +61,12 @@ class CustomerEntity extends UserEntity {
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      fcmToken: fcmToken ?? this.fcmToken, // ✅ NEW
+      fcmTokenUpdatedAt: fcmTokenUpdatedAt ?? this.fcmTokenUpdatedAt, // ✅ NEW
       address: address ?? this.address,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
-      isPhoneVerified: isPhoneVerified ?? this.isPhoneVerified, // ✅
+      isPhoneVerified: isPhoneVerified ?? this.isPhoneVerified,
     );
   }
 }

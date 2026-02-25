@@ -1,4 +1,5 @@
 // lib/features/auth/domain/entities/user_entity.dart
+// UPDATED: Added FCM token fields
 
 import 'package:equatable/equatable.dart';
 import '../../../../shared/enums/user_role.dart';
@@ -14,6 +15,10 @@ abstract class UserEntity extends Equatable {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  // ✅ NEW: FCM Token fields
+  final String? fcmToken;
+  final DateTime? fcmTokenUpdatedAt;
+
   const UserEntity({
     required this.id,
     required this.email,
@@ -24,6 +29,8 @@ abstract class UserEntity extends Equatable {
     required this.createdAt,
     required this.updatedAt,
     this.profileImage,
+    this.fcmToken, // ✅ NEW
+    this.fcmTokenUpdatedAt, // ✅ NEW
   });
 
   @override
@@ -37,5 +44,10 @@ abstract class UserEntity extends Equatable {
     isActive,
     createdAt,
     updatedAt,
+    fcmToken, // ✅ NEW
+    fcmTokenUpdatedAt, // ✅ NEW
   ];
+
+  // ✅ NEW: Helper method to check if user has valid FCM token
+  bool get hasFCMToken => fcmToken != null && fcmToken!.isNotEmpty;
 }

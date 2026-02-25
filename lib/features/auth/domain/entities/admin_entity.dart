@@ -16,6 +16,8 @@ class AdminEntity extends UserEntity {
     required super.createdAt,
     required super.updatedAt,
     required this.accessKey,
+    super.fcmToken, // ✅ Pass to parent
+    super.fcmTokenUpdatedAt, // ✅ Pass to parent
     super.profileImage,
     this.permissions = const [],
   }) : super(role: UserRole.admin);
@@ -32,6 +34,8 @@ class AdminEntity extends UserEntity {
     bool? isActive,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? fcmToken, // ✅ NEW
+    DateTime? fcmTokenUpdatedAt, // ✅ NEW
     String? accessKey,
     List<String>? permissions,
   }) {
@@ -41,6 +45,8 @@ class AdminEntity extends UserEntity {
       name: name ?? this.name,
       phone: phone ?? this.phone,
       profileImage: profileImage ?? this.profileImage,
+      fcmToken: fcmToken ?? this.fcmToken, // ✅ NEW
+      fcmTokenUpdatedAt: fcmTokenUpdatedAt ?? this.fcmTokenUpdatedAt, // ✅ NEW
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

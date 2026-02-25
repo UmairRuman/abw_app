@@ -1,16 +1,17 @@
 // lib/features/auth/presentation/providers/auth_notifier.dart
+// UPDATED: FCM token saving in background (non-blocking)
 
 import 'dart:developer';
 
 import 'package:abw_app/features/auth/data/models/admin_model.dart';
 import 'package:abw_app/features/auth/data/models/customer_model.dart';
 import 'package:abw_app/features/auth/data/models/rider_model.dart';
-import 'package:abw_app/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:abw_app/features/auth/domain/entities/user_entity.dart';
 import 'package:abw_app/features/auth/domain/usecases/create_admin_usecase.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/enums/user_role.dart';
+import '../../../../core/services/notification_service.dart';
 import '../../domain/entities/rider_entity.dart';
 import '../../domain/usecases/get_current_user_usecase.dart';
 import '../../domain/usecases/login_with_email_usecase.dart';
@@ -29,7 +30,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final SendPasswordResetUseCase _sendPasswordResetUseCase;
   final LogoutUseCase _logoutUseCase;
   final GetCurrentUserUseCase _getCurrentUserUseCase;
-  final CreateAdminUseCase _createAdminUseCase; // ADD THIS
+  final CreateAdminUseCase _createAdminUseCase;
 
   AuthNotifier({
     required LoginWithEmailUseCase loginWithEmailUseCase,
@@ -39,7 +40,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required SendPasswordResetUseCase sendPasswordResetUseCase,
     required LogoutUseCase logoutUseCase,
     required GetCurrentUserUseCase getCurrentUserUseCase,
-    required CreateAdminUseCase createAdminUseCase, // ADD THIS
+    required CreateAdminUseCase createAdminUseCase,
   }) : _loginWithEmailUseCase = loginWithEmailUseCase,
        _loginWithGoogleUseCase = loginWithGoogleUseCase,
        _signUpCustomerUseCase = signUpCustomerUseCase,
@@ -47,11 +48,34 @@ class AuthNotifier extends StateNotifier<AuthState> {
        _sendPasswordResetUseCase = sendPasswordResetUseCase,
        _logoutUseCase = logoutUseCase,
        _getCurrentUserUseCase = getCurrentUserUseCase,
-       _createAdminUseCase = createAdminUseCase, // ADD THIS
+       _createAdminUseCase = createAdminUseCase,
        super(const AuthInitial()) {
     _checkAuthStatus();
   }
 
+  // ========================================================================
+  // HELPER METHOD: Save FCM Token in Background (Non-Blocking)
+  // ========================================================================
+
+  /// Save FCM token in background without blocking UI updates
+  Future<void> _saveFCMTokenInBackground(String userId, String role) async {
+    try {
+      await NotificationService().saveFCMTokenToFirestore(
+        userId,
+        role.toLowerCase(),
+      );
+      log('✅ FCM token saved for $role: $userId');
+    } catch (e) {
+      log('⚠️ Failed to save FCM token: $e');
+      // Don't rethrow - this is a background operation
+    }
+  }
+
+  // ========================================================================
+  // CREATE ADMIN
+  // ========================================================================
+
+  /// ✅ FIXED: Create admin with FCM token
   Future<void> createAdmin({
     required String email,
     required String password,
@@ -76,10 +100,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = AuthError(failure.message);
       },
       (admin) {
+        log("✅ Admin created successfully: ${admin.email}");
+
+        // ✅ Set state FIRST (synchronously)
         state = Authenticated(admin);
+
+        // ✅ Save FCM token in background
+        _saveFCMTokenInBackground(admin.id, 'admin');
       },
     );
   }
+
+  // ========================================================================
+  // REFRESH USER
+  // ========================================================================
 
   Future<void> refreshUser() async {
     final currentState = state;
@@ -104,7 +138,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       log('   User ID: $userId, Role: $role');
 
-      // ✅ DETERMINE CORRECT COLLECTION
+      // Determine correct collection
       final collection =
           role == UserRole.rider ? 'riders' : role.collectionName;
       log('   Reading from collection: $collection');
@@ -147,30 +181,51 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Check current auth status on initialization
+  // ========================================================================
+  // CHECK AUTH STATUS (ON APP STARTUP)
+  // ========================================================================
+
+  /// ✅ FIXED: Check current auth status on initialization
   Future<void> _checkAuthStatus() async {
     state = const AuthLoading();
 
     final result = await _getCurrentUserUseCase();
 
-    result.fold((failure) => state = const Unauthenticated(), (user) {
-      if (user == null) {
+    result.fold(
+      (failure) {
         state = const Unauthenticated();
-      } else {
-        // Check if rider is approved
+      },
+      (user) {
+        if (user == null) {
+          state = const Unauthenticated();
+          return;
+        }
+
+        log("✅ User found on startup: ${user.email} (${user.role.name})");
+
+        // ✅ Set state FIRST
         if (user.role == UserRole.rider) {
           final rider = user as RiderEntity;
           if (!rider.isApproved) {
             state = RiderPendingApproval(rider);
-            return;
+          } else {
+            state = Authenticated(rider);
           }
+        } else {
+          state = Authenticated(user);
         }
-        state = Authenticated(user);
-      }
-    });
+
+        // ✅ Refresh FCM token in background
+        _saveFCMTokenInBackground(user.id, user.role.name);
+      },
+    );
   }
 
-  /// Login with email and password
+  // ========================================================================
+  // LOGIN WITH EMAIL
+  // ========================================================================
+
+  /// ✅ FIXED: Login with email and password
   Future<void> loginWithEmail({
     required String email,
     required String password,
@@ -189,23 +244,33 @@ class AuthNotifier extends StateNotifier<AuthState> {
     result.fold(
       (failure) {
         state = AuthError(failure.message);
-        // Don't throw here - state change is enough
       },
       (user) {
-        // Check if rider is approved
+        log("✅ Email login successful for ${user.email}");
+
+        // ✅ Set state FIRST (synchronously)
         if (user.role == UserRole.rider) {
           final rider = user as RiderEntity;
           if (!rider.isApproved) {
             state = RiderPendingApproval(rider);
-            return;
+          } else {
+            state = Authenticated(rider);
           }
+        } else {
+          state = Authenticated(user);
         }
-        state = Authenticated(user);
+
+        // ✅ Save FCM token in background
+        _saveFCMTokenInBackground(user.id, role.name);
       },
     );
   }
 
-  /// Login with Google
+  // ========================================================================
+  // LOGIN WITH GOOGLE
+  // ========================================================================
+
+  /// ✅ FIXED: Login with Google
   Future<void> loginWithGoogle() async {
     state = const AuthLoading();
 
@@ -216,12 +281,22 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = AuthError(failure.message);
       },
       (user) {
+        log("✅ Google login successful for ${user.email}");
+
+        // ✅ Set state FIRST (synchronously)
         state = Authenticated(user);
+
+        // ✅ Save FCM token in background
+        _saveFCMTokenInBackground(user.id, user.role.name);
       },
     );
   }
 
-  /// Sign up as customer
+  // ========================================================================
+  // SIGN UP AS CUSTOMER
+  // ========================================================================
+
+  /// ✅ FIXED: Sign up as customer
   Future<void> signUpCustomer({
     required String email,
     required String password,
@@ -242,12 +317,22 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = AuthError(failure.message);
       },
       (user) {
+        log("✅ Customer signup successful for ${user.email}");
+
+        // ✅ Set state FIRST (synchronously)
         state = Authenticated(user);
+
+        // ✅ Save FCM token in background
+        _saveFCMTokenInBackground(user.id, 'customer');
       },
     );
   }
 
-  /// Sign up as rider
+  // ========================================================================
+  // SIGN UP AS RIDER
+  // ========================================================================
+
+  /// ✅ FIXED: Sign up as rider
   Future<void> signUpRider({
     required String email,
     required String password,
@@ -274,10 +359,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = AuthError(failure.message);
       },
       (user) {
+        log("✅ Rider signup successful for ${user.email}");
+
+        // ✅ Set state FIRST (synchronously)
         state = RiderPendingApproval(user);
+
+        // ✅ Save FCM token in background
+        _saveFCMTokenInBackground(user.id, 'rider');
       },
     );
   }
+
+  // ========================================================================
+  // PASSWORD RESET
+  // ========================================================================
 
   /// Send password reset email
   Future<void> sendPasswordResetEmail(String email) async {
@@ -290,12 +385,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = AuthError(failure.message);
       },
       (_) {
-        // Don't change to Unauthenticated - stay on forgot password
-        // Just show success message in UI
-        state = const AuthInitial(); // or create PasswordResetSent state
+        state = const AuthInitial();
       },
     );
   }
+
+  // ========================================================================
+  // LOGOUT
+  // ========================================================================
 
   /// Logout
   Future<void> logout() async {
@@ -308,6 +405,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       (_) => state = const Unauthenticated(),
     );
   }
+
+  // ========================================================================
+  // CLEAR ERROR
+  // ========================================================================
 
   /// Clear error state
   void clearError() {

@@ -16,6 +16,8 @@ class RiderModel extends RiderEntity {
     required super.updatedAt,
     required super.vehicleType,
     required super.vehicleNumber,
+    super.fcmToken, // ✅ NEW
+    super.fcmTokenUpdatedAt, // ✅ NEW
     super.role = UserRole.rider,
     super.profileImage,
     super.licenseNumber,
@@ -47,6 +49,8 @@ class RiderModel extends RiderEntity {
       isApproved: json['isApproved'] as bool? ?? false,
       isAvailable: json['isAvailable'] as bool? ?? false,
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
+      fcmToken: json['fcmToken'] as String?, // ✅ NEW
+      fcmTokenUpdatedAt: _parseTimestamp(json['fcmTokenUpdatedAt']), // ✅ NEW
       totalDeliveries: json['totalDeliveries'] as int? ?? 0,
       approvedAt:
           json['approvedAt'] != null
@@ -88,6 +92,12 @@ class RiderModel extends RiderEntity {
       'isAvailable': isAvailable,
       'rating': rating,
       'totalDeliveries': totalDeliveries,
+      'fcmToken': fcmToken, // ✅ NEW
+      'fcmTokenUpdatedAt':
+          fcmTokenUpdatedAt !=
+                  null // ✅ NEW
+              ? Timestamp.fromDate(fcmTokenUpdatedAt!)
+              : null,
       'approvedAt': approvedAt != null ? Timestamp.fromDate(approvedAt!) : null,
       'approvedBy': approvedBy,
       // ── Rider App fields ──
@@ -109,6 +119,8 @@ class RiderModel extends RiderEntity {
     String? vehicleType,
     String? vehicleNumber,
     String? licenseNumber,
+    String? fcmToken, // ✅ NEW
+    DateTime? fcmTokenUpdatedAt, // ✅ NEW
     bool? isApproved,
     bool? isAvailable,
     double? rating,
@@ -134,6 +146,8 @@ class RiderModel extends RiderEntity {
       licenseNumber: licenseNumber ?? this.licenseNumber,
       isApproved: isApproved ?? this.isApproved,
       isAvailable: isAvailable ?? this.isAvailable,
+      fcmToken: fcmToken ?? this.fcmToken, // ✅ NEW
+      fcmTokenUpdatedAt: fcmTokenUpdatedAt ?? this.fcmTokenUpdatedAt, // ✅ NEW
       rating: rating ?? this.rating,
       totalDeliveries: totalDeliveries ?? this.totalDeliveries,
       approvedAt: approvedAt ?? this.approvedAt,

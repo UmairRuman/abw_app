@@ -33,6 +33,8 @@ class RiderEntity extends UserEntity {
     required super.updatedAt,
     required this.vehicleType,
     required this.vehicleNumber,
+    super.fcmToken, // ✅ Pass to parent
+    super.fcmTokenUpdatedAt, // ✅ Pass to parent
     super.profileImage,
     this.licenseNumber,
     this.isApproved = false,

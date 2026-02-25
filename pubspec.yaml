@@ -87,6 +87,7 @@ dependencies:
   latlong2: ^0.9.1
   url_launcher: ^6.3.2
   share_plus: ^12.0.1
+  googleapis_auth: ^2.0.0
 
 dev_dependencies:
   flutter_test:

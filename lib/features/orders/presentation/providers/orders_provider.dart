@@ -210,7 +210,7 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
         'statusHistory': FieldValue.arrayUnion([
           {
             'status': newStatus.name,
-            'timestamp': FieldValue.serverTimestamp(),
+            'timestamp': Timestamp.now(),
             'note': note ?? 'Status updated to ${newStatus.name}',
             'updatedBy': updatedBy,
           },
@@ -330,7 +330,7 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
         'statusHistory': FieldValue.arrayUnion([
           {
             'status': OrderStatus.outForDelivery.name,
-            'timestamp': FieldValue.serverTimestamp(),
+            'timestamp': Timestamp.now(),
             'note': 'Assigned to $riderName',
           },
         ]),

@@ -14,6 +14,8 @@ class AdminModel extends AdminEntity {
     required super.createdAt,
     required super.updatedAt,
     required super.accessKey,
+    super.fcmToken, // ✅ NEW
+    super.fcmTokenUpdatedAt, // ✅ NEW
     super.profileImage,
     super.permissions = const [],
   });
@@ -29,6 +31,8 @@ class AdminModel extends AdminEntity {
       isActive: json['isActive'] as bool? ?? true,
       createdAt: (json['createdAt'] as Timestamp).toDate(),
       updatedAt: (json['updatedAt'] as Timestamp).toDate(),
+      fcmToken: json['fcmToken'] as String?, // ✅ NEW
+      fcmTokenUpdatedAt: _parseTimestamp(json['fcmTokenUpdatedAt']), // ✅ NEW
       accessKey: json['accessKey'] as String,
       permissions:
           (json['permissions'] as List<dynamic>?)
@@ -36,6 +40,13 @@ class AdminModel extends AdminEntity {
               .toList() ??
           [],
     );
+  }
+  static DateTime _parseTimestamp(dynamic value) {
+    if (value == null) return DateTime.now();
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
+    return DateTime.now();
   }
 
   // To JSON
@@ -50,6 +61,12 @@ class AdminModel extends AdminEntity {
       'isActive': isActive,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
+      'fcmToken': fcmToken, // ✅ NEW
+      'fcmTokenUpdatedAt':
+          fcmTokenUpdatedAt !=
+                  null // ✅ NEW
+              ? Timestamp.fromDate(fcmTokenUpdatedAt!)
+              : null,
       'accessKey': accessKey,
       'permissions': permissions,
     };
@@ -67,6 +84,8 @@ class AdminModel extends AdminEntity {
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
       accessKey: entity.accessKey,
+      fcmToken: entity.fcmToken, // ✅ NEW
+      fcmTokenUpdatedAt: entity.fcmTokenUpdatedAt, // ✅ NEW
       permissions: entity.permissions,
     );
   }
@@ -84,6 +103,8 @@ class AdminModel extends AdminEntity {
     bool? isActive,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? fcmToken, // ✅ NEW
+    DateTime? fcmTokenUpdatedAt, // ✅ NEW
     String? accessKey,
     List<String>? permissions,
   }) {
@@ -97,6 +118,8 @@ class AdminModel extends AdminEntity {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       accessKey: accessKey ?? this.accessKey,
+      fcmToken: fcmToken ?? this.fcmToken, // ✅ NEW
+      fcmTokenUpdatedAt: fcmTokenUpdatedAt ?? this.fcmTokenUpdatedAt, // ✅ NEW
       permissions: permissions ?? this.permissions,
     );
   }
