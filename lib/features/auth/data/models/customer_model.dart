@@ -23,27 +23,41 @@ class CustomerModel extends CustomerEntity {
     super.isPhoneVerified = false,
   });
 
-  // From JSON
   factory CustomerModel.fromJson(Map<String, dynamic> json) {
     return CustomerModel(
-      id: json['userId'] as String,
-      email: json['email'] as String,
-      name: json['name'] as String,
-      phone: json['phone'] as String,
-      profileImage: json['profileImage'] as String?,
+      id:
+          (json['id'] ?? json['userId'])
+              as String, // ✅ Handle both userId and id
+      email:
+          _parseString(json['email']) ??
+          'no-email@example.com', // ✅ Safe default
+      name: _parseString(json['name']) ?? 'Unknown User', // ✅ Safe default
+      phone: _parseString(json['phone']) ?? '', // ✅ Safe default
+      profileImage: _parseString(json['profileImage']), // ✅ Nullable
       isActive: json['isActive'] as bool? ?? true,
       createdAt: _parseTimestamp(json['createdAt']),
       updatedAt: _parseTimestamp(json['updatedAt']),
-      fcmToken: json['fcmToken'] as String?, // ✅ NEW
-      fcmTokenUpdatedAt: _parseTimestamp(json['fcmTokenUpdatedAt']), // ✅ NEW
-      address: json['address'] as String?,
-      latitude: _parseDouble(json['latitude']),
-      longitude: _parseDouble(json['longitude']),
+      fcmToken: _parseString(json['fcmToken']), // ✅ Nullable
+      fcmTokenUpdatedAt: _parseTimestamp(
+        json['fcmTokenUpdatedAt'],
+      ), // ✅ Nullable
+      address: _parseString(
+        json['address'],
+      ), // ✅ Nullable - handles null for old users
+      latitude: _parseDouble(json['latitude']), // ✅ Already safe
+      longitude: _parseDouble(json['longitude']), // ✅ Already safe
       isPhoneVerified: json['isPhoneVerified'] as bool? ?? false,
     );
   }
 
-  // ✅ SAFE DOUBLE PARSING
+  // ✅ ADD THIS NEW HELPER METHOD (add after _parseDouble)
+  static String? _parseString(dynamic value, {String? fallback}) {
+    if (value == null) return fallback;
+    if (value is String) return value.isEmpty ? null : value;
+    return value.toString();
+  }
+
+  // Keep existing _parseDouble method
   static double? _parseDouble(dynamic value) {
     if (value == null) return null;
     if (value is double) return value;
@@ -53,11 +67,13 @@ class CustomerModel extends CustomerEntity {
     return null;
   }
 
+  // ✅ UPDATE _parseTimestamp to handle nulls better
   static DateTime _parseTimestamp(dynamic value) {
     if (value == null) return DateTime.now();
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
     if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
+    if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
     return DateTime.now();
   }
 

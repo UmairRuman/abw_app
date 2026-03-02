@@ -191,6 +191,35 @@ class ProductsCollection {
     }
   }
 
+  /// Get ALL products including unavailable ones (Admin only)
+  Future<List<ProductModel>> getAllProductsAdmin() async {
+    final List<ProductModel> products = [];
+
+    try {
+      final snapshot =
+          await _firestore
+              .collection('products')
+              // ✅ NO isAvailable filter — admin needs to see everything
+              .orderBy('createdAt', descending: true)
+              .get();
+
+      for (var doc in snapshot.docs) {
+        products.add(ProductModel.fromJson(doc.data()));
+      }
+
+      log('Admin fetched ${products.length} products (all statuses)');
+      return products;
+    } on FirebaseException catch (e) {
+      log(
+        'Firebase Error getting all products (admin): ${e.code} - ${e.message}',
+      );
+      return [];
+    } catch (e) {
+      log('Error getting all products (admin): ${e.toString()}');
+      return [];
+    }
+  }
+
   /// Get products by category
   Future<List<ProductModel>> getProductsByCategory(String categoryId) async {
     final List<ProductModel> products = [];

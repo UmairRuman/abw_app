@@ -1,5 +1,7 @@
 // lib/features/admin/presentation/widgets/admin_drawer.dart
 
+import 'package:abw_app/features/admin/presentation/screens/categories/category_management_dialog.dart';
+import 'package:abw_app/features/admin/presentation/screens/settings/payment_settings_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -70,16 +72,7 @@ class AdminDrawer extends ConsumerWidget {
                       context.push('/admin/orders');
                     },
                   ),
-                  _buildDrawerItem(
-                    context,
-                    icon: Icons.store_rounded,
-                    title: 'Stores',
-                    badge: _buildStoresBadge(ref),
-                    onTap: () {
-                      Navigator.pop(context);
-                      context.push('/admin/stores');
-                    },
-                  ),
+
                   _buildDrawerItem(
                     context,
                     icon: Icons.inventory_rounded,
@@ -95,6 +88,10 @@ class AdminDrawer extends ConsumerWidget {
                     title: 'Categories',
                     onTap: () {
                       Navigator.pop(context);
+                      showDialog(
+                        context: context,
+                        builder: (context) => const CategoryManagementDialog(),
+                      );
                       // Show dialog or navigate to categories screen
                     },
                   ),
@@ -131,6 +128,10 @@ class AdminDrawer extends ConsumerWidget {
                     title: 'Payment Settings',
                     onTap: () {
                       Navigator.pop(context);
+                      showDialog(
+                        context: context,
+                        builder: (context) => const PaymentSettingsDialog(),
+                      );
                       // Show payment settings dialog
                     },
                   ),

@@ -843,8 +843,10 @@ Order now on ABW app!
 
   Widget _buildAddButton(ProductModel product) {
     final cartState = ref.watch(cartProvider);
+    final bool hasCustomization =
+        product.hasVariants || product.addons.isNotEmpty;
 
-    // Check if product is in cart and get quantity
+    // Get quantity in cart
     int quantityInCart = 0;
     if (cartState is CartLoaded) {
       try {
@@ -852,19 +854,19 @@ Order now on ABW app!
           (item) => item.productId == product.id,
         );
         quantityInCart = item.quantity;
-      } catch (e) {
-        // Product not in cart, quantity stays 0
+      } catch (_) {
         quantityInCart = 0;
       }
     }
 
-    // If item is unavailable or out of stock
+    // ── Out of stock ──────────────────────────────────────────
     if (!product.isAvailable || product.quantity == 0) {
       return Container(
-        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
         decoration: BoxDecoration(
-          color: AppColorsDark.textTertiary.withOpacity(0.3),
+          color: AppColorsDark.surfaceVariant,
           borderRadius: BorderRadius.circular(8.r),
+          border: Border.all(color: AppColorsDark.border),
         ),
         child: Text(
           'Out of Stock',
@@ -872,80 +874,188 @@ Order now on ABW app!
             color: AppColorsDark.textTertiary,
             fontWeight: FontWeight.w600,
           ),
+          textAlign: TextAlign.center,
         ),
       );
     }
 
-    // If product is already in cart, show quantity controls
+    // ── Already in cart → quantity controls ──────────────────
     if (quantityInCart > 0) {
-      return Container(
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Customize hint if applicable
+          if (hasCustomization)
+            Padding(
+              padding: EdgeInsets.only(bottom: 4.h),
+              child: GestureDetector(
+                onTap: () => _showProductDetails(product),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.tune, size: 11.sp, color: AppColorsDark.primary),
+                    SizedBox(width: 3.w),
+                    Text(
+                      'Customize',
+                      style: AppTextStyles.labelSmall().copyWith(
+                        color: AppColorsDark.primary,
+                        fontSize: 10.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // +/- controls
+          Container(
+            decoration: BoxDecoration(
+              color: AppColorsDark.primary,
+              borderRadius: BorderRadius.circular(8.r),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                InkWell(
+                  onTap: () => _decrementQuantity(product),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(8.r),
+                    bottomLeft: Radius.circular(8.r),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(8.w),
+                    child: Icon(
+                      quantityInCart > 1 ? Icons.remove : Icons.delete_outline,
+                      color: AppColorsDark.white,
+                      size: 16.sp,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 10.w),
+                  child: Text(
+                    '$quantityInCart',
+                    style: AppTextStyles.titleSmall().copyWith(
+                      color: AppColorsDark.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                InkWell(
+                  onTap:
+                      quantityInCart < product.maxOrderQuantity
+                          ? () => _incrementQuantity(product)
+                          : null,
+                  borderRadius: BorderRadius.only(
+                    topRight: Radius.circular(8.r),
+                    bottomRight: Radius.circular(8.r),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(8.w),
+                    child: Icon(
+                      Icons.add,
+                      color: AppColorsDark.white,
+                      size: 16.sp,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    // ── Not in cart ───────────────────────────────────────────
+
+    // Products WITH variants/addons → "Customize & Add" button
+    if (hasCustomization) {
+      return GestureDetector(
+        onTap: () => _showProductDetails(product),
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppColorsDark.primary,
+                AppColorsDark.primary.withOpacity(0.85),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(8.r),
+            boxShadow: [
+              BoxShadow(
+                color: AppColorsDark.primary.withOpacity(0.35),
+                blurRadius: 6,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.tune, color: AppColorsDark.white, size: 13.sp),
+                  SizedBox(width: 4.w),
+                  Text(
+                    'Customize',
+                    style: AppTextStyles.labelSmall().copyWith(
+                      color: AppColorsDark.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11.sp,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 3.h),
+              Text(
+                '& Add',
+                style: AppTextStyles.labelSmall().copyWith(
+                  color: AppColorsDark.white.withOpacity(0.85),
+                  fontSize: 10.sp,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Plain product → simple "Add" button
+    return GestureDetector(
+      onTap: () => _addToCart(product),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
         decoration: BoxDecoration(
           color: AppColorsDark.primary,
           borderRadius: BorderRadius.circular(8.r),
+          boxShadow: [
+            BoxShadow(
+              color: AppColorsDark.primary.withOpacity(0.35),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Decrement button
-            InkWell(
-              onTap: () => _decrementQuantity(product),
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(8.r),
-                bottomLeft: Radius.circular(8.r),
-              ),
-              child: Container(
-                padding: EdgeInsets.all(8.w),
-                child: Icon(
-                  quantityInCart > 1 ? Icons.remove : Icons.delete_outline,
-                  color: AppColorsDark.white,
-                  size: 18.sp,
-                ),
-              ),
-            ),
-
-            // Quantity display
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 12.w),
-              child: Text(
-                '$quantityInCart',
-                style: AppTextStyles.titleSmall().copyWith(
-                  color: AppColorsDark.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-
-            // Increment button
-            InkWell(
-              onTap:
-                  quantityInCart < product.maxOrderQuantity
-                      ? () => _incrementQuantity(product)
-                      : null,
-              borderRadius: BorderRadius.only(
-                topRight: Radius.circular(8.r),
-                bottomRight: Radius.circular(8.r),
-              ),
-              child: Container(
-                padding: EdgeInsets.all(8.w),
-                child: Icon(Icons.add, color: AppColorsDark.white, size: 18.sp),
+            Icon(Icons.add, color: AppColorsDark.white, size: 16.sp),
+            SizedBox(width: 4.w),
+            Text(
+              'Add',
+              style: AppTextStyles.labelSmall().copyWith(
+                color: AppColorsDark.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12.sp,
               ),
             ),
           ],
         ),
-      );
-    }
-
-    // Show add button (product not in cart)
-    return InkWell(
-      onTap: () => _addToCart(product),
-      borderRadius: BorderRadius.circular(8.r),
-      child: Container(
-        padding: EdgeInsets.all(8.w),
-        decoration: BoxDecoration(
-          color: AppColorsDark.primary,
-          borderRadius: BorderRadius.circular(8.r),
-        ),
-        child: Icon(Icons.add, color: AppColorsDark.white, size: 20.sp),
       ),
     );
   }

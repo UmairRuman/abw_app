@@ -65,7 +65,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
     await Future.delayed(const Duration(milliseconds: 300));
 
     // Load categories first
-    await ref.read(categoriesProvider.notifier).getAllCategories();
+    await ref.read(categoriesProvider.notifier).getActiveCategories();
 
     // Set default category to first category (should be food)
     final categoriesState = ref.read(categoriesProvider);

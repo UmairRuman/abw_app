@@ -1,5 +1,7 @@
 // lib/features/admin/presentation/screens/products/product_management_screen.dart
 
+import 'dart:developer';
+
 import 'package:abw_app/features/admin/presentation/screens/products/widgets/add_edit_product_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,7 +28,7 @@ class _ProductManagementScreenState
   String _searchQuery = '';
   String _selectedCategory = 'all';
   String _selectedStore = 'all';
-  bool _showAvailableOnly = false;
+  String _availabilityFilter = 'all';
 
   @override
   void initState() {
@@ -37,7 +39,7 @@ class _ProductManagementScreenState
   Future<void> _loadData() async {
     await Future.delayed(const Duration(milliseconds: 500));
     await Future.wait([
-      ref.read(productsProvider.notifier).getAllProducts(),
+      ref.read(productsProvider.notifier).getAllProductsAdmin(),
       ref.read(categoriesProvider.notifier).getAllCategories(),
       ref.read(storesProvider.notifier).getApprovedStores(),
     ]);
@@ -148,6 +150,7 @@ class _ProductManagementScreenState
           SizedBox(height: 12.h),
 
           // Filters Row
+          // Filters Row
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -176,18 +179,70 @@ class _ProductManagementScreenState
 
                 SizedBox(width: 8.w),
 
-                // Available Only Toggle
+                // Availability Filter
                 _buildFilterChip(
-                  label: 'Available Only',
+                  label:
+                      _availabilityFilter == 'all'
+                          ? 'All Products'
+                          : _availabilityFilter == 'available'
+                          ? 'Available Only'
+                          : 'Unavailable Only',
                   icon:
-                      _showAvailableOnly
-                          ? Icons.check_box
-                          : Icons.check_box_outline_blank,
-                  isActive: _showAvailableOnly,
-                  onTap: () {
-                    setState(() => _showAvailableOnly = !_showAvailableOnly);
-                  },
+                      _availabilityFilter == 'all'
+                          ? Icons.inventory_2
+                          : _availabilityFilter == 'available'
+                          ? Icons.check_circle
+                          : Icons.cancel,
+                  isActive: _availabilityFilter != 'all',
+                  onTap: () => _showAvailabilityFilter(),
                 ),
+
+                // ✅ ADD CLEAR FILTERS BUTTON
+                if (_selectedCategory != 'all' ||
+                    _selectedStore != 'all' ||
+                    _availabilityFilter != 'all') ...[
+                  SizedBox(width: 8.w),
+                  InkWell(
+                    onTap: () {
+                      setState(() {
+                        _selectedCategory = 'all';
+                        _selectedStore = 'all';
+                        _availabilityFilter = 'all';
+                        _searchQuery = '';
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(20.r),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 12.w,
+                        vertical: 8.h,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColorsDark.error.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(20.r),
+                        border: Border.all(color: AppColorsDark.error),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.clear_all,
+                            size: 16.sp,
+                            color: AppColorsDark.error,
+                          ),
+                          SizedBox(width: 6.w),
+                          Text(
+                            'Clear Filters',
+                            style: AppTextStyles.bodySmall().copyWith(
+                              color: AppColorsDark.error,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -331,6 +386,14 @@ class _ProductManagementScreenState
   }
 
   Widget _buildProductsList(List<ProductModel> allProducts) {
+    // ✅ ADD DEBUG LOGGING
+    log('🔍 FILTER DEBUG:');
+    log('   Total products: ${allProducts.length}');
+    log('   Search query: "$_searchQuery"');
+    log('   Selected category: $_selectedCategory');
+    log('   Selected store: $_selectedStore');
+    log('   Availability filter: $_availabilityFilter');
+
     // Apply filters
     final filteredProducts =
         allProducts.where((product) {
@@ -354,13 +417,42 @@ class _ProductManagementScreenState
             return false;
           }
 
-          // Available filter
-          if (_showAvailableOnly && !product.isAvailable) {
+          // Availability filter
+          if (_availabilityFilter == 'available' && !product.isAvailable) {
+            return false;
+          }
+          if (_availabilityFilter == 'unavailable' && product.isAvailable) {
             return false;
           }
 
           return true;
         }).toList();
+
+    // ✅ ADD MORE DEBUG LOGGING
+    log('   Filtered products: ${filteredProducts.length}');
+    if (_availabilityFilter == 'unavailable') {
+      final unavailableCount = allProducts.where((p) => !p.isAvailable).length;
+      log('   Total unavailable products in DB: $unavailableCount');
+      log('   Showing after filters: ${filteredProducts.length}');
+
+      // Show which products are being filtered out
+      final unavailableProducts =
+          allProducts.where((p) => !p.isAvailable).toList();
+      for (final product in unavailableProducts) {
+        final passesFilter = filteredProducts.contains(product);
+        log(
+          '   - ${product.name} (${product.storeName}): ${passesFilter ? "SHOWN" : "HIDDEN"}',
+        );
+        if (!passesFilter) {
+          log(
+            '     Category match: ${_selectedCategory == 'all' || product.categoryId == _selectedCategory}',
+          );
+          log(
+            '     Store match: ${_selectedStore == 'all' || product.storeId == _selectedStore}',
+          );
+        }
+      }
+    }
 
     if (filteredProducts.isEmpty) {
       return Center(
@@ -841,11 +933,15 @@ class _ProductManagementScreenState
       ),
       builder:
           (context) => Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.7, // ✅ ADD THIS
+            ),
             padding: EdgeInsets.all(20.w),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Header (non-scrolling)
                 Text(
                   'Filter by Category',
                   style: AppTextStyles.titleMedium().copyWith(
@@ -854,35 +950,45 @@ class _ProductManagementScreenState
                   ),
                 ),
                 SizedBox(height: 16.h),
-                ListTile(
-                  leading: const Icon(
-                    Icons.all_inclusive,
-                    color: AppColorsDark.primary,
-                  ),
-                  title: const Text('All Categories'),
-                  selected: _selectedCategory == 'all',
-                  selectedTileColor: AppColorsDark.primaryContainer.withOpacity(
-                    0.2,
-                  ),
-                  onTap: () {
-                    setState(() => _selectedCategory = 'all');
-                    Navigator.pop(context);
-                  },
-                ),
-                ...state.categories.map(
-                  (category) => ListTile(
-                    leading: const Icon(
-                      Icons.category,
-                      color: AppColorsDark.accent,
+
+                // ✅ SCROLLABLE CONTENT
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ListTile(
+                          leading: const Icon(
+                            Icons.all_inclusive,
+                            color: AppColorsDark.primary,
+                          ),
+                          title: const Text('All Categories'),
+                          selected: _selectedCategory == 'all',
+                          selectedTileColor: AppColorsDark.primaryContainer
+                              .withOpacity(0.2),
+                          onTap: () {
+                            setState(() => _selectedCategory = 'all');
+                            Navigator.pop(context);
+                          },
+                        ),
+                        ...state.categories.map(
+                          (category) => ListTile(
+                            leading: const Icon(
+                              Icons.category,
+                              color: AppColorsDark.accent,
+                            ),
+                            title: Text(category.name),
+                            selected: _selectedCategory == category.id,
+                            selectedTileColor: AppColorsDark.primaryContainer
+                                .withOpacity(0.2),
+                            onTap: () {
+                              setState(() => _selectedCategory = category.id);
+                              Navigator.pop(context);
+                            },
+                          ),
+                        ),
+                      ],
                     ),
-                    title: Text(category.name),
-                    selected: _selectedCategory == category.id,
-                    selectedTileColor: AppColorsDark.primaryContainer
-                        .withOpacity(0.2),
-                    onTap: () {
-                      setState(() => _selectedCategory = category.id);
-                      Navigator.pop(context);
-                    },
                   ),
                 ),
               ],
@@ -897,57 +1003,91 @@ class _ProductManagementScreenState
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColorsDark.surface,
+      isScrollControlled: true, // ✅ Allow custom height
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
       builder:
-          (context) => Container(
-            padding: EdgeInsets.all(20.w),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Filter by Store',
-                  style: AppTextStyles.titleMedium().copyWith(
-                    color: AppColorsDark.textPrimary,
-                    fontWeight: FontWeight.bold,
+          (context) => DraggableScrollableSheet(
+            initialChildSize: 0.5, // ✅ Starts at 50% height
+            minChildSize: 0.3,
+            maxChildSize: 0.9, // ✅ Can expand to 90%
+            expand: false,
+            builder:
+                (context, scrollController) => Container(
+                  padding: EdgeInsets.all(20.w),
+                  child: Column(
+                    children: [
+                      // Drag handle
+                      Container(
+                        width: 40.w,
+                        height: 4.h,
+                        margin: EdgeInsets.only(bottom: 16.h),
+                        decoration: BoxDecoration(
+                          color: AppColorsDark.textTertiary,
+                          borderRadius: BorderRadius.circular(2.r),
+                        ),
+                      ),
+
+                      // Header
+                      Text(
+                        'Filter by Store',
+                        style: AppTextStyles.titleMedium().copyWith(
+                          color: AppColorsDark.textPrimary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 16.h),
+
+                      // Scrollable list
+                      Expanded(
+                        child: ListView.builder(
+                          controller:
+                              scrollController, // ✅ Use scroll controller
+                          itemCount:
+                              state.stores.length + 1, // +1 for "All Stores"
+                          itemBuilder: (context, index) {
+                            if (index == 0) {
+                              // "All Stores" option
+                              return ListTile(
+                                leading: const Icon(
+                                  Icons.all_inclusive,
+                                  color: AppColorsDark.primary,
+                                ),
+                                title: const Text('All Stores'),
+                                selected: _selectedStore == 'all',
+                                selectedTileColor: AppColorsDark
+                                    .primaryContainer
+                                    .withOpacity(0.2),
+                                onTap: () {
+                                  setState(() => _selectedStore = 'all');
+                                  Navigator.pop(context);
+                                },
+                              );
+                            }
+
+                            // Individual store options
+                            final store = state.stores[index - 1];
+                            return ListTile(
+                              leading: const Icon(
+                                Icons.store,
+                                color: AppColorsDark.success,
+                              ),
+                              title: Text(store.name),
+                              selected: _selectedStore == store.id,
+                              selectedTileColor: AppColorsDark.primaryContainer
+                                  .withOpacity(0.2),
+                              onTap: () {
+                                setState(() => _selectedStore = store.id);
+                                Navigator.pop(context);
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                SizedBox(height: 16.h),
-                ListTile(
-                  leading: const Icon(
-                    Icons.all_inclusive,
-                    color: AppColorsDark.primary,
-                  ),
-                  title: const Text('All Stores'),
-                  selected: _selectedStore == 'all',
-                  selectedTileColor: AppColorsDark.primaryContainer.withOpacity(
-                    0.2,
-                  ),
-                  onTap: () {
-                    setState(() => _selectedStore = 'all');
-                    Navigator.pop(context);
-                  },
-                ),
-                ...state.stores.map(
-                  (store) => ListTile(
-                    leading: const Icon(
-                      Icons.store,
-                      color: AppColorsDark.success,
-                    ),
-                    title: Text(store.name),
-                    selected: _selectedStore == store.id,
-                    selectedTileColor: AppColorsDark.primaryContainer
-                        .withOpacity(0.2),
-                    onTap: () {
-                      setState(() => _selectedStore = store.id);
-                      Navigator.pop(context);
-                    },
-                  ),
-                ),
-              ],
-            ),
           ),
     );
   }
@@ -968,6 +1108,124 @@ class _ProductManagementScreenState
         _showDeleteDialog(product);
         break;
     }
+  }
+
+  void _showAvailabilityFilter() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColorsDark.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+      ),
+      builder:
+          (context) => Container(
+            padding: EdgeInsets.all(20.w),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Text(
+                  'Filter by Availability',
+                  style: AppTextStyles.titleMedium().copyWith(
+                    color: AppColorsDark.textPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 16.h),
+
+                // All Products
+                ListTile(
+                  leading: Container(
+                    padding: EdgeInsets.all(8.w),
+                    decoration: BoxDecoration(
+                      color: AppColorsDark.primary.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    child: const Icon(
+                      Icons.inventory_2,
+                      color: AppColorsDark.primary,
+                    ),
+                  ),
+                  title: const Text('All Products'),
+                  subtitle: Text(
+                    'Show both available and unavailable',
+                    style: AppTextStyles.bodySmall().copyWith(
+                      color: AppColorsDark.textSecondary,
+                    ),
+                  ),
+                  selected: _availabilityFilter == 'all',
+                  selectedTileColor: AppColorsDark.primaryContainer.withOpacity(
+                    0.2,
+                  ),
+                  onTap: () {
+                    setState(() => _availabilityFilter = 'all');
+                    Navigator.pop(context);
+                  },
+                ),
+
+                SizedBox(height: 8.h),
+
+                // Available Only
+                ListTile(
+                  leading: Container(
+                    padding: EdgeInsets.all(8.w),
+                    decoration: BoxDecoration(
+                      color: AppColorsDark.success.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    child: const Icon(
+                      Icons.check_circle,
+                      color: AppColorsDark.success,
+                    ),
+                  ),
+                  title: const Text('Available Only'),
+                  subtitle: Text(
+                    'Show only available products',
+                    style: AppTextStyles.bodySmall().copyWith(
+                      color: AppColorsDark.textSecondary,
+                    ),
+                  ),
+                  selected: _availabilityFilter == 'available',
+                  selectedTileColor: AppColorsDark.successLight.withOpacity(
+                    0.1,
+                  ),
+                  onTap: () {
+                    setState(() => _availabilityFilter = 'available');
+                    Navigator.pop(context);
+                  },
+                ),
+
+                SizedBox(height: 8.h),
+
+                // Unavailable Only
+                ListTile(
+                  leading: Container(
+                    padding: EdgeInsets.all(8.w),
+                    decoration: BoxDecoration(
+                      color: AppColorsDark.error.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    child: const Icon(Icons.cancel, color: AppColorsDark.error),
+                  ),
+                  title: const Text('Unavailable Only'),
+                  subtitle: Text(
+                    'Show only unavailable products',
+                    style: AppTextStyles.bodySmall().copyWith(
+                      color: AppColorsDark.textSecondary,
+                    ),
+                  ),
+                  selected: _availabilityFilter == 'unavailable',
+                  selectedTileColor: AppColorsDark.error.withOpacity(0.1),
+                  onTap: () {
+                    setState(() => _availabilityFilter = 'unavailable');
+                    Navigator.pop(context);
+                  },
+                ),
+              ],
+            ),
+          ),
+    );
   }
 
   Future<void> _toggleProductAvailability(ProductModel product) async {

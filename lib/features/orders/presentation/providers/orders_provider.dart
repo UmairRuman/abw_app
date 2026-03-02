@@ -342,6 +342,7 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
         'status': 'busy',
         'updatedAt': FieldValue.serverTimestamp(),
       });
+      final specialInstructions = orderData['specialInstructions'] as String?;
 
       // ✅ SEND NOTIFICATION TO RIDER
       final addressString =
@@ -352,6 +353,7 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
         orderId: orderId,
         customerName: userName,
         storeName: storeName,
+        specialInstructions: specialInstructions, // ✅ NEW
         deliveryAddress: addressString,
         deliveryFee: deliveryFee,
       );
