@@ -10,7 +10,15 @@ import '../../../../../products/domain/entities/product_variant.dart';
 
 class ProductCustomizationDialog extends ConsumerStatefulWidget {
   final ProductModel product;
-  final Function(ProductModel, String?, List<ProductAddon>, String?)
+
+  // ✅ FIX: Changed String? variantId → ProductVariant? selectedVariant
+  // so the full object (with price) is passed back, not just the id.
+  final Function(
+    ProductModel product,
+    ProductVariant? selectedVariant, // ✅ was: String? variantId
+    List<ProductAddon> selectedAddons,
+    String? specialInstructions,
+  )
   onAddToCart;
 
   const ProductCustomizationDialog({
@@ -46,14 +54,18 @@ class _ProductCustomizationDialogState
     super.dispose();
   }
 
+  // ✅ FIX: Variant price is ADDITIONAL on top of base price, not a replacement.
+  // Admin labels it "Additional Price" — so base + variantExtra + addons.
   double _calculateTotal() {
     final double basePrice =
-        _selectedVariant?.price ?? widget.product.discountedPrice;
+        widget.product.discountedPrice; // ← always start from base
+    final double variantExtra =
+        _selectedVariant?.price ?? 0.0; // ← add variant on top
     final double addonsPrice = _selectedAddons.fold(
-      0,
+      0.0,
       (sum, addon) => sum + addon.price,
     );
-    return (basePrice + addonsPrice) * _quantity;
+    return (basePrice + variantExtra + addonsPrice) * _quantity;
   }
 
   @override
@@ -96,12 +108,20 @@ class _ProductCustomizationDialogState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Product Name & Price
+                  // Product Name & Base Price
                   Text(
                     widget.product.name,
                     style: AppTextStyles.headlineSmall().copyWith(
                       color: AppColorsDark.textPrimary,
                       fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 4.h),
+                  // ✅ Show base price clearly so user understands variant is on top
+                  Text(
+                    'Base price: PKR ${widget.product.discountedPrice.toInt()}',
+                    style: AppTextStyles.bodySmall().copyWith(
+                      color: AppColorsDark.textSecondary,
                     ),
                   ),
                   SizedBox(height: 8.h),
@@ -229,7 +249,10 @@ class _ProductCustomizationDialogState
                     ),
                     SizedBox(height: 4.h),
                     Text(
-                      '+PKR ${variant.price.toInt()}',
+                      // ✅ Show variant price as additional charge
+                      variant.price > 0
+                          ? '+PKR ${variant.price.toInt()}'
+                          : 'No extra charge',
                       style: AppTextStyles.bodySmall().copyWith(
                         color:
                             isSelected
@@ -370,9 +393,10 @@ class _ProductCustomizationDialogState
               flex: 2,
               child: ElevatedButton(
                 onPressed: () {
+                  // ✅ FIX: Pass full _selectedVariant object (not just id)
                   widget.onAddToCart(
                     widget.product,
-                    _selectedVariant?.id,
+                    _selectedVariant, // ✅ was: _selectedVariant?.id
                     _selectedAddons,
                     _instructionsController.text.trim().isEmpty
                         ? null

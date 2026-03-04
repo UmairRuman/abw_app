@@ -2,6 +2,7 @@
 
 import 'dart:developer';
 import 'package:abw_app/features/products/data/models/product_model.dart';
+import 'package:abw_app/features/products/domain/entities/product_variant.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/collections/carts_collection.dart';
@@ -38,12 +39,14 @@ class CartNotifier extends Notifier<CartState> {
   Future<bool> addToCart(
     String userId,
     ProductModel product,
-    int quantity,
-  ) async {
+    int quantity, {
+    ProductVariant? selectedVariant, // ✅ NEW
+    List<ProductAddon> selectedAddons = const [], // ✅ NEW
+    String? specialInstructions, // ✅ NEW
+  }) async {
     try {
-      // ✅ STEP 1: FETCH DELIVERY FEE FROM STORE
-      double deliveryFee = 50.0; // fallback default
-
+      // ── STEP 1: Fetch delivery fee from store ─────────────────────────────
+      double deliveryFee = 50.0;
       try {
         final storeDoc =
             await FirebaseFirestore.instance
@@ -52,8 +55,8 @@ class CartNotifier extends Notifier<CartState> {
                 .get();
 
         if (storeDoc.exists) {
-          final storeData = storeDoc.data()!;
-          deliveryFee = (storeData['deliveryFee'] as num?)?.toDouble() ?? 50.0;
+          deliveryFee =
+              (storeDoc.data()!['deliveryFee'] as num?)?.toDouble() ?? 50.0;
           log('✅ Delivery fee from store: $deliveryFee');
         } else {
           log('⚠️ Store not found, using default delivery fee: $deliveryFee');
@@ -62,7 +65,23 @@ class CartNotifier extends Notifier<CartState> {
         log('⚠️ Could not fetch delivery fee, using default: $e');
       }
 
-      // ✅ STEP 2: BUILD CART ITEM
+      // ── STEP 2: Calculate the effective price ─────────────────────────────
+      // Base price is always product.discountedPrice.
+      // Variant and addons are ADDITIONAL charges on top of it.
+      final double variantExtra = selectedVariant?.price ?? 0.0;
+      final double addonsExtra = selectedAddons.fold(
+        0.0,
+        (sum, addon) => sum + addon.price,
+      );
+      final double effectivePrice =
+          product.discountedPrice + variantExtra + addonsExtra; // ✅ FIXED
+
+      log(
+        '💰 Price breakdown → base: ${product.discountedPrice} '
+        '+ variant: $variantExtra + addons: $addonsExtra = $effectivePrice',
+      );
+
+      // ── STEP 3: Build cart item ───────────────────────────────────────────
       final cartItem = CartItemModel(
         productId: product.id,
         productName: product.name,
@@ -71,26 +90,30 @@ class CartNotifier extends Notifier<CartState> {
         storeName: product.storeName,
         price: product.price,
         quantity: quantity,
-        discountedPrice: product.discountedPrice,
-        total: product.discountedPrice * quantity,
+        discountedPrice:
+            product.discountedPrice, // base only; extras stored separately
+        total: effectivePrice * quantity, // ✅ FIXED: includes variant + addons
         isAvailable: product.isAvailable,
         maxQuantity: product.maxOrderQuantity,
         unit: product.unit,
+        selectedVariant: selectedVariant, // ✅ NEW
+        selectedAddons: selectedAddons, // ✅ NEW
+        specialInstructions: specialInstructions, // ✅ NEW
       );
 
-      // ✅ STEP 3: ADD ITEM TO CART
+      // ── STEP 4: Persist to Firestore ──────────────────────────────────────
       final success = await _collection.addItemToCart(
         userId,
         cartItem,
-        deliveryFee: deliveryFee, // ✅ PASS DELIVERY FEE
+        deliveryFee: deliveryFee,
       );
 
       if (!success) {
-        // Different store detected
+        // Different store detected — caller must handle the replace-cart dialog
         return false;
       }
 
-      // ✅ STEP 4: RELOAD CART
+      // ── STEP 5: Reload cart state ─────────────────────────────────────────
       await loadCart(userId);
       return true;
     } catch (e) {
@@ -100,18 +123,26 @@ class CartNotifier extends Notifier<CartState> {
     }
   }
 
-  /// Clear cart and add new item from different store
+  /// Clear cart and add a new item (used when switching stores).
+  /// ✅ FIXED: forwards variant/addon/instructions to the new addToCart signature.
   Future<bool> clearAndAddToCart(
     String userId,
     ProductModel product,
-    int quantity,
-  ) async {
+    int quantity, {
+    ProductVariant? selectedVariant,
+    List<ProductAddon> selectedAddons = const [],
+    String? specialInstructions,
+  }) async {
     try {
-      // Clear existing cart
       await clearCart(userId);
-
-      // Add new item
-      return await addToCart(userId, product, quantity);
+      return await addToCart(
+        userId,
+        product,
+        quantity,
+        selectedVariant: selectedVariant,
+        selectedAddons: selectedAddons,
+        specialInstructions: specialInstructions,
+      );
     } catch (e) {
       state = CartError(error: e.toString());
       log('Error clearing and adding to cart: ${e.toString()}');

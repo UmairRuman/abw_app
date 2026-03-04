@@ -3,6 +3,8 @@
 import 'package:abw_app/features/auth/data/models/customer_model.dart';
 import 'package:abw_app/features/auth/domain/entities/user_entity.dart';
 import 'package:abw_app/features/auth/presentation/providers/auth_state.dart';
+import 'package:abw_app/features/customer/presentation/screens/profile/customer_edit_profile_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -96,7 +98,7 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
           icon: const Icon(Icons.edit),
           color: AppColorsDark.textPrimary,
           onPressed: () {
-            // TODO: Edit profile
+            context.push('/customer/edit-profile');
           },
         ),
       ],
@@ -176,12 +178,19 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
     return SliverList(
       delegate: SliverChildListDelegate([
         SizedBox(height: 8.h),
+
+        // Account section
         _buildSection(context, 'Account', [
           _buildMenuItem(
             icon: Icons.person_outline,
             title: 'Personal Information',
             onTap: () {
-              // TODO: Edit personal info
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CustomerEditProfileScreen(),
+                ),
+              );
             },
           ),
           _buildMenuItem(
@@ -193,8 +202,9 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
             },
           ),
         ]),
+
+        // Orders section
         _buildSection(context, 'Orders', [
-          // ✅ ADD THIS
           _buildMenuItem(
             icon: Icons.shopping_bag_outlined,
             title: 'Active Orders',
@@ -208,7 +218,6 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
               );
             },
           ),
-          // ✅ ADD THIS
           _buildMenuItem(
             icon: Icons.history,
             title: 'Order History',
@@ -223,7 +232,33 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
             },
           ),
         ]),
+
         SizedBox(height: 16.h),
+
+        // ✅ NEW: Delete Account Button
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16.w),
+          child: OutlinedButton(
+            onPressed: () => _showDeleteAccountDialog(context),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColorsDark.error,
+              side: const BorderSide(color: AppColorsDark.error),
+              padding: EdgeInsets.symmetric(vertical: 16.h),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.delete_forever, size: 20.sp),
+                SizedBox(width: 8.w),
+                const Text('Delete Account'),
+              ],
+            ),
+          ),
+        ),
+
+        SizedBox(height: 12.h),
+
+        // Logout button (keep this)
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 16.w),
           child: OutlinedButton(
@@ -248,9 +283,223 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
             ),
           ),
         ),
+
         SizedBox(height: 32.h),
       ]),
     );
+  }
+
+  // ✅ NEW: Delete Account Dialog
+  void _showDeleteAccountDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: AppColorsDark.surface,
+            icon: Icon(
+              Icons.warning_amber_rounded,
+              color: AppColorsDark.error,
+              size: 48.sp,
+            ),
+            title: Text(
+              'Delete Account?',
+              style: AppTextStyles.titleLarge().copyWith(
+                color: AppColorsDark.error,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'This action will permanently delete your account.',
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textPrimary,
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                Container(
+                  padding: EdgeInsets.all(12.w),
+                  decoration: BoxDecoration(
+                    color: AppColorsDark.warning.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8.r),
+                    border: Border.all(
+                      color: AppColorsDark.warning.withOpacity(0.3),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'What will happen:',
+                        style: AppTextStyles.labelMedium().copyWith(
+                          color: AppColorsDark.warning,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(height: 8.h),
+                      _buildConsequenceItem(
+                        'You will be logged out immediately',
+                      ),
+                      _buildConsequenceItem('You cannot place new orders'),
+                      _buildConsequenceItem('You cannot login again'),
+                      SizedBox(height: 8.h),
+                      Text(
+                        'Your order history will be kept for business records.',
+                        style: AppTextStyles.bodySmall().copyWith(
+                          color: AppColorsDark.info,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: AppColorsDark.textSecondary),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _handleDeleteAccount(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColorsDark.error,
+                ),
+                child: const Text('Delete My Account'),
+              ),
+            ],
+          ),
+    );
+  }
+
+  // ✅ Helper widget for consequence list
+  Widget _buildConsequenceItem(String text) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 4.h),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.close, size: 16.sp, color: AppColorsDark.error),
+          SizedBox(width: 8.w),
+          Expanded(
+            child: Text(
+              text,
+              style: AppTextStyles.bodySmall().copyWith(
+                color: AppColorsDark.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✅ NEW: Handle Account Deletion
+  Future<void> _handleDeleteAccount(BuildContext context) async {
+    final authState = ref.read(authProvider);
+    if (authState is! Authenticated) return;
+
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder:
+            (context) => Center(
+              child: Container(
+                padding: EdgeInsets.all(24.w),
+                decoration: BoxDecoration(
+                  color: AppColorsDark.surface,
+                  borderRadius: BorderRadius.circular(16.r),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(
+                      color: AppColorsDark.primary,
+                    ),
+                    SizedBox(height: 16.h),
+                    Text(
+                      'Deleting account...',
+                      style: AppTextStyles.bodyMedium().copyWith(
+                        color: AppColorsDark.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+      );
+
+      // ✅ Soft delete: Mark account as deleted
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(authState.user.id)
+          .update({
+            'isDeleted': true,
+            'deletedAt': FieldValue.serverTimestamp(),
+            'deletedReason': 'User requested deletion',
+          });
+
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      // Logout
+      await ref.read(authProvider.notifier).logout();
+
+      // Show success message and navigate to login
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12.w),
+                const Expanded(
+                  child: Text('Your account has been deleted successfully'),
+                ),
+              ],
+            ),
+            backgroundColor: AppColorsDark.success,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+
+        // Navigate to login
+        context.go('/login');
+      }
+    } catch (e) {
+      // Close loading dialog if still open
+      if (context.mounted) {
+        Navigator.pop(context);
+
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                SizedBox(width: 12.w),
+                Expanded(child: Text('Error: ${e.toString()}')),
+              ],
+            ),
+            backgroundColor: AppColorsDark.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildSection(BuildContext context, String title, List<Widget> items) {

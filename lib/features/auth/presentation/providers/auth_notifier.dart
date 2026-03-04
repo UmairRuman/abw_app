@@ -2,14 +2,18 @@
 // UPDATED: FCM token saving in background (non-blocking)
 
 import 'dart:developer';
+import 'dart:io';
 
 import 'package:abw_app/features/auth/data/models/admin_model.dart';
 import 'package:abw_app/features/auth/data/models/customer_model.dart';
 import 'package:abw_app/features/auth/data/models/rider_model.dart';
+import 'package:abw_app/features/auth/domain/entities/customer_entity.dart';
 import 'package:abw_app/features/auth/domain/entities/user_entity.dart';
 import 'package:abw_app/features/auth/domain/usecases/create_admin_usecase.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../../../shared/enums/user_role.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../domain/entities/rider_entity.dart';
@@ -31,6 +35,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final LogoutUseCase _logoutUseCase;
   final GetCurrentUserUseCase _getCurrentUserUseCase;
   final CreateAdminUseCase _createAdminUseCase;
+
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   AuthNotifier({
     required LoginWithEmailUseCase loginWithEmailUseCase,
@@ -100,7 +106,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = AuthError(failure.message);
       },
       (admin) {
-        log("✅ Admin created successfully: ${admin.email}");
+        log('✅ Admin created successfully: ${admin.email}');
 
         // ✅ Set state FIRST (synchronously)
         state = Authenticated(admin);
@@ -178,6 +184,168 @@ class AuthNotifier extends StateNotifier<AuthState> {
       log('✅ User refreshed: ${state.runtimeType}');
     } catch (e) {
       log('❌ refreshUser error: $e');
+    }
+  }
+
+  // Updating profile (only name for now)
+
+  // ✅ UPDATED: Update user profile (name, phone, image)
+  Future<bool> updateProfile({
+    String? name,
+    String? phone,
+    File? profileImage,
+  }) async {
+    try {
+      final currentState = state;
+      if (currentState is! Authenticated) {
+        log('❌ User not authenticated');
+        return false;
+      }
+
+      final user = currentState.user;
+      log('📝 Updating profile for user: ${user.id}');
+
+      // Validate inputs
+      if (name != null && (name.trim().isEmpty || name.trim().length < 3)) {
+        log('❌ Invalid name: must be at least 3 characters');
+        return false;
+      }
+
+      if (phone != null &&
+          !RegExp(r'^[+]?[0-9]{10,15}$').hasMatch(phone.trim())) {
+        log('❌ Invalid phone number format');
+        return false;
+      }
+
+      // Prepare update data
+      final Map<String, dynamic> updateData = {
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (name != null) {
+        updateData['name'] = name.trim();
+      }
+
+      bool phoneChanged = false;
+      if (phone != null && phone.trim() != user.phone) {
+        updateData['phone'] = phone.trim();
+        updateData['isPhoneVerified'] = false; // ✅ Reset verification
+        phoneChanged = true;
+        log('📱 Phone changed - verification required');
+      }
+
+      String? imageUrl;
+      if (profileImage != null) {
+        // ✅ Upload image to Firebase Storage
+        imageUrl = await _saveImageLocally(user.id, profileImage);
+        if (imageUrl != null) {
+          updateData['profileImage'] = imageUrl;
+          log('✅ Profile image uploaded: $imageUrl');
+        }
+      }
+
+      // Update in Firestore
+      final userCollection = _getUserCollection(user.role);
+      await _firestore
+          .collection(userCollection)
+          .doc(user.id)
+          .update(updateData);
+
+      // Also update in 'users' collection if not a customer
+      if (user.role != UserRole.customer) {
+        await _firestore.collection('users').doc(user.id).update(updateData);
+      }
+
+      log('✅ Profile updated successfully');
+
+      // Update local state
+      final updatedUser = (user as CustomerEntity).copyWith(
+        name: name ?? user.name,
+        phone: phone ?? user.phone,
+        profileImage: imageUrl ?? user.profileImage,
+        isPhoneVerified:
+            phoneChanged ? false : null, // Only update if phone changed
+      );
+
+      state = Authenticated(updatedUser);
+
+      return true;
+    } catch (e) {
+      log('❌ Error updating profile: $e');
+      return false;
+    }
+  }
+
+  // ✅ Upload profile image to Firebase Storage
+  Future<String?> _uploadProfileImage(String userId, File imageFile) async {
+    try {
+      log('📤 Uploading profile image...');
+
+      // Create storage reference
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('profile_images')
+          .child('$userId.jpg');
+
+      // Upload file
+      final uploadTask = storageRef.putFile(
+        imageFile,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
+
+      // Wait for upload to complete
+      final snapshot = await uploadTask.whenComplete(() {});
+
+      // Get download URL
+      final downloadUrl = await snapshot.ref.getDownloadURL();
+
+      log('✅ Image uploaded successfully: $downloadUrl');
+      return downloadUrl;
+    } catch (e) {
+      log('❌ Error uploading image: $e');
+      return null;
+    }
+  }
+
+  // ✅ ALTERNATIVE: Store image locally (no upload)
+  // Use this if you don't want to upload to Firebase Storage
+  Future<String?> _saveImageLocally(String userId, File imageFile) async {
+    try {
+      log('💾 Saving image locally...');
+
+      // Get app directory
+      final directory = await getApplicationDocumentsDirectory();
+
+      // Create profile_images folder
+      final profileImagesDir = Directory('${directory.path}/profile_images');
+      if (!await profileImagesDir.exists()) {
+        await profileImagesDir.create(recursive: true);
+      }
+
+      // Save image
+      final fileName = '$userId.jpg';
+      final savedImage = await imageFile.copy(
+        '${profileImagesDir.path}/$fileName',
+      );
+
+      final localPath = savedImage.path;
+      log('✅ Image saved locally: $localPath');
+      return localPath;
+    } catch (e) {
+      log('❌ Error saving image locally: $e');
+      return null;
+    }
+  }
+
+  // Helper method to get correct collection based on role
+  String _getUserCollection(UserRole role) {
+    switch (role) {
+      case UserRole.customer:
+        return 'users';
+      case UserRole.admin:
+        return 'admins';
+      case UserRole.rider:
+        return 'riders';
     }
   }
 

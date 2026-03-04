@@ -11,6 +11,7 @@ import 'package:abw_app/features/auth/presentation/screens/phone_verification/ph
 import 'package:abw_app/features/auth/presentation/screens/phone_verification/phone_verification_screen.dart';
 import 'package:abw_app/features/auth/presentation/screens/signup/admin_signup_screen.dart';
 import 'package:abw_app/features/customer/presentation/screens/location/location_picker_screen.dart';
+import 'package:abw_app/features/customer/presentation/screens/profile/customer_edit_profile_screen.dart';
 import 'package:abw_app/features/rider/presentation/screens/main/rider_main_screen.dart';
 import 'package:abw_app/features/rider/presentation/screens/orders/rider_order_details_screen.dart';
 import 'package:flutter/material.dart';
@@ -260,6 +261,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           final orderId = state.pathParameters['orderId'] ?? '';
           return OrderDetailsScreen(orderId: orderId);
         },
+      ),
+
+      GoRoute(
+        path: '/customer/edit-profile',
+        name: 'edit-profile',
+        builder: (context, state) => const CustomerEditProfileScreen(),
       ),
 
       // ============================================================

@@ -1209,9 +1209,7 @@ Order now on ABW app!
   }
 
   void _showProductDetails(ProductModel product) {
-    // ✅ CHECK IF PRODUCT HAS CUSTOMIZATION
     if (product.hasVariants || product.addons.isNotEmpty) {
-      // Show customization dialog
       showModalBottomSheet(
         context: context,
         isScrollControlled: true,
@@ -1219,10 +1217,16 @@ Order now on ABW app!
         builder:
             (context) => ProductCustomizationDialog(
               product: product,
-              onAddToCart: (product, variantId, selectedAddons, instructions) {
+              // ✅ FIX: callback signature now receives ProductVariant? (not String?)
+              onAddToCart: (
+                product,
+                selectedVariant,
+                selectedAddons,
+                instructions,
+              ) {
                 _addToCartWithCustomization(
                   product,
-                  variantId,
+                  selectedVariant, // ✅ full object — price included
                   selectedAddons,
                   instructions,
                 );
@@ -1230,7 +1234,6 @@ Order now on ABW app!
             ),
       );
     } else {
-      // Show simple details (existing code)
       showModalBottomSheet(
         context: context,
         isScrollControlled: true,
@@ -1240,21 +1243,95 @@ Order now on ABW app!
     }
   }
 
-  // ✅ ADD NEW METHOD
+  // ✅ FIXED: was discarding variant/addons and calling plain _addToCart.
+  //    Now passes everything to cartProvider.addToCart via named params.
   Future<void> _addToCartWithCustomization(
     ProductModel product,
-    String? variantId,
+    ProductVariant? selectedVariant, // ✅ was: String? variantId
     List<ProductAddon> selectedAddons,
     String? instructions,
   ) async {
     final authState = ref.read(authProvider);
-    if (authState is! Authenticated) {
-      return;
-    }
+    if (authState is! Authenticated) return;
 
-    // TODO: Update cart to support variants & addons
-    // For now, just add basic product
-    await _addToCart(product);
+    final success = await ref
+        .read(cartProvider.notifier)
+        .addToCart(
+          authState.user.id,
+          product,
+          1,
+          selectedVariant: selectedVariant, // ✅ passes variant with price
+          selectedAddons: selectedAddons,
+          specialInstructions: instructions,
+        );
+
+    if (!success && mounted) {
+      // Different store detected → show replace-cart dialog
+      final shouldClear = await showDialog<bool>(
+        context: context,
+        builder:
+            (context) => AlertDialog(
+              backgroundColor: AppColorsDark.surface,
+              title: Text(
+                'Replace Cart Items?',
+                style: AppTextStyles.titleMedium().copyWith(
+                  color: AppColorsDark.textPrimary,
+                ),
+              ),
+              content: Text(
+                'Your cart contains items from another store. '
+                'Do you want to clear the cart and add items from this store?',
+                style: AppTextStyles.bodyMedium().copyWith(
+                  color: AppColorsDark.textSecondary,
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColorsDark.primary,
+                  ),
+                  child: const Text('Replace Cart'),
+                ),
+              ],
+            ),
+      );
+
+      if (shouldClear == true && mounted) {
+        final cleared = await ref
+            .read(cartProvider.notifier)
+            .clearAndAddToCart(
+              authState.user.id,
+              product,
+              1,
+              selectedVariant: selectedVariant, // ✅ preserve on replace too
+              selectedAddons: selectedAddons,
+              specialInstructions: instructions,
+            );
+
+        if (cleared && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${product.name} added to cart'),
+              backgroundColor: AppColorsDark.success,
+              duration: const Duration(seconds: 1),
+            ),
+          );
+        }
+      }
+    } else if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${product.name} added to cart'),
+          backgroundColor: AppColorsDark.success,
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
   }
 
   Widget _buildProductDetailsSheet(ProductModel product) {

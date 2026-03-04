@@ -16,7 +16,6 @@ class CartItemModel {
   final int maxQuantity;
   final String unit;
 
-  // ✅ ADD THESE for variant/addon support
   final ProductVariant? selectedVariant;
   final List<ProductAddon> selectedAddons;
   final String? specialInstructions;
@@ -34,16 +33,20 @@ class CartItemModel {
     required this.maxQuantity,
     required this.unit,
     this.isAvailable = true,
-    // ✅ ADD THESE
     this.selectedVariant,
     this.selectedAddons = const [],
     this.specialInstructions,
   });
 
-  /// Calculate total for this item
+  /// ✅ FIXED: calculateTotal now includes variant extra + addons extra.
+  /// discountedPrice here is the base product discounted price (before variant).
   double calculateTotal() {
-    final itemPrice = discountedPrice > 0 ? discountedPrice : price;
-    return itemPrice * quantity;
+    final double variantExtra = selectedVariant?.price ?? 0.0;
+    final double addonsExtra = selectedAddons.fold(
+      0.0,
+      (sum, a) => sum + a.price,
+    );
+    return (discountedPrice + variantExtra + addonsExtra) * quantity;
   }
 
   Map<String, dynamic> toJson() {
@@ -60,15 +63,16 @@ class CartItemModel {
       'isAvailable': isAvailable,
       'maxQuantity': maxQuantity,
       'unit': unit,
-      // ✅ ADD THESE
       'selectedVariant': selectedVariant?.toJson(),
       'selectedAddons': selectedAddons.map((a) => a.toJson()).toList(),
       'specialInstructions': specialInstructions,
     };
   }
 
+  // ✅ FIXED: fromJson now correctly deserializes selectedVariant,
+  // selectedAddons, and specialInstructions — they were declared above
+  // but never assigned in the return statement before.
   factory CartItemModel.fromJson(Map<String, dynamic> json) {
-    // ✅ Parse selectedVariant
     ProductVariant? selectedVariant;
     if (json['selectedVariant'] != null) {
       selectedVariant = ProductVariant.fromJson(
@@ -76,7 +80,6 @@ class CartItemModel {
       );
     }
 
-    // ✅ Parse selectedAddons
     final addonsList = json['selectedAddons'] as List? ?? [];
     final selectedAddons =
         addonsList
@@ -96,9 +99,15 @@ class CartItemModel {
       isAvailable: json['isAvailable'] as bool? ?? true,
       maxQuantity: json['maxQuantity'] as int,
       unit: json['unit'] as String,
+      // ✅ These three were missing from the return before:
+      selectedVariant: selectedVariant,
+      selectedAddons: selectedAddons,
+      specialInstructions: json['specialInstructions'] as String?,
     );
   }
 
+  // ✅ FIXED: copyWith now includes selectedVariant, selectedAddons,
+  // and specialInstructions so cart updates preserve customizations.
   CartItemModel copyWith({
     String? productId,
     String? productName,
@@ -112,6 +121,9 @@ class CartItemModel {
     bool? isAvailable,
     int? maxQuantity,
     String? unit,
+    ProductVariant? selectedVariant, // ✅ was missing
+    List<ProductAddon>? selectedAddons, // ✅ was missing
+    String? specialInstructions, // ✅ was missing
   }) {
     return CartItemModel(
       productId: productId ?? this.productId,
@@ -126,11 +138,15 @@ class CartItemModel {
       isAvailable: isAvailable ?? this.isAvailable,
       maxQuantity: maxQuantity ?? this.maxQuantity,
       unit: unit ?? this.unit,
+      selectedVariant: selectedVariant ?? this.selectedVariant,
+      selectedAddons: selectedAddons ?? this.selectedAddons,
+      specialInstructions: specialInstructions ?? this.specialInstructions,
     );
   }
 
   @override
   String toString() {
-    return 'CartItemModel(productId: $productId, name: $productName, qty: $quantity, total: $total)';
+    return 'CartItemModel(productId: $productId, name: $productName, '
+        'variant: ${selectedVariant?.name}, qty: $quantity, total: $total)';
   }
 }
