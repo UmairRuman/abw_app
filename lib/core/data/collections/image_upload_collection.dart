@@ -18,6 +18,8 @@ class ImageUploadCollection {
     return instance;
   }
 
+  String get baseImageUrl => CloudinaryConstants.baseImageUrl;
+
   /// Upload image to Cloudinary
   Future<String?> uploadImage({
     required File imageFile,

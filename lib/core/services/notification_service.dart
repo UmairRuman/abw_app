@@ -4,6 +4,8 @@
 // ✅ Customer notifications work
 // ✅ Rider notifications include special instructions and payment info
 
+import 'dart:developer';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -309,73 +311,85 @@ class NotificationService {
   }
 
   /// ✅ FIXED: Send notification to admin (new order placed)
+  // ✅ UPDATED: Support for reassignment notifications
   static Future<void> sendNewOrderNotificationToAdmin({
     required String orderId,
     required String customerName,
     required double total,
     required String paymentMethod,
     String? paymentProofUrl,
+    bool isReassignment = false, // ✅ NEW parameter
+    String? previousRider, // ✅ NEW parameter
+    String? refusalReason, // ✅ NEW parameter
   }) async {
     try {
-      dev.log('🔔 Sending new order notifications to admins...');
+      // Determine notification content based on type
+      String title;
+      String body;
 
-      final adminsSnapshot =
+      if (isReassignment) {
+        title = '🔄 Order Reassignment Needed';
+        body =
+            'Rider $previousRider refused order from $customerName. '
+            'Reason: $refusalReason. Please assign new rider.';
+      } else {
+        title = '🔔 New Order!';
+        body = 'New order from $customerName - PKR ${total.toInt()}';
+      }
+
+      log(
+        '📤 Sending ${isReassignment ? "reassignment" : "new order"} notification to admins...',
+      );
+
+      // Query all admin users
+      final adminUsersSnapshot =
           await FirebaseFirestore.instance
               .collection('users')
               .where('role', isEqualTo: 'admin')
               .get();
 
-      dev.log('📊 Found ${adminsSnapshot.docs.length} admins');
-
-      if (adminsSnapshot.docs.isEmpty) {
-        dev.log('⚠️ No admins found!');
+      if (adminUsersSnapshot.docs.isEmpty) {
+        log('⚠️ No admin users found');
         return;
       }
 
-      int successCount = 0;
-      for (final adminDoc in adminsSnapshot.docs) {
+      log('   Found ${adminUsersSnapshot.docs.length} admin(s)');
+
+      // Send notification to each admin
+      for (final adminDoc in adminUsersSnapshot.docs) {
         final adminData = adminDoc.data();
         final fcmToken = adminData['fcmToken'] as String?;
-        final adminName = adminData['name'] as String? ?? 'Admin';
 
         if (fcmToken == null || fcmToken.isEmpty) {
-          dev.log('⚠️ Admin "$adminName" (${adminDoc.id}) has no FCM token');
+          log('   ⚠️ Admin ${adminDoc.id} has no FCM token');
           continue;
         }
 
-        dev.log('📤 Sending to admin "$adminName"...');
+        log('   📤 Sending to admin: ${adminDoc.id}');
 
-        // ✅ ACTUALLY SEND VIA HTTP v1 API
-        final sent = await _sendFCMNotification(
+        // Send notification
+        await _sendFCMNotification(
           fcmToken: fcmToken,
-          title: '🛒 New Order Received!',
-          body:
-              '$customerName placed an order of PKR ${total.toInt()} via $paymentMethod',
+          title: title,
+          body: body,
           data: {
-            'type': 'new_order',
+            'type': isReassignment ? 'order_reassignment' : 'new_order',
             'orderId': orderId,
             'customerName': customerName,
             'total': total.toString(),
             'paymentMethod': paymentMethod,
-            'paymentProofUrl': paymentProofUrl ?? '',
+            if (paymentProofUrl != null) 'paymentProofUrl': paymentProofUrl,
+            if (isReassignment) 'previousRider': previousRider ?? '',
+            if (isReassignment) 'refusalReason': refusalReason ?? '',
           },
         );
 
-        if (sent) {
-          successCount++;
-          dev.log('   ✅ Sent to $adminName');
-        } else {
-          dev.log('   ❌ Failed to send to $adminName');
-        }
-
-        await Future.delayed(const Duration(milliseconds: 100));
+        log('   ✅ Notification sent to admin ${adminDoc.id}');
       }
 
-      dev.log(
-        '✅ Notifications sent to $successCount/${adminsSnapshot.docs.length} admins',
-      );
+      log('✅ Admin notifications sent successfully');
     } catch (e) {
-      dev.log('❌ Error sending admin notifications: $e');
+      log('❌ Error sending admin notification: $e');
     }
   }
 

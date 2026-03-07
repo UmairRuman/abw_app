@@ -1,5 +1,5 @@
 // lib/features/orders/data/models/order_model.dart
-// UPDATED WITH MILESTONE 3 FIELDS
+// UPDATED: Added cancellation and rider refusal fields
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../domain/entities/order_entity.dart';
@@ -38,8 +38,18 @@ class OrderModel extends OrderEntity {
     super.deliveryLongitude,
     super.distance,
     super.storeCommission,
+    // ✅ NEW: Cancellation fields
+    super.cancellationReason,
+    super.cancelledAt,
+    super.cancelledBy,
+    // ✅ NEW: Rider refusal fields
+    super.riderRefusalReason,
+    super.riderRefusedAt,
     super.estimatedDeliveryTime,
     super.statusHistory,
+    super.cashCheckedIn,
+    super.cashCheckedInAt,
+    super.cashCheckedInAmount,
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
@@ -91,8 +101,6 @@ class OrderModel extends OrderEntity {
       ),
       riderId: json['riderId'] as String?,
       riderName: json['riderName'] as String?,
-
-      // ✅ NEW MILESTONE 3 FIELDS
       riderPhone: json['riderPhone'] as String?,
       pickupLatitude: (json['pickupLatitude'] as num?)?.toDouble(),
       pickupLongitude: (json['pickupLongitude'] as num?)?.toDouble(),
@@ -100,7 +108,19 @@ class OrderModel extends OrderEntity {
       deliveryLongitude: (json['deliveryLongitude'] as num?)?.toDouble(),
       distance: (json['distance'] as num?)?.toDouble(),
       storeCommission: (json['storeCommission'] as num?)?.toDouble(),
-
+      // ✅ NEW: Cancellation fields (all nullable, won't break existing orders)
+      cancellationReason: json['cancellationReason'] as String?,
+      cancelledAt:
+          json['cancelledAt'] != null
+              ? (json['cancelledAt'] as Timestamp).toDate()
+              : null,
+      cancelledBy: json['cancelledBy'] as String?,
+      // ✅ NEW: Rider refusal fields (all nullable, won't break existing orders)
+      riderRefusalReason: json['riderRefusalReason'] as String?,
+      riderRefusedAt:
+          json['riderRefusedAt'] != null
+              ? (json['riderRefusedAt'] as Timestamp).toDate()
+              : null,
       estimatedDeliveryTime:
           json['estimatedDeliveryTime'] != null
               ? (json['estimatedDeliveryTime'] as Timestamp).toDate()
@@ -108,6 +128,12 @@ class OrderModel extends OrderEntity {
       createdAt: (json['createdAt'] as Timestamp).toDate(),
       updatedAt: (json['updatedAt'] as Timestamp).toDate(),
       statusHistory: statusHistory,
+      cashCheckedIn: json['cashCheckedIn'] as bool?,
+      cashCheckedInAt:
+          json['cashCheckedInAt'] != null
+              ? (json['cashCheckedInAt'] as Timestamp).toDate()
+              : null,
+      cashCheckedInAmount: (json['cashCheckedInAmount'] as num?)?.toDouble(),
     );
   }
 
@@ -134,8 +160,6 @@ class OrderModel extends OrderEntity {
       'status': status.name,
       'riderId': riderId,
       'riderName': riderName,
-
-      // ✅ NEW MILESTONE 3 FIELDS
       'riderPhone': riderPhone,
       'pickupLatitude': pickupLatitude,
       'pickupLongitude': pickupLongitude,
@@ -143,7 +167,15 @@ class OrderModel extends OrderEntity {
       'deliveryLongitude': deliveryLongitude,
       'distance': distance,
       'storeCommission': storeCommission,
-
+      // ✅ NEW: Cancellation fields
+      'cancellationReason': cancellationReason,
+      'cancelledAt':
+          cancelledAt != null ? Timestamp.fromDate(cancelledAt!) : null,
+      'cancelledBy': cancelledBy,
+      // ✅ NEW: Rider refusal fields
+      'riderRefusalReason': riderRefusalReason,
+      'riderRefusedAt':
+          riderRefusedAt != null ? Timestamp.fromDate(riderRefusedAt!) : null,
       'estimatedDeliveryTime':
           estimatedDeliveryTime != null
               ? Timestamp.fromDate(estimatedDeliveryTime!)
@@ -154,6 +186,11 @@ class OrderModel extends OrderEntity {
           statusHistory
               .map((h) => (h as OrderStatusUpdateModel).toJson())
               .toList(),
+
+      'cashCheckedIn': cashCheckedIn,
+      'cashCheckedInAt':
+          cashCheckedInAt != null ? Timestamp.fromDate(cashCheckedInAt!) : null,
+      'cashCheckedInAmount': cashCheckedInAmount,
     };
   }
 
@@ -186,10 +223,20 @@ class OrderModel extends OrderEntity {
     double? deliveryLongitude,
     double? distance,
     double? storeCommission,
+    // ✅ NEW: Cancellation fields
+    String? cancellationReason,
+    DateTime? cancelledAt,
+    String? cancelledBy,
+    // ✅ NEW: Rider refusal fields
+    String? riderRefusalReason,
+    DateTime? riderRefusedAt,
     DateTime? estimatedDeliveryTime,
     DateTime? createdAt,
     DateTime? updatedAt,
     List<OrderStatusUpdate>? statusHistory,
+    bool? cashCheckedIn,
+    DateTime? cashCheckedInAt,
+    double? cashCheckedInAmount,
   }) {
     return OrderModel(
       id: id ?? this.id,
@@ -220,11 +267,23 @@ class OrderModel extends OrderEntity {
       deliveryLongitude: deliveryLongitude ?? this.deliveryLongitude,
       distance: distance ?? this.distance,
       storeCommission: storeCommission ?? this.storeCommission,
+      // ✅ NEW: Cancellation fields
+      cancellationReason: cancellationReason ?? this.cancellationReason,
+      cancelledAt: cancelledAt ?? this.cancelledAt,
+      cancelledBy: cancelledBy ?? this.cancelledBy,
+      // ✅ NEW: Rider refusal fields
+      riderRefusalReason: riderRefusalReason ?? this.riderRefusalReason,
+      riderRefusedAt: riderRefusedAt ?? this.riderRefusedAt,
       estimatedDeliveryTime:
           estimatedDeliveryTime ?? this.estimatedDeliveryTime,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       statusHistory: statusHistory ?? this.statusHistory,
+
+      // ... then in return:
+      cashCheckedIn: cashCheckedIn ?? this.cashCheckedIn,
+      cashCheckedInAt: cashCheckedInAt ?? this.cashCheckedInAt,
+      cashCheckedInAmount: cashCheckedInAmount ?? this.cashCheckedInAmount,
     );
   }
 }

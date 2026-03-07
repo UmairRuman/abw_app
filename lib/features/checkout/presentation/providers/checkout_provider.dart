@@ -50,10 +50,8 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     state = CheckoutLoading();
 
     try {
-      // Generate order ID
       final orderId = DateTime.now().millisecondsSinceEpoch.toString();
 
-      // Create order document
       final orderData = {
         'id': orderId,
         'userId': userId,
@@ -67,9 +65,31 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
                   (item) => {
                     'productId': item.productId,
                     'productName': item.productName,
+                    'productImage': item.productImage,
                     'quantity': item.quantity,
-                    'price': item.price,
-                    'total': item.total,
+                    // ✅ FIXED: use discountedPrice (effective variant price), not item.price (base)
+                    'price': item.discountedPrice,
+                    'total': item.discountedPrice * item.quantity,
+                    // ✅ NEW: persist variant & addon selection on the order
+                    'selectedVariant':
+                        item.selectedVariant != null
+                            ? {
+                              'id': item.selectedVariant!.id,
+                              'name': item.selectedVariant!.name,
+                              'price': item.selectedVariant!.price,
+                            }
+                            : null,
+                    'selectedAddons':
+                        item.selectedAddons
+                            .map(
+                              (a) => {
+                                'id': a.id,
+                                'name': a.name,
+                                'price': a.price,
+                              },
+                            )
+                            .toList(),
+                    'specialInstructions': item.specialInstructions,
                   },
                 )
                 .toList(),
@@ -84,6 +104,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         'subtotal': checkout.subtotal,
         'deliveryFee': checkout.deliveryFee,
         'total': checkout.total,
+        'specialInstructions': checkout.specialInstructions,
         'paymentMethod': paymentMethod,
         'paymentStatus': paymentMethod == 'cod' ? 'pending' : 'completed',
         'paymentProofUrl': paymentProofUrl,
@@ -93,7 +114,6 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      // Save order to Firestore
       await FirebaseFirestore.instance
           .collection('orders')
           .doc(orderId)
@@ -101,7 +121,6 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
 
       dev.log('✅ Order created: $orderId');
 
-      // ✅ SEND NOTIFICATION TO ALL ADMINS
       await NotificationService.sendNewOrderNotificationToAdmin(
         orderId: orderId,
         customerName: userName,
@@ -112,15 +131,15 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
 
       log('✅ Admin notifications sent');
 
-      // Clear cart
       await FirebaseFirestore.instance.collection('carts').doc(userId).delete();
       log('✅ Cart cleared');
 
-      state = CheckoutInitial(); // Reset state
-      return orderId; // ✅ Return the orderId
+      state = CheckoutInitial();
+      return orderId;
     } catch (e) {
       dev.log('❌ Error placing order: $e');
       state = CheckoutError(e.toString());
+      return null;
     }
   }
 
@@ -143,7 +162,6 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       final isPhoneVerified = userData['isPhoneVerified'] as bool? ?? false;
       final phone = userData['phone'] as String?;
 
-      // ✅ CHECK IF PHONE EXISTS
       if (phone == null || phone.isEmpty) {
         state = CheckoutError('phone_missing');
         return;
@@ -154,7 +172,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         return;
       }
 
-      // ── Step 1: Get cart ──────────────────────────
+      // ── Step 1: Get cart ───────────────────────────────────────────────────
       final cartState = ref.read(cartProvider);
       if (cartState is! CartLoaded || cartState.cart.items.isEmpty) {
         state = CheckoutError('Your cart is empty');
@@ -167,7 +185,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         return;
       }
 
-      // ── Step 2: Load store DIRECTLY from Firestore ─
+      // ── Step 2: Load store ─────────────────────────────────────────────────
       StoreModel? store;
       try {
         final doc =
@@ -189,13 +207,13 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         return;
       }
 
-      // ── Step 3: Load addresses if not loaded ───────
+      // ── Step 3: Load addresses ─────────────────────────────────────────────
       final addressesState = ref.read(addressesProvider);
       if (addressesState is! AddressesLoaded) {
         await ref.read(addressesProvider.notifier).loadUserAddresses(userId);
       }
 
-      // ── Step 4: Get delivery address ───────────────
+      // ── Step 4: Get delivery address ───────────────────────────────────────
       final freshAddressesState = ref.read(addressesProvider);
       AddressModel? deliveryAddress;
 
@@ -215,11 +233,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         return;
       }
 
-      dev.log(
-        '✅ Delivery address: ${deliveryAddress.latitude}, ${deliveryAddress.longitude}',
-      );
-
-      // ✅ NEW: CALCULATE DISTANCE
+      // ── Step 5: Calculate distance ─────────────────────────────────────────
       double distance = 0.0;
       if (store.latitude != 0.0 &&
           store.longitude != 0.0 &&
@@ -238,12 +252,26 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         dev.log('⚠️ Missing coordinates, distance set to 0');
       }
 
-      // ── Step 5: Calculate totals ───────────────────
-      final subtotal = cart.total;
-      final deliveryFee = store.deliveryFee;
-      final total = subtotal + deliveryFee;
+      // ── Step 6: Calculate totals ───────────────────────────────────────────
+      //
+      // ✅ FIXED: Use cart.subtotal (pure item prices) NOT cart.total.
+      //
+      // cart.total  = subtotal + deliveryFee  ← already includes delivery fee
+      // cart.subtotal = Σ (item.discountedPrice × qty)  ← pure item cost only
+      //
+      // Using cart.total was adding the cart's saved delivery fee into the
+      // subtotal, then adding the store's real delivery fee on top again,
+      // resulting in double-counted delivery (PKR 751 subtotal, PKR 1 fee).
+      //
+      final double subtotal = cart.subtotal; // ✅ pure item cost
+      final double deliveryFee = store.deliveryFee; // ✅ from store config
+      final double total = subtotal + deliveryFee; // ✅ correct total
 
-      // ── Step 6: Build checkout ─────────────────────
+      dev.log(
+        '💰 Checkout totals → subtotal: $subtotal + delivery: $deliveryFee = $total',
+      );
+
+      // ── Step 7: Build checkout model ──────────────────────────────────────
       final checkout = CheckoutModel(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         userId: userId,

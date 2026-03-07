@@ -1,4 +1,5 @@
 // lib/features/orders/data/collections/orders_collection.dart
+// UPDATED: Filter cancelled from rider queries, added cashCheckIn
 
 import 'package:abw_app/features/orders/domain/entities/order_entity.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -8,7 +9,8 @@ class OrdersCollection {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final String _collectionPath = 'orders';
 
-  // Create order
+  // ── Create / Read ────────────────────────────────────────────────────────
+
   Future<bool> createOrder(OrderModel order) async {
     try {
       await _firestore
@@ -22,29 +24,12 @@ class OrdersCollection {
     }
   }
 
-  Future<bool> updatePaymentStatus(
-    String orderId,
-    PaymentStatus newStatus,
-  ) async {
-    try {
-      await _firestore.collection(_collectionPath).doc(orderId).update({
-        'paymentStatus': newStatus.name,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-      return true;
-    } catch (e) {
-      print('Error updating payment status: $e');
-      return false;
-    }
-  }
-
-  // Get order by ID
   Future<OrderModel?> getOrderById(String orderId) async {
     try {
       final doc =
           await _firestore.collection(_collectionPath).doc(orderId).get();
       if (doc.exists && doc.data() != null) {
-        return OrderModel.fromJson(doc.data()!);
+        return OrderModel.fromJson({'id': doc.id, ...doc.data()!});
       }
       return null;
     } catch (e) {
@@ -53,21 +38,24 @@ class OrdersCollection {
     }
   }
 
-  // Get user orders
+  // ── Customer Streams ─────────────────────────────────────────────────────
+
   Stream<List<OrderModel>> getUserOrders(String userId) {
     return _firestore
         .collection(_collectionPath)
         .where('userId', isEqualTo: userId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) {
-          return snapshot.docs
-              .map((doc) => OrderModel.fromJson(doc.data()))
-              .toList();
-        });
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map(
+                    (doc) => OrderModel.fromJson({'id': doc.id, ...doc.data()}),
+                  )
+                  .toList(),
+        );
   }
 
-  // Get orders by date range (for history - last 5 days)
   Stream<List<OrderModel>> getUserOrdersByDateRange(
     String userId,
     DateTime startDate,
@@ -80,27 +68,79 @@ class OrdersCollection {
         .where('createdAt', isLessThanOrEqualTo: endDate)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) {
-          return snapshot.docs
-              .map((doc) => OrderModel.fromJson(doc.data()))
-              .toList();
-        });
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map(
+                    (doc) => OrderModel.fromJson({'id': doc.id, ...doc.data()}),
+                  )
+                  .toList(),
+        );
   }
 
-  // Get all orders (admin)
+  // ── Admin Stream ─────────────────────────────────────────────────────────
+
   Stream<List<OrderModel>> getAllOrders() {
     return _firestore
         .collection(_collectionPath)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) {
-          return snapshot.docs
-              .map((doc) => OrderModel.fromJson(doc.data()))
-              .toList();
-        });
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map(
+                    (doc) => OrderModel.fromJson({'id': doc.id, ...doc.data()}),
+                  )
+                  .toList(),
+        );
   }
 
-  // Update order status
+  // ── Rider Streams ────────────────────────────────────────────────────────
+
+  /// ✅ FIX #1: Returns only ACTIVE (outForDelivery) orders for a rider.
+  /// Cancelled orders are excluded both by status query AND client-side filter
+  /// (double safety, in case cancelledBy field update races with status update).
+  Stream<List<OrderModel>> getRiderOrders(String riderId) {
+    return _firestore
+        .collection(_collectionPath)
+        .where('riderId', isEqualTo: riderId)
+        .where('status', isEqualTo: OrderStatus.outForDelivery.name)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map(
+                    (doc) => OrderModel.fromJson({'id': doc.id, ...doc.data()}),
+                  )
+                  // ✅ Double-safety: exclude anything admin has cancelled
+                  .where((order) => order.cancelledBy == null)
+                  .toList(),
+        );
+  }
+
+  /// Returns delivered orders for rider analytics (last 30 days)
+  Stream<List<OrderModel>> getRiderDeliveredOrders(String riderId) {
+    final startDate = DateTime.now().subtract(const Duration(days: 30));
+    return _firestore
+        .collection(_collectionPath)
+        .where('riderId', isEqualTo: riderId)
+        .where('status', isEqualTo: OrderStatus.delivered.name)
+        .where('createdAt', isGreaterThan: Timestamp.fromDate(startDate))
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs
+                  .map(
+                    (doc) => OrderModel.fromJson({'id': doc.id, ...doc.data()}),
+                  )
+                  .toList(),
+        );
+  }
+
+  // ── Status Updates ───────────────────────────────────────────────────────
+
   Future<bool> updateOrderStatus(
     String orderId,
     OrderStatus newStatus,
@@ -127,7 +167,55 @@ class OrdersCollection {
     }
   }
 
-  // Assign rider to order
+  Future<bool> updatePaymentStatus(
+    String orderId,
+    PaymentStatus newStatus,
+  ) async {
+    try {
+      await _firestore.collection(_collectionPath).doc(orderId).update({
+        'paymentStatus': newStatus.name,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return true;
+    } catch (e) {
+      print('Error updating payment status: $e');
+      return false;
+    }
+  }
+
+  // ── Cash Check-In ────────────────────────────────────────────────────────
+
+  /// ✅ NEW: Rider physically received cash from customer.
+  /// Marks the order and updates rider's totalCollectedCash in Firestore.
+  Future<bool> cashCheckIn(
+    String orderId,
+    String riderId,
+    double amount,
+  ) async {
+    try {
+      // Mark order as cash received
+      await _firestore.collection(_collectionPath).doc(orderId).update({
+        'cashCheckedIn': true,
+        'cashCheckedInAt': FieldValue.serverTimestamp(),
+        'cashCheckedInAmount': amount,
+        'cashCheckedInBy': riderId,
+      });
+
+      // Update rider's cash totals (rider is in 'users' collection)
+      await _firestore.collection('users').doc(riderId).update({
+        'totalCollectedCash': FieldValue.increment(amount),
+        'todayCollectedCash': FieldValue.increment(amount),
+      });
+
+      return true;
+    } catch (e) {
+      print('Error on cash check-in: $e');
+      return false;
+    }
+  }
+
+  // ── Assign / Cancel ──────────────────────────────────────────────────────
+
   Future<bool> assignRider(
     String orderId,
     String riderId,
@@ -146,7 +234,6 @@ class OrdersCollection {
     }
   }
 
-  // Update payment proof
   Future<bool> updatePaymentProof(String orderId, String proofUrl) async {
     try {
       await _firestore.collection(_collectionPath).doc(orderId).update({
@@ -155,27 +242,22 @@ class OrdersCollection {
       });
       return true;
     } catch (e) {
-      print('Error updating payment proof: $e');
       return false;
     }
   }
 
-  // Cancel order (only if pending)
   Future<bool> cancelOrder(String orderId, String reason) async {
     try {
       final doc =
           await _firestore.collection(_collectionPath).doc(orderId).get();
       if (doc.exists) {
-        final order = OrderModel.fromJson(doc.data()!);
-
-        // Only allow cancel if pending
+        final order = OrderModel.fromJson({'id': doc.id, ...doc.data()!});
         if (order.status == OrderStatus.pending) {
           final statusUpdate = OrderStatusUpdateModel(
             status: OrderStatus.cancelled,
             timestamp: DateTime.now(),
             note: reason,
           );
-
           await _firestore.collection(_collectionPath).doc(orderId).update({
             'status': OrderStatus.cancelled.name,
             'updatedAt': FieldValue.serverTimestamp(),
@@ -189,42 +271,5 @@ class OrdersCollection {
       print('Error cancelling order: $e');
       return false;
     }
-  }
-
-  Stream<List<OrderModel>> getRiderOrders(String riderId) {
-    return _firestore
-        .collection(_collectionPath)
-        .where('riderId', isEqualTo: riderId)
-        .where('status', isEqualTo: OrderStatus.outForDelivery.name)
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map(
-          (snapshot) =>
-              snapshot.docs
-                  .map(
-                    (doc) => OrderModel.fromJson({'id': doc.id, ...doc.data()}),
-                  )
-                  .toList(),
-        );
-  }
-
-  // Get rider's delivered orders (last 5 days for earnings)
-  Stream<List<OrderModel>> getRiderDeliveredOrders(String riderId) {
-    final startDate = DateTime.now().subtract(const Duration(days: 5));
-    return _firestore
-        .collection(_collectionPath)
-        .where('riderId', isEqualTo: riderId)
-        .where('status', isEqualTo: OrderStatus.delivered.name)
-        .where('createdAt', isGreaterThan: Timestamp.fromDate(startDate))
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map(
-          (snapshot) =>
-              snapshot.docs
-                  .map(
-                    (doc) => OrderModel.fromJson({'id': doc.id, ...doc.data()}),
-                  )
-                  .toList(),
-        );
   }
 }

@@ -40,12 +40,12 @@ class CartNotifier extends Notifier<CartState> {
     String userId,
     ProductModel product,
     int quantity, {
-    ProductVariant? selectedVariant, // ✅ NEW
-    List<ProductAddon> selectedAddons = const [], // ✅ NEW
-    String? specialInstructions, // ✅ NEW
+    ProductVariant? selectedVariant,
+    List<ProductAddon> selectedAddons = const [],
+    String? specialInstructions,
   }) async {
     try {
-      // ── STEP 1: Fetch delivery fee from store ─────────────────────────────
+      // ── STEP 1: Fetch delivery fee ────────────────────────────────────────
       double deliveryFee = 50.0;
       try {
         final storeDoc =
@@ -53,55 +53,62 @@ class CartNotifier extends Notifier<CartState> {
                 .collection('stores')
                 .doc(product.storeId)
                 .get();
-
         if (storeDoc.exists) {
           deliveryFee =
               (storeDoc.data()!['deliveryFee'] as num?)?.toDouble() ?? 50.0;
           log('✅ Delivery fee from store: $deliveryFee');
-        } else {
-          log('⚠️ Store not found, using default delivery fee: $deliveryFee');
         }
       } catch (e) {
         log('⚠️ Could not fetch delivery fee, using default: $e');
       }
 
-      // ── STEP 2: Calculate the effective price ─────────────────────────────
-      // Base price is always product.discountedPrice.
-      // Variant and addons are ADDITIONAL charges on top of it.
-      final double variantExtra = selectedVariant?.price ?? 0.0;
+      // ── STEP 2: Calculate effective price ─────────────────────────────────
+      //
+      // Rule:
+      //   • If the product has a selected variant  → variant.price IS the price
+      //     (it is a standalone size price, e.g. Small=500, Medium=750, Large=1200)
+      //   • If no variant selected                 → use product.discountedPrice
+      //   • Addons are ALWAYS additional on top of whichever price applies
+      //
+      final double itemBasePrice =
+          selectedVariant != null
+              ? selectedVariant
+                  .price // ← variant price = full item price
+              : product.discountedPrice; // ← fallback for plain products
+
       final double addonsExtra = selectedAddons.fold(
         0.0,
         (sum, addon) => sum + addon.price,
       );
-      final double effectivePrice =
-          product.discountedPrice + variantExtra + addonsExtra; // ✅ FIXED
+      final double effectivePrice = itemBasePrice + addonsExtra;
 
       log(
-        '💰 Price breakdown → base: ${product.discountedPrice} '
-        '+ variant: $variantExtra + addons: $addonsExtra = $effectivePrice',
+        '💰 Price → variant/base: $itemBasePrice + addons: $addonsExtra = $effectivePrice',
       );
 
       // ── STEP 3: Build cart item ───────────────────────────────────────────
+      // IMPORTANT: store effectivePrice as discountedPrice so that
+      // CartModel.fromJson (which computes subtotal = Σ item.discountedPrice * qty)
+      // always reflects the correct price shown to the customer.
       final cartItem = CartItemModel(
         productId: product.id,
         productName: product.name,
         productImage: product.thumbnail,
         storeId: product.storeId,
         storeName: product.storeName,
-        price: product.price,
+        price: product.price, // original list price (for reference)
         quantity: quantity,
-        discountedPrice:
-            product.discountedPrice, // base only; extras stored separately
-        total: effectivePrice * quantity, // ✅ FIXED: includes variant + addons
+        discountedPrice: effectivePrice, // ✅ FIXED: was product.discountedPrice
+        total: effectivePrice * quantity,
         isAvailable: product.isAvailable,
         maxQuantity: product.maxOrderQuantity,
         unit: product.unit,
-        selectedVariant: selectedVariant, // ✅ NEW
-        selectedAddons: selectedAddons, // ✅ NEW
-        specialInstructions: specialInstructions, // ✅ NEW
+        selectedVariant: selectedVariant,
+        selectedAddons: selectedAddons,
+        specialInstructions: specialInstructions,
       );
 
-      // ── STEP 4: Persist to Firestore ──────────────────────────────────────
+      // ── STEP 4: Persist ───────────────────────────────────────────────────
       final success = await _collection.addItemToCart(
         userId,
         cartItem,
@@ -109,11 +116,11 @@ class CartNotifier extends Notifier<CartState> {
       );
 
       if (!success) {
-        // Different store detected — caller must handle the replace-cart dialog
+        // Different store — caller handles the replace-cart dialog
         return false;
       }
 
-      // ── STEP 5: Reload cart state ─────────────────────────────────────────
+      // ── STEP 5: Reload ────────────────────────────────────────────────────
       await loadCart(userId);
       return true;
     } catch (e) {
@@ -124,7 +131,6 @@ class CartNotifier extends Notifier<CartState> {
   }
 
   /// Clear cart and add a new item (used when switching stores).
-  /// ✅ FIXED: forwards variant/addon/instructions to the new addToCart signature.
   Future<bool> clearAndAddToCart(
     String userId,
     ProductModel product,

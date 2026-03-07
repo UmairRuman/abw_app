@@ -3,6 +3,8 @@
 // REPLACE ENTIRE FILE:
 
 import 'dart:math' as math;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -139,26 +141,85 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     }
   }
 
-  void _navigateBasedOnAuthState() {
+  void _navigateBasedOnAuthState() async {
     final authState = ref.read(authProvider);
 
     if (authState is Authenticated) {
       final user = authState.user;
-      switch (user.role) {
-        case UserRole.customer:
-          context.go('/customer/home');
-          break;
-        case UserRole.rider:
-          context.go('/rider/dashboard');
-          break;
-        case UserRole.admin:
-          context.go('/admin/dashboard');
-          break;
+
+      // ✅ BLOCK CHECK: Only applies to customers (admin/rider bypass).
+      // If a customer's phone is blocked, sign them out and redirect to login.
+      if (user.role == UserRole.customer) {
+        final isBlocked = await _isUserBlocked(user.id);
+        if (isBlocked && mounted) {
+          // Sign out from Firebase so the session is fully cleared
+          await FirebaseAuth.instance.signOut();
+
+          if (mounted) {
+            // Show a message before navigating away
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Your account has been blocked. Please contact support.',
+                ),
+                backgroundColor: Colors.red,
+                duration: Duration(seconds: 4),
+              ),
+            );
+            context.go('/login');
+          }
+          return;
+        }
+      }
+
+      // Not blocked — navigate normally based on role
+      if (mounted) {
+        switch (user.role) {
+          case UserRole.customer:
+            context.go('/customer/home');
+            break;
+          case UserRole.rider:
+            context.go('/rider/dashboard');
+            break;
+          case UserRole.admin:
+            context.go('/admin/dashboard');
+            break;
+        }
       }
     } else if (authState is RiderPendingApproval) {
-      context.go('/rider/pending');
+      if (mounted) context.go('/rider/pending');
     } else {
-      context.go('/login');
+      if (mounted) context.go('/login');
+    }
+  }
+
+  Future<bool> _isUserBlocked(String userId) async {
+    try {
+      // Step 1: Get the user's phone number
+      final userDoc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .get();
+
+      if (!userDoc.exists) return false;
+
+      final phone = userDoc.data()?['phone'] as String?;
+      if (phone == null || phone.isEmpty) return false;
+
+      // Step 2: Check blocked_numbers collection
+      final blockedQuery =
+          await FirebaseFirestore.instance
+              .collection('blocked_numbers')
+              .where('phoneNumber', isEqualTo: phone)
+              .where('isActive', isEqualTo: true)
+              .limit(1)
+              .get();
+
+      return blockedQuery.docs.isNotEmpty;
+    } catch (e) {
+      // If the check fails (e.g. offline), do NOT block — fail open
+      return false;
     }
   }
 

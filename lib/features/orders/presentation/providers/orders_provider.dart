@@ -170,12 +170,159 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
     return _collection.getAllOrders();
   }
 
-  // Cancel order (only if pending)
+  // ✅ FIXED: Admin cancels order
   Future<bool> cancelOrder(String orderId, String reason) async {
     try {
-      return await _collection.cancelOrder(orderId, reason);
+      log('🚫 Admin cancelling order: $orderId');
+
+      final orderDoc = await _firestore.collection('orders').doc(orderId).get();
+      if (!orderDoc.exists) {
+        log('❌ Order not found');
+        return false;
+      }
+
+      final orderData = orderDoc.data()!;
+      final customerId = orderData['userId'] as String;
+      final riderId = orderData['riderId'] as String?;
+      final customerName = orderData['userName'] as String;
+
+      // Cancel the order
+      await _firestore.collection('orders').doc(orderId).update({
+        'status': 'cancelled',
+        'cancellationReason': reason,
+        'cancelledAt': FieldValue.serverTimestamp(),
+        'cancelledBy': 'admin',
+        'statusHistory': FieldValue.arrayUnion([
+          {
+            'status': 'cancelled',
+            'timestamp': FieldValue.serverTimestamp(),
+            'note': 'Order cancelled by admin: $reason',
+            'updatedBy': 'admin',
+          },
+        ]),
+      });
+
+      // ✅ FIX: If a rider was assigned, remove this order from their active list
+      // and restore their status to available if no other orders remain.
+      if (riderId != null) {
+        await _firestore.collection('users').doc(riderId).update({
+          'currentOrderIds': FieldValue.arrayRemove([orderId]),
+          // Also clear legacy field if it matches
+          'currentOrderId': null,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        // Check if rider has other active orders
+        final riderDoc =
+            await _firestore.collection('users').doc(riderId).get();
+        final remainingOrders = List<String>.from(
+          List<String>.from(
+            (riderDoc.data()?['currentOrderIds'] as List<dynamic>? ?? []),
+          ),
+        );
+        if (remainingOrders.isEmpty) {
+          await _firestore.collection('users').doc(riderId).update({
+            'status': 'available',
+          });
+        }
+      }
+
+      // Notify customer
+      await NotificationService.sendNotificationToUser(
+        userId: customerId,
+        title: '❌ Order Cancelled',
+        body: 'Your order has been cancelled. Reason: $reason',
+        data: {'type': 'order_cancelled', 'orderId': orderId, 'reason': reason},
+      );
+
+      // Notify rider if assigned
+      if (riderId != null) {
+        await NotificationService.sendNotificationToUser(
+          userId: riderId,
+          title: '❌ Order Cancelled',
+          body: 'Order from $customerName has been cancelled by admin.',
+          data: {
+            'type': 'order_cancelled',
+            'orderId': orderId,
+            'reason': reason,
+          },
+        );
+      }
+
+      log('✅ Order cancelled and rider notified/updated');
+      return true;
     } catch (e) {
-      print('Error cancelling order: $e');
+      log('❌ Error cancelling order: $e');
+      return false;
+    }
+  }
+
+  // ✅ FIXED: Rider refuses order - status goes back to "confirmed" (not "ready")
+  Future<bool> refuseOrderByRider(String orderId, String reason) async {
+    try {
+      log('🚫 Rider refusing order: $orderId');
+      log('   Reason: $reason');
+
+      // Get order first
+      final orderDoc = await _firestore.collection('orders').doc(orderId).get();
+
+      if (!orderDoc.exists) {
+        log('❌ Order not found');
+        return false;
+      }
+
+      final orderData = orderDoc.data()!;
+      final customerId = orderData['userId'] as String;
+      final customerName = orderData['userName'] as String;
+      final riderName = orderData['riderName'] as String?;
+      final total = orderData['total'] as double;
+      final paymentMethod = orderData['paymentMethod'] as String;
+      final paymentProofUrl = orderData['paymentProofUrl'] as String?;
+
+      // ✅ FIXED: Unassign rider and set back to "confirmed" (not "ready")
+      await _firestore.collection('orders').doc(orderId).update({
+        'status': 'confirmed', // ✅ CHANGED from 'ready' to 'confirmed'
+        'riderId': null,
+        'riderName': null,
+        'riderPhone': null,
+        'riderRefusalReason': reason, // ✅ NEW FIELD
+        'riderRefusedAt': FieldValue.serverTimestamp(), // ✅ NEW FIELD
+        'statusHistory': FieldValue.arrayUnion([
+          {
+            'status': 'confirmed',
+            'timestamp': FieldValue.serverTimestamp(),
+            'note': 'Rider refused delivery: $reason. Order reassigned.',
+            'updatedBy': 'rider',
+          },
+        ]),
+      });
+
+      log('✅ Order unassigned and set back to confirmed');
+
+      // Notify customer
+      await NotificationService.sendNotificationToUser(
+        userId: customerId,
+        title: '🔄 Delivery Reassignment',
+        body: 'We\'re finding a new rider for your order.',
+        data: {'type': 'rider_refused', 'orderId': orderId},
+      );
+
+      // Notify admins about reassignment
+      await NotificationService.sendNewOrderNotificationToAdmin(
+        orderId: orderId,
+        customerName: customerName,
+        total: total,
+        paymentMethod: paymentMethod,
+        paymentProofUrl: paymentProofUrl,
+        isReassignment: true, // ✅ Flag for reassignment
+        previousRider: riderName,
+        refusalReason: reason,
+      );
+
+      log('✅ Order refused successfully');
+      return true;
+    } catch (e) {
+      log('❌ Error refusing order: $e');
       return false;
     }
   }

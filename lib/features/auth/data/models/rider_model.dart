@@ -1,5 +1,5 @@
 // lib/features/auth/data/models/rider_model.dart
-// FULL REPLACEMENT:
+// UPDATED: Multi-order, analytics, device lock + backward-compat migration
 
 import 'package:abw_app/shared/enums/user_role.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -16,8 +16,8 @@ class RiderModel extends RiderEntity {
     required super.updatedAt,
     required super.vehicleType,
     required super.vehicleNumber,
-    super.fcmToken, // ✅ NEW
-    super.fcmTokenUpdatedAt, // ✅ NEW
+    super.fcmToken,
+    super.fcmTokenUpdatedAt,
     super.role = UserRole.rider,
     super.profileImage,
     super.licenseNumber,
@@ -27,13 +27,27 @@ class RiderModel extends RiderEntity {
     super.totalDeliveries = 0,
     super.approvedAt,
     super.approvedBy,
-    // ── Rider App fields ──
     super.status = RiderStatus.offline,
     super.totalEarnings = 0.0,
-    super.currentOrderId,
+    super.currentOrderIds = const [],
+    super.totalCollectedCash = 0.0,
+    super.totalDistance = 0.0,
+    super.todayDeliveries = 0,
+    super.todayCollectedCash = 0.0,
+    super.activeDeviceId,
   });
 
   factory RiderModel.fromJson(Map<String, dynamic> json) {
+    // ✅ MIGRATION: Support old single-order field → new list field
+    List<String> currentOrderIds = [];
+    if (json['currentOrderIds'] != null) {
+      currentOrderIds = List<String>.from(json['currentOrderIds'] as List);
+    } else if (json['currentOrderId'] != null &&
+        (json['currentOrderId'] as String).isNotEmpty) {
+      // Migrate old documents seamlessly
+      currentOrderIds = [json['currentOrderId'] as String];
+    }
+
     return RiderModel(
       id: json['id'] as String,
       email: json['email'] as String,
@@ -41,7 +55,7 @@ class RiderModel extends RiderEntity {
       phone: json['phone'] as String,
       profileImage: json['profileImage'] as String?,
       isActive: json['isActive'] as bool? ?? true,
-      createdAt: _parseTimestamp(json['createdAt']), // ✅ LINE 1
+      createdAt: _parseTimestamp(json['createdAt']),
       updatedAt: _parseTimestamp(json['updatedAt']),
       vehicleType: json['vehicleType'] as String? ?? '',
       vehicleNumber: json['vehicleNumber'] as String? ?? '',
@@ -49,30 +63,44 @@ class RiderModel extends RiderEntity {
       isApproved: json['isApproved'] as bool? ?? false,
       isAvailable: json['isAvailable'] as bool? ?? false,
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
-      fcmToken: json['fcmToken'] as String?, // ✅ NEW
-      fcmTokenUpdatedAt: _parseTimestamp(json['fcmTokenUpdatedAt']), // ✅ NEW
+      fcmToken: json['fcmToken'] as String?,
+      fcmTokenUpdatedAt: _parseTimestampNullable(json['fcmTokenUpdatedAt']),
       totalDeliveries: json['totalDeliveries'] as int? ?? 0,
       approvedAt:
           json['approvedAt'] != null
               ? (json['approvedAt'] as Timestamp).toDate()
               : null,
       approvedBy: json['approvedBy'] as String?,
-      // ── Rider App fields ──
       status: RiderStatus.values.firstWhere(
         (s) => s.name == (json['status'] as String? ?? 'offline'),
         orElse: () => RiderStatus.offline,
       ),
       totalEarnings: (json['totalEarnings'] as num?)?.toDouble() ?? 0.0,
-      currentOrderId: json['currentOrderId'] as String?,
+      currentOrderIds: currentOrderIds,
+      totalCollectedCash:
+          (json['totalCollectedCash'] as num?)?.toDouble() ?? 0.0,
+      totalDistance: (json['totalDistance'] as num?)?.toDouble() ?? 0.0,
+      todayDeliveries: json['todayDeliveries'] as int? ?? 0,
+      todayCollectedCash:
+          (json['todayCollectedCash'] as num?)?.toDouble() ?? 0.0,
+      activeDeviceId: json['activeDeviceId'] as String?,
     );
   }
-  // ✅ ADD THIS STATIC HELPER AT BOTTOM OF CLASS (before closing })
+
   static DateTime _parseTimestamp(dynamic value) {
     if (value == null) return DateTime.now();
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
     if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
     return DateTime.now();
+  }
+
+  static DateTime? _parseTimestampNullable(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is String) return DateTime.tryParse(value);
+    return null;
   }
 
   Map<String, dynamic> toJson() {
@@ -92,18 +120,23 @@ class RiderModel extends RiderEntity {
       'isAvailable': isAvailable,
       'rating': rating,
       'totalDeliveries': totalDeliveries,
-      'fcmToken': fcmToken, // ✅ NEW
+      'fcmToken': fcmToken,
       'fcmTokenUpdatedAt':
-          fcmTokenUpdatedAt !=
-                  null // ✅ NEW
+          fcmTokenUpdatedAt != null
               ? Timestamp.fromDate(fcmTokenUpdatedAt!)
               : null,
       'approvedAt': approvedAt != null ? Timestamp.fromDate(approvedAt!) : null,
       'approvedBy': approvedBy,
-      // ── Rider App fields ──
       'status': status.name,
       'totalEarnings': totalEarnings,
-      'currentOrderId': currentOrderId,
+      'currentOrderIds': currentOrderIds,
+      // Keep old field null for Firestore cleanup
+      'currentOrderId': null,
+      'totalCollectedCash': totalCollectedCash,
+      'totalDistance': totalDistance,
+      'todayDeliveries': todayDeliveries,
+      'todayCollectedCash': todayCollectedCash,
+      'activeDeviceId': activeDeviceId,
     };
   }
 
@@ -119,18 +152,22 @@ class RiderModel extends RiderEntity {
     String? vehicleType,
     String? vehicleNumber,
     String? licenseNumber,
-    String? fcmToken, // ✅ NEW
-    DateTime? fcmTokenUpdatedAt, // ✅ NEW
+    String? fcmToken,
+    DateTime? fcmTokenUpdatedAt,
     bool? isApproved,
     bool? isAvailable,
     double? rating,
     int? totalDeliveries,
     DateTime? approvedAt,
     String? approvedBy,
-    // ── Rider App fields ──
     RiderStatus? status,
     double? totalEarnings,
-    String? currentOrderId,
+    List<String>? currentOrderIds,
+    double? totalCollectedCash,
+    double? totalDistance,
+    int? todayDeliveries,
+    double? todayCollectedCash,
+    String? activeDeviceId,
   }) {
     return RiderModel(
       id: id ?? this.id,
@@ -146,15 +183,20 @@ class RiderModel extends RiderEntity {
       licenseNumber: licenseNumber ?? this.licenseNumber,
       isApproved: isApproved ?? this.isApproved,
       isAvailable: isAvailable ?? this.isAvailable,
-      fcmToken: fcmToken ?? this.fcmToken, // ✅ NEW
-      fcmTokenUpdatedAt: fcmTokenUpdatedAt ?? this.fcmTokenUpdatedAt, // ✅ NEW
+      fcmToken: fcmToken ?? this.fcmToken,
+      fcmTokenUpdatedAt: fcmTokenUpdatedAt ?? this.fcmTokenUpdatedAt,
       rating: rating ?? this.rating,
       totalDeliveries: totalDeliveries ?? this.totalDeliveries,
       approvedAt: approvedAt ?? this.approvedAt,
       approvedBy: approvedBy ?? this.approvedBy,
       status: status ?? this.status,
       totalEarnings: totalEarnings ?? this.totalEarnings,
-      currentOrderId: currentOrderId ?? this.currentOrderId,
+      currentOrderIds: currentOrderIds ?? this.currentOrderIds,
+      totalCollectedCash: totalCollectedCash ?? this.totalCollectedCash,
+      totalDistance: totalDistance ?? this.totalDistance,
+      todayDeliveries: todayDeliveries ?? this.todayDeliveries,
+      todayCollectedCash: todayCollectedCash ?? this.todayCollectedCash,
+      activeDeviceId: activeDeviceId ?? this.activeDeviceId,
     );
   }
 }

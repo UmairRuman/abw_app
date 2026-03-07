@@ -1,13 +1,17 @@
 // lib/features/rider/presentation/screens/orders/rider_order_details_screen.dart
-// MILESTONE 3 - Rider order details with map, distance, and customer contact
+// UPDATED:
+//   ✅ Special instructions HIDDEN from rider
+//   ✅ Full status control: preparing → outForDelivery → delivered
+//   ✅ Cash check-in button for COD orders after delivery
 
+import 'package:abw_app/features/auth/presentation/providers/auth_provider.dart';
+import 'package:abw_app/features/auth/presentation/providers/auth_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'dart:developer' as dev;
 
 import '../../../../../core/theme/colors/app_colors_dark.dart';
 import '../../../../../core/theme/text_styles/app_text_styles.dart';
@@ -15,10 +19,10 @@ import '../../../../../core/services/location_service.dart';
 import '../../../../orders/presentation/providers/orders_provider.dart';
 import '../../../../orders/data/models/order_model.dart';
 import '../../../../orders/domain/entities/order_entity.dart';
+import '../../../../riders/presentation/providers/riders_provider.dart';
 
 class RiderOrderDetailsScreen extends ConsumerStatefulWidget {
   final String orderId;
-
   const RiderOrderDetailsScreen({super.key, required this.orderId});
 
   @override
@@ -28,15 +32,15 @@ class RiderOrderDetailsScreen extends ConsumerStatefulWidget {
 
 class _RiderOrderDetailsScreenState
     extends ConsumerState<RiderOrderDetailsScreen> {
-  bool _isPickingUp = false;
-  bool _isDelivering = false;
+  bool _isUpdatingStatus = false;
+  bool _isCashingIn = false;
 
   @override
   void initState() {
     super.initState();
-    Future.microtask(() {
-      ref.read(ordersProvider.notifier).getOrderById(widget.orderId);
-    });
+    Future.microtask(
+      () => ref.read(ordersProvider.notifier).getOrderById(widget.orderId),
+    );
   }
 
   @override
@@ -66,42 +70,30 @@ class _RiderOrderDetailsScreenState
   }
 
   Widget _buildOrderDetails(OrderModel order) {
-    final canPickup =
-        order.status == OrderStatus.confirmed ||
-        order.status == OrderStatus.preparing;
-    final canDeliver = order.status == OrderStatus.outForDelivery;
-
     return Column(
       children: [
         Expanded(
           child: SingleChildScrollView(
             child: Column(
               children: [
-                // Map with route
                 _buildMap(order),
-
                 Padding(
                   padding: EdgeInsets.all(16.w),
                   child: Column(
                     children: [
-                      // Distance card
                       _buildDistanceCard(order),
                       SizedBox(height: 16.h),
-
-                      // Store info
+                      // ✅ Status stepper shown to rider
+                      _buildStatusStepper(order),
+                      SizedBox(height: 16.h),
                       _buildStoreInfo(order),
                       SizedBox(height: 16.h),
-
-                      // Customer info
                       _buildCustomerInfo(order),
                       SizedBox(height: 16.h),
-
-                      // Order items
                       _buildOrderItems(order),
                       SizedBox(height: 16.h),
-
-                      // Payment info
                       _buildPaymentInfo(order),
+                      // ✅ SPECIAL INSTRUCTIONS deliberately NOT shown to rider
                     ],
                   ),
                 ),
@@ -109,12 +101,135 @@ class _RiderOrderDetailsScreenState
             ),
           ),
         ),
-
-        // Bottom actions
-        _buildBottomActions(order, canPickup, canDeliver),
+        _buildBottomActions(order),
       ],
     );
   }
+
+  // ── Status Stepper ────────────────────────────────────────────────────────
+
+  /// Shows the rider where the order currently is in the lifecycle.
+  Widget _buildStatusStepper(OrderModel order) {
+    final steps = [
+      _StatusStep(
+        status: OrderStatus.confirmed,
+        label: 'Confirmed',
+        icon: Icons.check_circle_outline,
+      ),
+      _StatusStep(
+        status: OrderStatus.preparing,
+        label: 'Preparing',
+        icon: Icons.restaurant,
+      ),
+      _StatusStep(
+        status: OrderStatus.outForDelivery,
+        label: 'Out for Delivery',
+        icon: Icons.delivery_dining,
+      ),
+      _StatusStep(
+        status: OrderStatus.delivered,
+        label: 'Delivered',
+        icon: Icons.task_alt,
+      ),
+    ];
+
+    final currentIndex = steps.indexWhere((s) => s.status == order.status);
+
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: AppColorsDark.cardBackground,
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: AppColorsDark.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Order Progress',
+            style: AppTextStyles.titleSmall().copyWith(
+              color: AppColorsDark.textPrimary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: 14.h),
+          Row(
+            children:
+                steps.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final step = entry.value;
+                  final isDone = idx < currentIndex;
+                  final isCurrent = idx == currentIndex;
+                  final color =
+                      isDone || isCurrent
+                          ? AppColorsDark.primary
+                          : AppColorsDark.textTertiary;
+
+                  return Expanded(
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Container(
+                                width: 32.w,
+                                height: 32.w,
+                                decoration: BoxDecoration(
+                                  color:
+                                      isCurrent
+                                          ? AppColorsDark.primary
+                                          : isDone
+                                          ? AppColorsDark.success
+                                          : AppColorsDark.surfaceVariant,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  isDone ? Icons.check : step.icon,
+                                  color:
+                                      isDone || isCurrent
+                                          ? AppColorsDark.white
+                                          : AppColorsDark.textTertiary,
+                                  size: 16.sp,
+                                ),
+                              ),
+                              SizedBox(height: 4.h),
+                              Text(
+                                step.label,
+                                style: AppTextStyles.bodySmall().copyWith(
+                                  color: color,
+                                  fontWeight:
+                                      isCurrent
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                  fontSize: 9.sp,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (idx < steps.length - 1)
+                          Expanded(
+                            child: Container(
+                              height: 2,
+                              color:
+                                  idx < currentIndex
+                                      ? AppColorsDark.success
+                                      : AppColorsDark.border,
+                              margin: EdgeInsets.only(bottom: 20.h),
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Map ───────────────────────────────────────────────────────────────────
 
   Widget _buildMap(OrderModel order) {
     if (order.pickupLatitude == null ||
@@ -122,7 +237,7 @@ class _RiderOrderDetailsScreenState
         order.deliveryLatitude == null ||
         order.deliveryLongitude == null) {
       return Container(
-        height: 250.h,
+        height: 220.h,
         color: AppColorsDark.surfaceVariant,
         child: Center(
           child: Text(
@@ -140,29 +255,23 @@ class _RiderOrderDetailsScreenState
       order.deliveryLatitude!,
       order.deliveryLongitude!,
     );
-
-    // Calculate center point
     final centerLat = (order.pickupLatitude! + order.deliveryLatitude!) / 2;
     final centerLng = (order.pickupLongitude! + order.deliveryLongitude!) / 2;
 
     return SizedBox(
-      height: 250.h,
+      height: 220.h,
       child: FlutterMap(
         options: MapOptions(
           initialCenter: LatLng(centerLat, centerLng),
           initialZoom: 12.0,
         ),
         children: [
-          // OpenStreetMap tiles
           TileLayer(
             urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
             userAgentPackageName: 'com.abw.app',
           ),
-
-          // Markers
           MarkerLayer(
             markers: [
-              // Pickup marker (green)
               Marker(
                 point: pickupPoint,
                 width: 40.w,
@@ -179,8 +288,6 @@ class _RiderOrderDetailsScreenState
                   ),
                 ),
               ),
-
-              // Delivery marker (red)
               Marker(
                 point: deliveryPoint,
                 width: 40.w,
@@ -199,8 +306,6 @@ class _RiderOrderDetailsScreenState
               ),
             ],
           ),
-
-          // Route line
           PolylineLayer(
             polylines: [
               Polyline(
@@ -217,20 +322,11 @@ class _RiderOrderDetailsScreenState
 
   Widget _buildDistanceCard(OrderModel order) {
     final distance = order.distance ?? 0.0;
-    final formattedDistance = LocationService.formatDistance(distance);
-
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
         gradient: AppColorsDark.primaryGradient,
         borderRadius: BorderRadius.circular(16.r),
-        boxShadow: [
-          BoxShadow(
-            color: AppColorsDark.primary.withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -244,9 +340,8 @@ class _RiderOrderDetailsScreenState
                   color: AppColorsDark.white.withOpacity(0.9),
                 ),
               ),
-              SizedBox(height: 4.h),
               Text(
-                formattedDistance,
+                LocationService.formatDistance(distance),
                 style: AppTextStyles.headlineMedium().copyWith(
                   color: AppColorsDark.white,
                   fontWeight: FontWeight.bold,
@@ -263,7 +358,6 @@ class _RiderOrderDetailsScreenState
                   color: AppColorsDark.white.withOpacity(0.9),
                 ),
               ),
-              SizedBox(height: 4.h),
               Text(
                 'PKR ${order.deliveryFee.toInt()}',
                 style: AppTextStyles.titleLarge().copyWith(
@@ -286,23 +380,16 @@ class _RiderOrderDetailsScreenState
         borderRadius: BorderRadius.circular(16.r),
         border: Border.all(color: AppColorsDark.border),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Icon(Icons.store, color: AppColorsDark.success, size: 20.sp),
-              SizedBox(width: 8.w),
-              Text(
-                'Pickup From',
-                style: AppTextStyles.titleMedium().copyWith(
-                  color: AppColorsDark.textPrimary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
+          Icon(Icons.store, color: AppColorsDark.success, size: 20.sp),
+          SizedBox(width: 8.w),
+          Text(
+            'Pickup: ',
+            style: AppTextStyles.bodyMedium().copyWith(
+              color: AppColorsDark.textSecondary,
+            ),
           ),
-          SizedBox(height: 12.h),
           Text(
             order.storeName,
             style: AppTextStyles.bodyLarge().copyWith(
@@ -335,15 +422,13 @@ class _RiderOrderDetailsScreenState
                   SizedBox(width: 8.w),
                   Text(
                     'Customer Details',
-                    style: AppTextStyles.titleMedium().copyWith(
+                    style: AppTextStyles.titleSmall().copyWith(
                       color: AppColorsDark.textPrimary,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
               ),
-
-              // Call customer button
               InkWell(
                 onTap: () => _callCustomer(order.userPhone),
                 child: Container(
@@ -361,7 +446,7 @@ class _RiderOrderDetailsScreenState
               ),
             ],
           ),
-          SizedBox(height: 12.h),
+          SizedBox(height: 10.h),
           Text(
             order.userName,
             style: AppTextStyles.bodyLarge().copyWith(
@@ -369,7 +454,7 @@ class _RiderOrderDetailsScreenState
               fontWeight: FontWeight.w600,
             ),
           ),
-          SizedBox(height: 4.h),
+          SizedBox(height: 2.h),
           Text(
             order.userPhone,
             style: AppTextStyles.bodyMedium().copyWith(
@@ -393,6 +478,7 @@ class _RiderOrderDetailsScreenState
               ),
             ],
           ),
+          // ✅ FEATURE #4: Special instructions NOT shown to rider (intentionally omitted)
         ],
       ),
     );
@@ -414,13 +500,13 @@ class _RiderOrderDetailsScreenState
             children: [
               Text(
                 'Order Items',
-                style: AppTextStyles.titleMedium().copyWith(
+                style: AppTextStyles.titleSmall().copyWith(
                   color: AppColorsDark.textPrimary,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               Container(
-                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
+                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
                 decoration: BoxDecoration(
                   color: AppColorsDark.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8.r),
@@ -429,7 +515,6 @@ class _RiderOrderDetailsScreenState
                   '${order.items.length} items',
                   style: AppTextStyles.bodySmall().copyWith(
                     color: AppColorsDark.primary,
-                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -438,7 +523,7 @@ class _RiderOrderDetailsScreenState
           SizedBox(height: 12.h),
           ...order.items.map(
             (item) => Padding(
-              padding: EdgeInsets.only(bottom: 8.h),
+              padding: EdgeInsets.only(bottom: 6.h),
               child: Row(
                 children: [
                   Text(
@@ -468,7 +553,6 @@ class _RiderOrderDetailsScreenState
 
   Widget _buildPaymentInfo(OrderModel order) {
     final isCOD = order.paymentMethod == PaymentMethod.cod;
-
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
@@ -503,7 +587,6 @@ class _RiderOrderDetailsScreenState
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                SizedBox(height: 2.h),
                 Text(
                   isCOD
                       ? 'Collect PKR ${order.total.toInt()} from customer'
@@ -527,11 +610,11 @@ class _RiderOrderDetailsScreenState
     );
   }
 
-  Widget _buildBottomActions(
-    OrderModel order,
-    bool canPickup,
-    bool canDeliver,
-  ) {
+  // ── Bottom Actions ────────────────────────────────────────────────────────
+
+  /// ✅ FEATURE #7: Full rider status control
+  /// ✅ FEATURE #8: Cash check-in after delivery
+  Widget _buildBottomActions(OrderModel order) {
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: const BoxDecoration(
@@ -545,23 +628,114 @@ class _RiderOrderDetailsScreenState
         ],
       ),
       child: SafeArea(
-        child:
-            canPickup
-                ? _buildPickupButton(order)
-                : canDeliver
-                ? _buildDeliverButton(order)
-                : _buildStatusInfo(order),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Cash check-in (shown after delivery for COD)
+            if (order.status == OrderStatus.delivered &&
+                order.paymentMethod == PaymentMethod.cod &&
+                !(order.cashCheckedIn ?? false))
+              _buildCashCheckInButton(order),
+
+            if (order.status == OrderStatus.delivered &&
+                order.paymentMethod == PaymentMethod.cod &&
+                (order.cashCheckedIn ?? false))
+              _buildCashCheckedInBadge(order),
+
+            // Status action buttons
+            if (order.status == OrderStatus.confirmed ||
+                order.status == OrderStatus.preparing)
+              _buildStatusActionButton(
+                order: order,
+                label:
+                    order.status == OrderStatus.confirmed
+                        ? 'Mark as Preparing'
+                        : 'Mark as Out for Delivery',
+                nextStatus:
+                    order.status == OrderStatus.confirmed
+                        ? OrderStatus.preparing
+                        : OrderStatus.outForDelivery,
+                icon:
+                    order.status == OrderStatus.confirmed
+                        ? Icons.restaurant
+                        : Icons.delivery_dining,
+                color: AppColorsDark.warning,
+              ),
+
+            if (order.status == OrderStatus.outForDelivery)
+              _buildStatusActionButton(
+                order: order,
+                label: 'Mark as Delivered',
+                nextStatus: OrderStatus.delivered,
+                icon: Icons.task_alt,
+                color: AppColorsDark.primary,
+              ),
+
+            if (order.status == OrderStatus.delivered &&
+                order.paymentMethod != PaymentMethod.cod)
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(12.w),
+                decoration: BoxDecoration(
+                  color: AppColorsDark.success.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.check_circle,
+                      color: AppColorsDark.success,
+                      size: 20.sp,
+                    ),
+                    SizedBox(width: 8.w),
+                    Text(
+                      'Order Delivered Successfully',
+                      style: AppTextStyles.bodyMedium().copyWith(
+                        color: AppColorsDark.success,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            if (order.status == OrderStatus.cancelled)
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(12.w),
+                decoration: BoxDecoration(
+                  color: AppColorsDark.error.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Text(
+                  'This order was cancelled by admin',
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.error,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildPickupButton(OrderModel order) {
+  Widget _buildStatusActionButton({
+    required OrderModel order,
+    required String label,
+    required OrderStatus nextStatus,
+    required IconData icon,
+    required Color color,
+  }) {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
-        onPressed: _isPickingUp ? null : () => _confirmPickup(order),
+        onPressed:
+            _isUpdatingStatus ? null : () => _updateStatus(order, nextStatus),
         icon:
-            _isPickingUp
+            _isUpdatingStatus
                 ? SizedBox(
                   width: 20.w,
                   height: 20.h,
@@ -570,61 +744,82 @@ class _RiderOrderDetailsScreenState
                     color: AppColorsDark.white,
                   ),
                 )
-                : Icon(Icons.check_circle, size: 20.sp),
+                : Icon(icon, size: 20.sp),
         label: Text(
-          _isPickingUp ? 'Confirming Pickup...' : 'Confirm Pickup',
+          _isUpdatingStatus ? 'Updating...' : label,
           style: AppTextStyles.button(),
         ),
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColorsDark.success,
+          backgroundColor: color,
           padding: EdgeInsets.symmetric(vertical: 16.h),
         ),
       ),
     );
   }
 
-  Widget _buildDeliverButton(OrderModel order) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: _isDelivering ? null : () => _confirmDelivery(order),
-        icon:
-            _isDelivering
-                ? SizedBox(
-                  width: 20.w,
-                  height: 20.h,
-                  child: const CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppColorsDark.white,
-                  ),
-                )
-                : Icon(Icons.delivery_dining, size: 20.sp),
-        label: Text(
-          _isDelivering ? 'Completing Delivery...' : 'Mark as Delivered',
-          style: AppTextStyles.button(),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColorsDark.primary,
-          padding: EdgeInsets.symmetric(vertical: 16.h),
+  Widget _buildCashCheckInButton(OrderModel order) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 10.h),
+      child: SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: _isCashingIn ? null : () => _cashCheckIn(order),
+          icon:
+              _isCashingIn
+                  ? SizedBox(
+                    width: 20.w,
+                    height: 20.h,
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColorsDark.white,
+                    ),
+                  )
+                  : Icon(Icons.payments, size: 20.sp),
+          label: Text(
+            _isCashingIn
+                ? 'Processing...'
+                : 'Check-in Cash (PKR ${order.total.toInt()} received)',
+            style: AppTextStyles.button(),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColorsDark.success,
+            padding: EdgeInsets.symmetric(vertical: 16.h),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildStatusInfo(OrderModel order) {
-    return Container(
-      padding: EdgeInsets.all(12.w),
-      decoration: BoxDecoration(
-        color: AppColorsDark.info.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8.r),
-      ),
-      child: Text(
-        'Order status: ${order.status.name}',
-        style: AppTextStyles.bodyMedium().copyWith(color: AppColorsDark.info),
-        textAlign: TextAlign.center,
+  Widget _buildCashCheckedInBadge(OrderModel order) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 10.h),
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.all(12.w),
+        decoration: BoxDecoration(
+          color: AppColorsDark.success.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(color: AppColorsDark.success.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.verified, color: AppColorsDark.success, size: 20.sp),
+            SizedBox(width: 8.w),
+            Text(
+              'Cash PKR ${order.total.toInt()} — Checked In ✓',
+              style: AppTextStyles.bodyMedium().copyWith(
+                color: AppColorsDark.success,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
 
   Future<void> _callCustomer(String phone) async {
     final uri = Uri.parse('tel:$phone');
@@ -642,23 +837,57 @@ class _RiderOrderDetailsScreenState
     }
   }
 
-  Future<void> _confirmPickup(OrderModel order) async {
-    setState(() => _isPickingUp = true);
+  Future<void> _updateStatus(OrderModel order, OrderStatus newStatus) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            backgroundColor: AppColorsDark.surface,
+            title: Text(
+              'Update Status',
+              style: AppTextStyles.titleMedium().copyWith(
+                color: AppColorsDark.textPrimary,
+              ),
+            ),
+            content: Text(
+              'Mark order as "${newStatus.name}"?',
+              style: AppTextStyles.bodyMedium().copyWith(
+                color: AppColorsDark.textSecondary,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColorsDark.primary,
+                ),
+                child: const Text('Confirm'),
+              ),
+            ],
+          ),
+    );
 
+    if (confirm != true) return;
+
+    setState(() => _isUpdatingStatus = true);
     try {
       final success = await ref
           .read(ordersProvider.notifier)
           .updateOrderStatus(
             order.id,
-            OrderStatus.outForDelivery,
-            'I am a rider',
+            newStatus,
+            'Status updated by rider',
             'rider',
           );
 
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Pickup confirmed!'),
+          SnackBar(
+            content: Text('✅ Status updated to ${newStatus.name}'),
             backgroundColor: AppColorsDark.success,
           ),
         );
@@ -674,33 +903,64 @@ class _RiderOrderDetailsScreenState
         );
       }
     } finally {
-      if (mounted) setState(() => _isPickingUp = false);
+      if (mounted) setState(() => _isUpdatingStatus = false);
     }
   }
 
-  Future<void> _confirmDelivery(OrderModel order) async {
-    setState(() => _isDelivering = true);
+  Future<void> _cashCheckIn(OrderModel order) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            backgroundColor: AppColorsDark.surface,
+            title: Text(
+              'Confirm Cash Received',
+              style: AppTextStyles.titleMedium().copyWith(
+                color: AppColorsDark.textPrimary,
+              ),
+            ),
+            content: Text(
+              'Confirm you received PKR ${order.total.toInt()} cash from the customer?\n\nAdmin will be notified.',
+              style: AppTextStyles.bodyMedium().copyWith(
+                color: AppColorsDark.textSecondary,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Not yet'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColorsDark.success,
+                ),
+                child: const Text('Yes, Received'),
+              ),
+            ],
+          ),
+    );
 
+    if (confirm != true) return;
+
+    setState(() => _isCashingIn = true);
     try {
+      // Get the current rider ID from auth
+      final authState = ref.read(authProvider);
+      if (authState is! Authenticated) return;
+
       final success = await ref
-          .read(ordersProvider.notifier)
-          .updateOrderStatus(
-            order.id,
-            OrderStatus.delivered,
-            'I am a rider',
-            'rider',
-          );
+          .read(ridersProvider.notifier)
+          .cashCheckIn(authState.user.id, order.id, order.total);
 
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ Delivery completed!'),
+            content: Text('✅ Cash check-in confirmed! Admin notified.'),
             backgroundColor: AppColorsDark.success,
           ),
         );
-
-        await Future.delayed(const Duration(seconds: 1));
-        if (mounted) Navigator.pop(context);
+        await ref.read(ordersProvider.notifier).getOrderById(order.id);
       }
     } catch (e) {
       if (mounted) {
@@ -712,7 +972,20 @@ class _RiderOrderDetailsScreenState
         );
       }
     } finally {
-      if (mounted) setState(() => _isDelivering = false);
+      if (mounted) setState(() => _isCashingIn = false);
     }
   }
+}
+
+// ── Helper classes ────────────────────────────────────────────────────────────
+
+class _StatusStep {
+  final OrderStatus status;
+  final String label;
+  final IconData icon;
+  const _StatusStep({
+    required this.status,
+    required this.label,
+    required this.icon,
+  });
 }

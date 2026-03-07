@@ -11,11 +11,9 @@ import '../../../../../products/domain/entities/product_variant.dart';
 class ProductCustomizationDialog extends ConsumerStatefulWidget {
   final ProductModel product;
 
-  // ✅ FIX: Changed String? variantId → ProductVariant? selectedVariant
-  // so the full object (with price) is passed back, not just the id.
   final Function(
     ProductModel product,
-    ProductVariant? selectedVariant, // ✅ was: String? variantId
+    ProductVariant? selectedVariant,
     List<ProductAddon> selectedAddons,
     String? specialInstructions,
   )
@@ -42,7 +40,6 @@ class _ProductCustomizationDialogState
   @override
   void initState() {
     super.initState();
-    // Select first variant by default
     if (widget.product.hasVariants && widget.product.variants.isNotEmpty) {
       _selectedVariant = widget.product.variants.first;
     }
@@ -54,18 +51,22 @@ class _ProductCustomizationDialogState
     super.dispose();
   }
 
-  // ✅ FIX: Variant price is ADDITIONAL on top of base price, not a replacement.
-  // Admin labels it "Additional Price" — so base + variantExtra + addons.
+  // ✅ FIXED: Variant price is the FULL standalone price for that size.
+  // It does NOT add on top of the base product price.
+  // Addons remain additional on top of whichever price applies.
   double _calculateTotal() {
     final double basePrice =
-        widget.product.discountedPrice; // ← always start from base
-    final double variantExtra =
-        _selectedVariant?.price ?? 0.0; // ← add variant on top
-    final double addonsPrice = _selectedAddons.fold(
+        _selectedVariant != null
+            ? _selectedVariant!
+                .price // ← variant price = full item price
+            : widget.product.discountedPrice; // ← fallback if no variants
+
+    final double addonsExtra = _selectedAddons.fold(
       0.0,
       (sum, addon) => sum + addon.price,
     );
-    return (basePrice + variantExtra + addonsPrice) * _quantity;
+
+    return (basePrice + addonsExtra) * _quantity;
   }
 
   @override
@@ -78,7 +79,6 @@ class _ProductCustomizationDialogState
       ),
       child: Column(
         children: [
-          // Handle
           Container(
             margin: EdgeInsets.symmetric(vertical: 12.h),
             width: 40.w,
@@ -89,7 +89,6 @@ class _ProductCustomizationDialogState
             ),
           ),
 
-          // Header with Image
           if (widget.product.images.isNotEmpty)
             ClipRRect(
               borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
@@ -108,7 +107,6 @@ class _ProductCustomizationDialogState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Product Name & Base Price
                   Text(
                     widget.product.name,
                     style: AppTextStyles.headlineSmall().copyWith(
@@ -116,15 +114,23 @@ class _ProductCustomizationDialogState
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  SizedBox(height: 4.h),
-                  // ✅ Show base price clearly so user understands variant is on top
-                  Text(
-                    'Base price: PKR ${widget.product.discountedPrice.toInt()}',
-                    style: AppTextStyles.bodySmall().copyWith(
-                      color: AppColorsDark.textSecondary,
-                    ),
-                  ),
                   SizedBox(height: 8.h),
+
+                  // ✅ Only show base price when there are NO variants.
+                  // When variants exist, price is determined by size selection below.
+                  if (!widget.product.hasVariants ||
+                      widget.product.variants.isEmpty)
+                    Padding(
+                      padding: EdgeInsets.only(bottom: 4.h),
+                      child: Text(
+                        'PKR ${widget.product.discountedPrice.toInt()}',
+                        style: AppTextStyles.titleMedium().copyWith(
+                          color: AppColorsDark.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+
                   Text(
                     widget.product.description,
                     style: AppTextStyles.bodyMedium().copyWith(
@@ -132,7 +138,6 @@ class _ProductCustomizationDialogState
                     ),
                   ),
 
-                  // Size Selection (Variants)
                   if (widget.product.hasVariants &&
                       widget.product.variants.isNotEmpty) ...[
                     SizedBox(height: 24.h),
@@ -141,7 +146,6 @@ class _ProductCustomizationDialogState
                     _buildVariantSelector(),
                   ],
 
-                  // Addons Selection
                   if (widget.product.addons.isNotEmpty) ...[
                     SizedBox(height: 24.h),
                     _buildSectionTitle('Add Extras'),
@@ -149,7 +153,6 @@ class _ProductCustomizationDialogState
                     _buildAddonsSelector(),
                   ],
 
-                  // Special Instructions
                   SizedBox(height: 24.h),
                   _buildSectionTitle('Special Instructions (Optional)'),
                   SizedBox(height: 12.h),
@@ -169,15 +172,12 @@ class _ProductCustomizationDialogState
                   ),
 
                   SizedBox(height: 24.h),
-
-                  // Quantity Selector
                   _buildQuantitySelector(),
                 ],
               ),
             ),
           ),
 
-          // Bottom Bar with Total & Add Button
           _buildBottomBar(),
         ],
       ),
@@ -248,16 +248,16 @@ class _ProductCustomizationDialogState
                       ),
                     ),
                     SizedBox(height: 4.h),
+                    // ✅ FIXED: Show as full price "PKR 750", not "+PKR 750"
                     Text(
-                      // ✅ Show variant price as additional charge
-                      variant.price > 0
-                          ? '+PKR ${variant.price.toInt()}'
-                          : 'No extra charge',
+                      'PKR ${variant.price.toInt()}',
                       style: AppTextStyles.bodySmall().copyWith(
                         color:
                             isSelected
                                 ? AppColorsDark.primary
                                 : AppColorsDark.textSecondary,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.normal,
                       ),
                     ),
                   ],
@@ -393,10 +393,9 @@ class _ProductCustomizationDialogState
               flex: 2,
               child: ElevatedButton(
                 onPressed: () {
-                  // ✅ FIX: Pass full _selectedVariant object (not just id)
                   widget.onAddToCart(
                     widget.product,
-                    _selectedVariant, // ✅ was: _selectedVariant?.id
+                    _selectedVariant,
                     _selectedAddons,
                     _instructionsController.text.trim().isEmpty
                         ? null

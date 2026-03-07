@@ -428,7 +428,14 @@ class _RiderActiveDeliveryScreenState
       try {
         final success = await ref
             .read(ridersProvider.notifier)
-            .markDelivered(widget.riderId, order.id, order.deliveryFee);
+            .markDelivered(
+              widget.riderId,
+              order.id,
+              deliveryFee: order.deliveryFee,
+              collectedCash:
+                  order.paymentMethod == PaymentMethod.cod ? order.total : 0.0,
+              distance: order.distance ?? 0.0,
+            );
 
         if (mounted) {
           if (success) {

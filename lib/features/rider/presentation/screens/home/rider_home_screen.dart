@@ -1,19 +1,18 @@
 // lib/features/rider/presentation/screens/home/rider_home_screen.dart
+// UPDATED: Multi-order, cancelled orders filtered, accept any time
 
 import 'package:abw_app/features/auth/data/models/rider_model.dart';
-import 'package:abw_app/features/auth/domain/entities/rider_entity.dart';
 import 'package:abw_app/features/rider/presentation/screens/home/rider_active_delivery_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import '../../../../../core/theme/colors/app_colors_dark.dart';
 import '../../../../../core/theme/text_styles/app_text_styles.dart';
 import '../../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../auth/presentation/providers/auth_state.dart';
+import '../../../../auth/domain/entities/rider_entity.dart';
 import '../../../../riders/presentation/providers/riders_provider.dart';
-
 import '../../../../orders/presentation/providers/orders_provider.dart';
 import '../../../../orders/data/models/order_model.dart';
 import '../../../../orders/domain/entities/order_entity.dart';
@@ -48,12 +47,10 @@ class RiderHomeScreen extends ConsumerWidget {
 
 class _RiderHomeContent extends ConsumerWidget {
   final RiderModel rider;
-
   const _RiderHomeContent({required this.rider});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Watch assigned orders for this rider
     final assignedOrdersStream = ref.watch(
       riderAssignedOrdersProvider(rider.id),
     );
@@ -62,7 +59,7 @@ class _RiderHomeContent extends ConsumerWidget {
       backgroundColor: AppColorsDark.background,
       body: CustomScrollView(
         slivers: [
-          // App Bar
+          // Header
           SliverAppBar(
             pinned: true,
             backgroundColor: AppColorsDark.surface,
@@ -72,20 +69,60 @@ class _RiderHomeContent extends ConsumerWidget {
             ),
           ),
 
-          // Current Active Order
-          if (rider.currentOrderId != null)
+          // ✅ MULTI-ORDER: Show all active deliveries (not just one)
+          if (rider.currentOrderIds.isNotEmpty) ...[
             SliverToBoxAdapter(
-              child: _buildActiveOrderBanner(context, ref, rider),
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 8.h),
+                child: Row(
+                  children: [
+                    Text(
+                      'Active Deliveries',
+                      style: AppTextStyles.titleMedium().copyWith(
+                        color: AppColorsDark.textPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(width: 8.w),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 8.w,
+                        vertical: 2.h,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColorsDark.primary,
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      child: Text(
+                        '${rider.currentOrderIds.length}',
+                        style: AppTextStyles.labelSmall().copyWith(
+                          color: AppColorsDark.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) => _buildActiveOrderBanner(
+                  context,
+                  rider.currentOrderIds[index],
+                  rider.id,
+                ),
+                childCount: rider.currentOrderIds.length,
+              ),
+            ),
+          ],
 
-          // Available Assigned Orders
+          // Available Orders Header
           SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 8.h),
               child: Text(
-                rider.currentOrderId != null
-                    ? 'Pending Orders'
-                    : 'Assigned Orders',
+                'Assigned Orders',
                 style: AppTextStyles.titleMedium().copyWith(
                   color: AppColorsDark.textPrimary,
                   fontWeight: FontWeight.bold,
@@ -94,16 +131,19 @@ class _RiderHomeContent extends ConsumerWidget {
             ),
           ),
 
+          // ✅ FIX #1: Cancelled orders are filtered by getRiderOrders query
+          // + extra client-side filter below
           assignedOrdersStream.when(
             data: (orders) {
-              // Filter out current active order
+              // Exclude already-active and any stale cancelled orders
               final pending =
                   orders
                       .where(
                         (o) =>
-                            o.id != rider.currentOrderId &&
-                            o.status == OrderStatus.outForDelivery,
-                      )
+                            !rider.currentOrderIds.contains(o.id) &&
+                            o.status == OrderStatus.outForDelivery &&
+                            o.cancelledBy == null,
+                      ) // ✅ double-safety
                       .toList();
 
               if (pending.isEmpty) {
@@ -138,6 +178,8 @@ class _RiderHomeContent extends ConsumerWidget {
     );
   }
 
+  // ── Header ───────────────────────────────────────────────────────────────
+
   Widget _buildHeader(BuildContext context, WidgetRef ref, RiderModel rider) {
     final isOnline = rider.status == RiderStatus.available;
 
@@ -150,7 +192,6 @@ class _RiderHomeContent extends ConsumerWidget {
         children: [
           Row(
             children: [
-              // Avatar
               Container(
                 width: 52.w,
                 height: 52.w,
@@ -169,8 +210,6 @@ class _RiderHomeContent extends ConsumerWidget {
                 ),
               ),
               SizedBox(width: 12.w),
-
-              // Name & Status
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -197,13 +236,27 @@ class _RiderHomeContent extends ConsumerWidget {
                           ),
                         ),
                         SizedBox(width: 6.w),
+                        Text(
+                          isOnline ? 'Online' : 'Offline',
+                          style: AppTextStyles.bodySmall().copyWith(
+                            color: AppColorsDark.white.withOpacity(0.8),
+                          ),
+                        ),
+                        if (rider.currentOrderIds.isNotEmpty) ...[
+                          SizedBox(width: 8.w),
+                          Text(
+                            '• ${rider.currentOrderIds.length} active',
+                            style: AppTextStyles.bodySmall().copyWith(
+                              color: AppColorsDark.warning,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ],
                 ),
               ),
-
-              // Online/Offline Toggle
               GestureDetector(
                 onTap: () => _toggleStatus(context, ref, rider),
                 child: Container(
@@ -234,14 +287,16 @@ class _RiderHomeContent extends ConsumerWidget {
     );
   }
 
+  // ── Active Order Banner (one per active order) ────────────────────────────
+
   Widget _buildActiveOrderBanner(
     BuildContext context,
-    WidgetRef ref,
-    RiderModel rider,
+    String orderId,
+    String riderId,
   ) {
     return Container(
-      margin: EdgeInsets.all(16.w),
-      padding: EdgeInsets.all(16.w),
+      margin: EdgeInsets.fromLTRB(16.w, 4.h, 16.w, 4.h),
+      padding: EdgeInsets.all(14.w),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -253,7 +308,7 @@ class _RiderHomeContent extends ConsumerWidget {
         boxShadow: [
           BoxShadow(
             color: AppColorsDark.primary.withOpacity(0.3),
-            blurRadius: 12,
+            blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
@@ -261,18 +316,18 @@ class _RiderHomeContent extends ConsumerWidget {
       child: Row(
         children: [
           Container(
-            padding: EdgeInsets.all(12.w),
+            padding: EdgeInsets.all(10.w),
             decoration: BoxDecoration(
               color: AppColorsDark.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12.r),
+              borderRadius: BorderRadius.circular(10.r),
             ),
             child: Icon(
               Icons.delivery_dining,
               color: AppColorsDark.white,
-              size: 32.sp,
+              size: 28.sp,
             ),
           ),
-          SizedBox(width: 16.w),
+          SizedBox(width: 12.w),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -283,10 +338,9 @@ class _RiderHomeContent extends ConsumerWidget {
                     color: AppColorsDark.white.withOpacity(0.8),
                   ),
                 ),
-                SizedBox(height: 4.h),
                 Text(
-                  'Order #${rider.currentOrderId!.substring(rider.currentOrderId!.length - 6)}',
-                  style: AppTextStyles.titleMedium().copyWith(
+                  'Order #${orderId.substring(orderId.length - 6)}',
+                  style: AppTextStyles.titleSmall().copyWith(
                     color: AppColorsDark.white,
                     fontWeight: FontWeight.bold,
                   ),
@@ -301,8 +355,8 @@ class _RiderHomeContent extends ConsumerWidget {
                 MaterialPageRoute(
                   builder:
                       (context) => RiderActiveDeliveryScreen(
-                        orderId: rider.currentOrderId!,
-                        riderId: rider.id,
+                        orderId: orderId,
+                        riderId: riderId,
                       ),
                 ),
               );
@@ -310,7 +364,7 @@ class _RiderHomeContent extends ConsumerWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColorsDark.white,
               foregroundColor: AppColorsDark.primary,
-              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
+              padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
             ),
             child: Text(
               'View',
@@ -324,6 +378,8 @@ class _RiderHomeContent extends ConsumerWidget {
     );
   }
 
+  // ── Order Card ────────────────────────────────────────────────────────────
+
   Widget _buildOrderCard(
     BuildContext context,
     WidgetRef ref,
@@ -331,9 +387,7 @@ class _RiderHomeContent extends ConsumerWidget {
     RiderModel rider,
   ) {
     return InkWell(
-      onTap: () {
-        context.push('/rider/orders/${order.id}');
-      },
+      onTap: () => context.push('/rider/orders/${order.id}'),
       child: Container(
         margin: EdgeInsets.fromLTRB(16.w, 0, 16.w, 12.h),
         decoration: BoxDecoration(
@@ -371,7 +425,7 @@ class _RiderHomeContent extends ConsumerWidget {
                     ),
                   ),
                   Text(
-                    'PKR ${order.deliveryFee.toInt()} delivery fee',
+                    'PKR ${order.deliveryFee.toInt()} fee',
                     style: AppTextStyles.bodySmall().copyWith(
                       color: AppColorsDark.success,
                       fontWeight: FontWeight.w600,
@@ -381,30 +435,24 @@ class _RiderHomeContent extends ConsumerWidget {
               ),
             ),
 
-            // Content
             Padding(
               padding: EdgeInsets.all(16.w),
               child: Column(
                 children: [
-                  // Store
                   _buildInfoRow(
                     icon: Icons.store,
                     label: 'Pickup from',
                     value: order.storeName,
                     color: AppColorsDark.primary,
                   ),
-                  SizedBox(height: 12.h),
-
-                  // Customer
+                  SizedBox(height: 10.h),
                   _buildInfoRow(
                     icon: Icons.person,
                     label: 'Deliver to',
                     value: order.userName,
                     color: AppColorsDark.info,
                   ),
-                  SizedBox(height: 12.h),
-
-                  // Address
+                  SizedBox(height: 10.h),
                   _buildInfoRow(
                     icon: Icons.location_on,
                     label: 'Address',
@@ -413,8 +461,6 @@ class _RiderHomeContent extends ConsumerWidget {
                     color: AppColorsDark.error,
                   ),
                   SizedBox(height: 12.h),
-
-                  // Items + Total
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -432,44 +478,21 @@ class _RiderHomeContent extends ConsumerWidget {
                       ),
                     ],
                   ),
+                  SizedBox(height: 14.h),
 
-                  SizedBox(height: 16.h),
-
-                  // Accept Button
-                  if (rider.currentOrderId == null)
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed:
-                            () => _acceptOrder(context, ref, order, rider),
-                        icon: Icon(Icons.check, size: 20.sp),
-                        label: const Text('Accept Order'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColorsDark.success,
-                          padding: EdgeInsets.symmetric(vertical: 14.h),
-                        ),
-                      ),
-                    )
-                  else
-                    Container(
-                      width: double.infinity,
-                      padding: EdgeInsets.symmetric(vertical: 12.h),
-                      decoration: BoxDecoration(
-                        color: AppColorsDark.warning.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12.r),
-                        border: Border.all(
-                          color: AppColorsDark.warning.withOpacity(0.3),
-                        ),
-                      ),
-                      child: Text(
-                        'Complete current delivery first',
-                        style: AppTextStyles.bodySmall().copyWith(
-                          color: AppColorsDark.warning,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        textAlign: TextAlign.center,
+                  // ✅ MULTI-ORDER: Accept is ALWAYS available
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _acceptOrder(context, ref, order, rider),
+                      icon: Icon(Icons.check, size: 20.sp),
+                      label: const Text('Accept Order'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColorsDark.success,
+                        padding: EdgeInsets.symmetric(vertical: 14.h),
                       ),
                     ),
+                  ),
                 ],
               ),
             ),
@@ -478,6 +501,8 @@ class _RiderHomeContent extends ConsumerWidget {
       ),
     );
   }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
 
   Widget _buildInfoRow({
     required IconData icon,
@@ -579,6 +604,8 @@ class _RiderHomeContent extends ConsumerWidget {
     );
   }
 
+  // ── Actions ───────────────────────────────────────────────────────────────
+
   Future<void> _toggleStatus(
     BuildContext context,
     WidgetRef ref,
@@ -614,7 +641,6 @@ class _RiderHomeContent extends ConsumerWidget {
     OrderModel order,
     RiderModel rider,
   ) async {
-    // Confirm dialog
     final confirm = await showDialog<bool>(
       context: context,
       builder:

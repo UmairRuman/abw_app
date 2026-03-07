@@ -1,5 +1,5 @@
 // lib/features/orders/domain/entities/order_entity.dart
-// UPDATED WITH MILESTONE 3 FIELDS
+// UPDATED: Added cancellation and rider refusal fields
 
 import 'package:abw_app/features/addresses/data/models/address_model.dart';
 import 'package:abw_app/features/cart/data/models/cart_item_model.dart';
@@ -41,19 +41,32 @@ class OrderEntity extends Equatable {
   final String? riderId;
   final String? riderName;
 
-  // ✅ NEW MILESTONE 3 FIELDS
-  final String? riderPhone; // Rider contact for customer
-  final double? pickupLatitude; // Store pickup location
+  // Milestone 3 fields
+  final String? riderPhone;
+  final double? pickupLatitude;
   final double? pickupLongitude;
-  final double? deliveryLatitude; // Customer delivery location
+  final double? deliveryLatitude;
   final double? deliveryLongitude;
-  final double? distance; // Distance in kilometers
-  final double? storeCommission; // Per-order commission
+  final double? distance;
+  final double? storeCommission;
+
+  // ✅ NEW: Cancellation fields
+  final String? cancellationReason; // Why order was cancelled
+  final DateTime? cancelledAt; // When it was cancelled
+  final String? cancelledBy; // Who cancelled: 'admin', 'customer', 'system'
+
+  // ✅ NEW: Rider refusal fields
+  final String? riderRefusalReason; // Why rider refused
+  final DateTime? riderRefusedAt; // When rider refused
 
   final DateTime? estimatedDeliveryTime;
   final DateTime createdAt;
   final DateTime updatedAt;
   final List<OrderStatusUpdate> statusHistory;
+
+  final bool? cashCheckedIn; // true when rider has checked in cash
+  final DateTime? cashCheckedInAt; // timestamp of check-in
+  final double? cashCheckedInAmount;
 
   const OrderEntity({
     required this.id,
@@ -86,8 +99,18 @@ class OrderEntity extends Equatable {
     this.deliveryLongitude,
     this.distance,
     this.storeCommission,
+    // ✅ NEW: Cancellation fields (all nullable)
+    this.cancellationReason,
+    this.cancelledAt,
+    this.cancelledBy,
+    // ✅ NEW: Rider refusal fields (all nullable)
+    this.riderRefusalReason,
+    this.riderRefusedAt,
     this.estimatedDeliveryTime,
     this.statusHistory = const [],
+    this.cashCheckedIn,
+    this.cashCheckedInAt,
+    this.cashCheckedInAmount,
   });
 
   @override
@@ -120,10 +143,18 @@ class OrderEntity extends Equatable {
     deliveryLongitude,
     distance,
     storeCommission,
+    cancellationReason, // ✅ NEW
+    cancelledAt, // ✅ NEW
+    cancelledBy, // ✅ NEW
+    riderRefusalReason, // ✅ NEW
+    riderRefusedAt, // ✅ NEW
     estimatedDeliveryTime,
     createdAt,
     updatedAt,
     statusHistory,
+    cashCheckedIn,
+    cashCheckedInAt,
+    cashCheckedInAmount,
   ];
 }
 

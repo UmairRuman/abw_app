@@ -20,6 +20,7 @@ class ImageUploadNotifier extends Notifier<ImageUploadState> {
   }
 
   // Upload payment proof screenshots
+  // Upload payment proof screenshots
   Future<List<String>> uploadPaymentProof(List<File> images) async {
     try {
       final uploadedUrls = <String>[];
@@ -28,20 +29,26 @@ class ImageUploadNotifier extends Notifier<ImageUploadState> {
         final timestamp = DateTime.now().millisecondsSinceEpoch;
         final publicId = 'proof_$timestamp';
 
-        // ✅ USE _collection instead of cloudinary directly
         final uploadedPublicId = await _collection.uploadImage(
           imageFile: image,
           folder: 'abw_app/payment_proofs',
           publicId: publicId,
           onProgress: (progress) {
-            // Optional: update state with progress
             state = ImageUploading(progress: progress);
           },
         );
 
         if (uploadedPublicId != null) {
-          // ✅ Get the full URL using _collection
-          final url = _collection.getOptimizedUrl(uploadedPublicId);
+          // ✅ ROOT CAUSE FIX:
+          // getOptimizedUrl() with no width/height generates:
+          //   /image/upload/c_fill,q_auto,f_auto/...
+          // c_fill WITHOUT w_ and h_ is an invalid Cloudinary transformation
+          // and returns a 400 error — that's why the image never loads.
+          //
+          // Payment proofs don't need cropping/resizing — just deliver the
+          // original JPEG at auto quality. No c_fill, no f_auto.
+          final url =
+              '${_collection.baseImageUrl}/q_auto,f_jpg/$uploadedPublicId';
           uploadedUrls.add(url);
         }
       }
@@ -51,6 +58,18 @@ class ImageUploadNotifier extends Notifier<ImageUploadState> {
       log('Error uploading payment proof: $e');
       return [];
     }
+  }
+
+  String _forceJpgFormat(String url) {
+    if (!url.contains('cloudinary.com')) return url;
+    if (url.contains('f_auto')) return url.replaceAll('f_auto', 'f_jpg');
+    if (url.contains('f_png')) return url.replaceAll('f_png', 'f_jpg');
+    if (url.contains('f_webp')) return url.replaceAll('f_webp', 'f_jpg');
+    // No format token — inject before the asset path
+    return url.replaceFirstMapped(
+      RegExp(r'(/image/upload/)'),
+      (m) => '${m[1]}f_jpg/',
+    );
   }
 
   /// Upload single image

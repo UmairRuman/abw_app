@@ -431,7 +431,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image
+          // ── Image ───────────────────────────────────────────────────────
           ClipRRect(
             borderRadius: BorderRadius.circular(8.r),
             child:
@@ -447,11 +447,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           ),
           SizedBox(width: 12.w),
 
-          // Details
+          // ── Details ─────────────────────────────────────────────────────
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Product name
                 Text(
                   item.productName,
                   style: AppTextStyles.bodyMedium().copyWith(
@@ -461,7 +462,32 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
+
                 SizedBox(height: 4.h),
+
+                // ✅ NEW: Show selected variant name (e.g. "Size: Medium")
+                if (item.selectedVariant != null)
+                  Text(
+                    'Size: ${item.selectedVariant!.name}',
+                    style: AppTextStyles.bodySmall().copyWith(
+                      color: AppColorsDark.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+
+                // ✅ NEW: Show selected addons (e.g. "+ Extra Cheese, Olives")
+                if (item.selectedAddons.isNotEmpty)
+                  Text(
+                    '+ ${item.selectedAddons.map((a) => a.name).join(', ')}',
+                    style: AppTextStyles.bodySmall().copyWith(
+                      color: AppColorsDark.textSecondary,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+
+                SizedBox(height: 4.h),
+
                 Text(
                   'Qty: ${item.quantity}',
                   style: AppTextStyles.bodySmall().copyWith(
@@ -472,9 +498,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             ),
           ),
 
-          // Price
+          // ── Price ────────────────────────────────────────────────────────
+          // ✅ FIXED: was item.price (original base price = PKR 1380).
+          //    Now uses item.discountedPrice which holds the effective variant
+          //    price set in cart_provider.addToCart (e.g. PKR 750 for Medium).
           Text(
-            'PKR ${(item.price * item.quantity).toInt()}',
+            'PKR ${(item.discountedPrice * item.quantity).toInt()}',
             style: AppTextStyles.titleSmall().copyWith(
               color: AppColorsDark.primary,
               fontWeight: FontWeight.bold,
