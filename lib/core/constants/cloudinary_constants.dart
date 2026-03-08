@@ -8,13 +8,14 @@ class CloudinaryConstants {
   static const String cloudName = 'dksognlzq'; // e.g., 'abw-services'
   static const String apiKey = '352391828741146';
   static const String apiSecret = 'EbnVaQpYx4_q6xQyUvE9UdX_as0';
-  static const String uploadPreset = 'abw_app'; // Create this in Cloudinary dashboard
+  static const String uploadPreset =
+      'abw_app'; // Create this in Cloudinary dashboard
 
   // Base URLs
-  static String get uploadUrl => 
+  static String get uploadUrl =>
       'https://api.cloudinary.com/v1_1/$cloudName/image/upload';
-  
-  static String get baseImageUrl => 
+
+  static String get baseImageUrl =>
       'https://res.cloudinary.com/$cloudName/image/upload';
 
   // Folder structure
@@ -27,12 +28,17 @@ class CloudinaryConstants {
   static const String profileImagesFolder = 'profiles';
 
   // Default transformations
-  static const String categoryIconTransform = 'w_200,h_200,c_fill,q_auto,f_auto';
+  static const String categoryIconTransform =
+      'w_200,h_200,c_fill,q_auto,f_auto';
   static const String storeLogoTransform = 'w_300,h_300,c_fill,q_auto,f_auto';
-  static const String storeBannerTransform = 'w_1200,h_400,c_fill,q_auto,f_auto';
-  static const String productImageTransform = 'w_800,h_800,c_fill,q_auto,f_auto';
-  static const String productThumbnailTransform = 'w_300,h_300,c_fill,q_auto,f_auto';
-  static const String profileImageTransform = 'w_400,h_400,c_fill,q_auto,f_auto';
+  static const String storeBannerTransform =
+      'w_1200,h_400,c_fill,q_auto,f_auto';
+  static const String productImageTransform =
+      'w_800,h_800,c_fill,q_auto,f_auto';
+  static const String productThumbnailTransform =
+      'w_300,h_300,c_fill,q_auto,f_auto';
+  static const String profileImageTransform =
+      'w_400,h_400,c_fill,q_auto,f_auto';
 
   // Quality presets
   static const String highQuality = 'q_90';
@@ -56,7 +62,7 @@ class CloudinaryConstants {
     String format = autoFormat,
   }) {
     final transforms = <String>[];
-    
+
     if (width != null) transforms.add('w_$width');
     if (height != null) transforms.add('h_$height');
     if (transformation != null) {
@@ -87,5 +93,9 @@ class CloudinaryConstants {
       'medium': getOptimizedUrl(publicId, width: 1000, height: 1000),
       'large': getOptimizedUrl(publicId, width: 1500, height: 1500),
     };
+  }
+
+  static String getPaymentProofUrl(String publicId) {
+    return '$baseImageUrl/w_800,h_1200,c_fit,q_80,f_jpg/$publicId';
   }
 }

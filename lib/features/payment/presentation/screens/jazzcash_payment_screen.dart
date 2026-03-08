@@ -1,4 +1,5 @@
 // lib/features/payment/presentation/screens/jazzcash_payment_screen.dart
+// ✅ FIXED: Fetches JazzCash number from Firestore payment settings
 
 import 'dart:io';
 import 'package:abw_app/core/routes/app_router.dart';
@@ -15,6 +16,7 @@ import '../../../orders/presentation/providers/orders_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/presentation/providers/auth_state.dart';
 import '../../../orders/domain/entities/order_entity.dart';
+import '../providers/payment_settings_provider.dart'; // ✅ IMPORT
 import 'order_confirmation_screen.dart';
 
 class JazzcashPaymentScreen extends ConsumerStatefulWidget {
@@ -30,11 +32,23 @@ class _JazzcashPaymentScreenState extends ConsumerState<JazzcashPaymentScreen> {
   bool _isUploading = false;
   bool _isPlacingOrder = false;
 
-  final String _jazzcashNumber = '03072740036';
+  // ✅ REMOVED: Hardcoded number
+  // final String _jazzcashNumber = '03072740036';
+
+  @override
+  void initState() {
+    super.initState();
+    // ✅ Load payment settings on screen init
+    Future.microtask(() {
+      ref.read(paymentSettingsProvider.notifier).loadSettings();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final checkoutState = ref.watch(checkoutProvider);
+    // ✅ Watch payment settings
+    final settingsState = ref.watch(paymentSettingsProvider);
 
     if (checkoutState is! CheckoutLoaded) {
       return Scaffold(
@@ -44,6 +58,31 @@ class _JazzcashPaymentScreenState extends ConsumerState<JazzcashPaymentScreen> {
     }
 
     final checkout = checkoutState.checkout;
+
+    // ✅ Handle settings loading state
+    if (settingsState is PaymentSettingsLoading) {
+      return Scaffold(
+        backgroundColor: AppColorsDark.background,
+        appBar: AppBar(
+          title: Text(
+            'JazzCash Payment',
+            style: AppTextStyles.titleLarge().copyWith(
+              color: AppColorsDark.textPrimary,
+            ),
+          ),
+          backgroundColor: AppColorsDark.surface,
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(color: AppColorsDark.primary),
+        ),
+      );
+    }
+
+    // ✅ Get JazzCash number from settings
+    String jazzcashNumber = '03072740036'; // Default fallback
+    if (settingsState is PaymentSettingsLoaded) {
+      jazzcashNumber = settingsState.settings.jazzcashNumber;
+    }
 
     return Scaffold(
       backgroundColor: AppColorsDark.background,
@@ -142,7 +181,7 @@ class _JazzcashPaymentScreenState extends ConsumerState<JazzcashPaymentScreen> {
 
                   SizedBox(height: 12.h),
 
-                  // JazzCash Number
+                  // ✅ JazzCash Number - Now dynamic!
                   Container(
                     padding: EdgeInsets.all(16.w),
                     decoration: BoxDecoration(
@@ -167,7 +206,7 @@ class _JazzcashPaymentScreenState extends ConsumerState<JazzcashPaymentScreen> {
                             ),
                             SizedBox(height: 4.h),
                             Text(
-                              _jazzcashNumber,
+                              jazzcashNumber, // ✅ Dynamic from Firestore
                               style: AppTextStyles.headlineSmall().copyWith(
                                 color: const Color(0xFFFF6B00),
                                 fontWeight: FontWeight.bold,
@@ -179,7 +218,7 @@ class _JazzcashPaymentScreenState extends ConsumerState<JazzcashPaymentScreen> {
                         IconButton(
                           onPressed: () {
                             Clipboard.setData(
-                              ClipboardData(text: _jazzcashNumber),
+                              ClipboardData(text: jazzcashNumber), // ✅ Dynamic
                             );
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
@@ -397,7 +436,6 @@ class _JazzcashPaymentScreenState extends ConsumerState<JazzcashPaymentScreen> {
                   right: 8.w,
                   child: Row(
                     children: [
-                      // Change Image
                       InkWell(
                         onTap: _pickImage,
                         child: Container(
@@ -421,7 +459,6 @@ class _JazzcashPaymentScreenState extends ConsumerState<JazzcashPaymentScreen> {
                         ),
                       ),
                       SizedBox(width: 8.w),
-                      // Remove Image
                       InkWell(
                         onTap: () {
                           setState(() => _paymentScreenshot = null);

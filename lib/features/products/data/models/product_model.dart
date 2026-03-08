@@ -296,6 +296,11 @@ class ProductModel {
     DateTime? createdAt,
     DateTime? updatedAt,
     String? createdBy,
+    // ✅ ADD THESE FOUR — they were completely missing
+    bool? hasVariants,
+    List<ProductVariant>? variants,
+    List<ProductAddon>? addons,
+    String? specialInstructions,
   }) {
     return ProductModel(
       id: id ?? this.id,
@@ -333,6 +338,11 @@ class ProductModel {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       createdBy: createdBy ?? this.createdBy,
+      // ✅ ADD THESE FOUR
+      hasVariants: hasVariants ?? this.hasVariants,
+      variants: variants ?? this.variants,
+      addons: addons ?? this.addons,
+      specialInstructions: specialInstructions ?? this.specialInstructions,
     );
   }
 

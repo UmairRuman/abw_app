@@ -20,6 +20,62 @@ class ImageUploadCollection {
 
   String get baseImageUrl => CloudinaryConstants.baseImageUrl;
 
+  String getPaymentProofUrl(String publicId) {
+    return CloudinaryConstants.getPaymentProofUrl(publicId);
+  }
+
+  Future<String?> uploadImageGetUrl({
+    required File imageFile,
+    required String folder,
+    String? publicId,
+    Function(double)? onProgress,
+  }) async {
+    try {
+      final compressedFile = await _compressImage(imageFile);
+
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse(CloudinaryConstants.uploadUrl),
+      );
+
+      request.fields['upload_preset'] = CloudinaryConstants.uploadPreset;
+      request.fields['folder'] = folder;
+
+      if (publicId != null) {
+        request.fields['public_id'] = publicId;
+      }
+
+      final multipartFile = await http.MultipartFile.fromPath(
+        'file',
+        compressedFile.path,
+      );
+      request.files.add(multipartFile);
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(response.body);
+
+        // ✅ Use secure_url directly from Cloudinary's response.
+        // This is the exact URL Cloudinary itself considers valid for this asset.
+        // No transformation construction, no guessing.
+        final secureUrl = jsonResponse['secure_url'] as String;
+
+        log('Payment proof uploaded: $secureUrl');
+        await compressedFile.delete();
+
+        return secureUrl;
+      } else {
+        log('Upload failed: ${response.statusCode} - ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      log('Error uploading image: ${e.toString()}');
+      return null;
+    }
+  }
+
   /// Upload image to Cloudinary
   Future<String?> uploadImage({
     required File imageFile,

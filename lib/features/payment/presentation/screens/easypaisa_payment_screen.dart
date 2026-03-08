@@ -1,4 +1,5 @@
 // lib/features/payment/presentation/screens/easypaisa_payment_screen.dart
+// ✅ FIXED: Fetches EasyPaisa number from Firestore payment settings
 
 import 'dart:io';
 import 'package:abw_app/core/routes/app_router.dart';
@@ -15,7 +16,7 @@ import '../../../orders/presentation/providers/orders_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/presentation/providers/auth_state.dart';
 import '../../../orders/domain/entities/order_entity.dart';
-import 'order_confirmation_screen.dart';
+import '../providers/payment_settings_provider.dart'; // ✅ IMPORT
 
 class EasypaisaPaymentScreen extends ConsumerStatefulWidget {
   const EasypaisaPaymentScreen({super.key});
@@ -31,11 +32,23 @@ class _EasypaisaPaymentScreenState
   bool _isUploading = false;
   bool _isPlacingOrder = false;
 
-  final String _easypaisaNumber = '03072740036';
+  // ✅ REMOVED: Hardcoded number
+  // final String _easypaisaNumber = '03072740036';
+
+  @override
+  void initState() {
+    super.initState();
+    // ✅ Load payment settings on screen init
+    Future.microtask(() {
+      ref.read(paymentSettingsProvider.notifier).loadSettings();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final checkoutState = ref.watch(checkoutProvider);
+    // ✅ Watch payment settings
+    final settingsState = ref.watch(paymentSettingsProvider);
 
     if (checkoutState is! CheckoutLoaded) {
       return Scaffold(
@@ -45,6 +58,31 @@ class _EasypaisaPaymentScreenState
     }
 
     final checkout = checkoutState.checkout;
+
+    // ✅ Handle settings loading state
+    if (settingsState is PaymentSettingsLoading) {
+      return Scaffold(
+        backgroundColor: AppColorsDark.background,
+        appBar: AppBar(
+          title: Text(
+            'EasyPaisa Payment',
+            style: AppTextStyles.titleLarge().copyWith(
+              color: AppColorsDark.textPrimary,
+            ),
+          ),
+          backgroundColor: AppColorsDark.surface,
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(color: AppColorsDark.primary),
+        ),
+      );
+    }
+
+    // ✅ Get EasyPaisa number from settings
+    String easypaisaNumber = '03072740036'; // Default fallback
+    if (settingsState is PaymentSettingsLoaded) {
+      easypaisaNumber = settingsState.settings.easypaisaNumber;
+    }
 
     return Scaffold(
       backgroundColor: AppColorsDark.background,
@@ -143,7 +181,7 @@ class _EasypaisaPaymentScreenState
 
                   SizedBox(height: 12.h),
 
-                  // EasyPaisa Number
+                  // ✅ EasyPaisa Number - Now dynamic!
                   Container(
                     padding: EdgeInsets.all(16.w),
                     decoration: BoxDecoration(
@@ -168,7 +206,7 @@ class _EasypaisaPaymentScreenState
                             ),
                             SizedBox(height: 4.h),
                             Text(
-                              _easypaisaNumber,
+                              easypaisaNumber, // ✅ Dynamic from Firestore
                               style: AppTextStyles.headlineSmall().copyWith(
                                 color: const Color(0xFF00A651),
                                 fontWeight: FontWeight.bold,
@@ -180,7 +218,7 @@ class _EasypaisaPaymentScreenState
                         IconButton(
                           onPressed: () {
                             Clipboard.setData(
-                              ClipboardData(text: _easypaisaNumber),
+                              ClipboardData(text: easypaisaNumber),
                             );
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
@@ -267,7 +305,6 @@ class _EasypaisaPaymentScreenState
     );
   }
 
-  // Same helper methods as JazzCash screen
   Widget _buildInstructionCard({
     required String step,
     required String title,

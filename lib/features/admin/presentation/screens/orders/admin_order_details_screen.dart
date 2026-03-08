@@ -1,6 +1,6 @@
 // lib/features/admin/presentation/screens/orders/admin_order_details_screen.dart
-// ADMIN ORDER DETAILS WITH CANCELLATION
 
+import 'package:abw_app/features/admin/presentation/screens/orders/widgets/assign_rider_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -50,7 +50,6 @@ class _AdminOrderDetailsScreenState
         ),
         backgroundColor: AppColorsDark.surface,
         actions: [
-          // ✅ More options menu
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
             onSelected: (value) {
@@ -87,21 +86,11 @@ class _AdminOrderDetailsScreenState
     );
   }
 
-  String _toJpgUrl(String url) {
-    if (!url.contains('cloudinary.com')) return url;
-    if (url.contains('f_auto')) return url.replaceAll('f_auto', 'f_jpg');
-    if (url.contains('f_png')) return url.replaceAll('f_png', 'f_jpg');
-    if (url.contains('f_webp')) return url.replaceAll('f_webp', 'f_jpg');
-    // No format token present — inject f_jpg after /upload/
-    return url.replaceFirstMapped(
-      RegExp(r'(/image/upload/)'),
-      (m) => '${m[1]}f_jpg/',
-    );
-  }
+  // ─────────────────────────────────────────────────────────────────────────
+  // MAIN LAYOUT
+  // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildOrderDetails(OrderModel order) {
-    final canCancel = _canCancelOrder(order.status);
-
     return Column(
       children: [
         Expanded(
@@ -110,70 +99,782 @@ class _AdminOrderDetailsScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Order Status Card
                 _buildOrderStatusCard(order),
                 SizedBox(height: 16.h),
 
-                // Customer Info
+                // ✅ Status update actions (was missing)
+                _buildStatusUpdateCard(order),
+                SizedBox(height: 16.h),
+
                 _buildCustomerInfo(order),
                 SizedBox(height: 16.h),
 
-                // Rider Info (if assigned)
-                if (order.riderId != null) _buildRiderInfo(order),
-                if (order.riderId != null) SizedBox(height: 16.h),
+                if (order.riderId != null) ...[
+                  _buildRiderInfo(order),
+                  SizedBox(height: 16.h),
+                ],
 
-                // Delivery Address
                 _buildDeliveryAddress(order),
                 SizedBox(height: 16.h),
 
-                // Order Items
                 _buildOrderItems(order),
                 SizedBox(height: 16.h),
 
-                // Payment Info
-                _buildPaymentInfo(order),
-                SizedBox(height: 16.h),
-
-                // Price Breakdown
-                _buildPriceBreakdown(order),
-                SizedBox(height: 16.h),
-
-                // Special Instructions
                 if (order.specialInstructions != null &&
                     order.specialInstructions!.isNotEmpty)
                   _buildSpecialInstructions(order.specialInstructions!),
 
-                // Cancellation Info (if cancelled)
+                if (order.specialInstructions != null &&
+                    order.specialInstructions!.isNotEmpty)
+                  SizedBox(height: 16.h),
+
+                _buildPaymentInfo(order),
+                SizedBox(height: 16.h),
+
+                _buildPriceBreakdown(order),
+                SizedBox(height: 16.h),
+
                 if (order.status == OrderStatus.cancelled &&
                     order.cancellationReason != null)
                   _buildCancellationInfo(order),
 
-                if (order.status == OrderStatus.cancelled)
-                  SizedBox(height: 16.h),
-
-                // ✅ Show rider refusal info if order was refused before
                 if (order.riderRefusalReason != null)
                   _buildRiderRefusalInfo(order),
               ],
             ),
           ),
         ),
-
-        // ✅ Action Buttons
         if (_canCancelOrder(order.status)) _buildActionButtons(order),
       ],
     );
   }
 
-  // ✅ Check if order can be cancelled
+  // ── STEP 2: ADD these two methods ────────────────────────────────────────────
+
+  /// Returns the next logical status and button label for a given order status.
+  /// Returns null when no further progression is possible from admin side.
+  ({OrderStatus next, String label, Color color, IconData icon})?
+  _getNextStatusAction(OrderStatus current) {
+    switch (current) {
+      case OrderStatus.pending:
+        return (
+          next: OrderStatus.confirmed,
+          label: 'Confirm Order',
+          color: AppColorsDark.info,
+          icon: Icons.check_circle_outline,
+        );
+      case OrderStatus.confirmed:
+        return (
+          next: OrderStatus.preparing,
+          label: 'Mark as Preparing',
+          color: AppColorsDark.primary,
+          icon: Icons.restaurant,
+        );
+      case OrderStatus.preparing:
+        return (
+          next: OrderStatus.outForDelivery,
+          label: 'Out for Delivery',
+          color: AppColorsDark.info,
+          icon: Icons.delivery_dining,
+        );
+      case OrderStatus.outForDelivery:
+        return (
+          next: OrderStatus.delivered,
+          label: 'Mark as Delivered',
+          color: AppColorsDark.success,
+          icon: Icons.done_all,
+        );
+      case OrderStatus.delivered:
+      case OrderStatus.cancelled:
+        return null; // No further action
+    }
+  }
+
+  Widget _buildStatusUpdateCard(OrderModel order) {
+    final action = _getNextStatusAction(order.status);
+
+    // No actions for delivered / cancelled
+    if (action == null) return const SizedBox.shrink();
+
+    // Show assign rider button when:
+    // - order is confirmed, preparing, or out for delivery
+    // - no rider is assigned yet
+    final canAssignRider =
+        order.riderId == null &&
+        (order.status == OrderStatus.confirmed ||
+            order.status == OrderStatus.preparing ||
+            order.status == OrderStatus.outForDelivery);
+
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: AppColorsDark.cardBackground,
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: AppColorsDark.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header ────────────────────────────────────────────────────────
+          Row(
+            children: [
+              Icon(Icons.update, color: AppColorsDark.primary, size: 20.sp),
+              SizedBox(width: 8.w),
+              Text(
+                'Order Actions',
+                style: AppTextStyles.titleMedium().copyWith(
+                  color: AppColorsDark.textPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          const Divider(color: AppColorsDark.border),
+          SizedBox(height: 12.h),
+
+          // ── Current → Next status indicator ───────────────────────────────
+          Row(
+            children: [
+              Text(
+                'Status: ',
+                style: AppTextStyles.bodySmall().copyWith(
+                  color: AppColorsDark.textSecondary,
+                ),
+              ),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+                decoration: BoxDecoration(
+                  color: _getStatusColor(order.status).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(6.r),
+                ),
+                child: Text(
+                  _getStatusText(order.status),
+                  style: AppTextStyles.labelSmall().copyWith(
+                    color: _getStatusColor(order.status),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              SizedBox(width: 8.w),
+              Icon(
+                Icons.arrow_forward,
+                size: 16.sp,
+                color: AppColorsDark.textTertiary,
+              ),
+              SizedBox(width: 8.w),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+                decoration: BoxDecoration(
+                  color: action.color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(6.r),
+                ),
+                child: Text(
+                  _getStatusText(action.next),
+                  style: AppTextStyles.labelSmall().copyWith(
+                    color: action.color,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          SizedBox(height: 12.h),
+
+          // ── Advance status button ──────────────────────────────────────────
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed:
+                  _isProcessing
+                      ? null
+                      : () => _handleUpdateStatus(order, action.next),
+              icon:
+                  _isProcessing
+                      ? SizedBox(
+                        width: 18.w,
+                        height: 18.w,
+                        child: const CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColorsDark.white,
+                        ),
+                      )
+                      : Icon(action.icon, size: 20.sp),
+              label: Text(
+                _isProcessing ? 'Updating...' : action.label,
+                style: AppTextStyles.button().copyWith(fontSize: 15.sp),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: action.color,
+                padding: EdgeInsets.symmetric(vertical: 14.h),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+              ),
+            ),
+          ),
+
+          // ── Assign Rider button (shown when no rider assigned yet) ─────────
+          if (canAssignRider) ...[
+            SizedBox(height: 10.h),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed:
+                    () => showDialog(
+                      context: context,
+                      builder: (_) => AssignRiderDialog(order: order),
+                    ).then((_) {
+                      // Refresh order after dialog closes in case rider was assigned
+                      ref.read(ordersProvider.notifier).getOrderById(order.id);
+                    }),
+                icon: Icon(Icons.delivery_dining, size: 20.sp),
+                label: Text(
+                  'Assign Rider',
+                  style: AppTextStyles.button().copyWith(
+                    fontSize: 15.sp,
+                    color: AppColorsDark.primary,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(vertical: 14.h),
+                  side: const BorderSide(
+                    color: AppColorsDark.primary,
+                    width: 2,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                ),
+              ),
+            ),
+          ],
+
+          // ── Change Rider button (shown when rider already assigned) ────────
+          if (order.riderId != null &&
+              order.status != OrderStatus.delivered) ...[
+            SizedBox(height: 10.h),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed:
+                    () => showDialog(
+                      context: context,
+                      builder: (_) => AssignRiderDialog(order: order),
+                    ).then((_) {
+                      ref.read(ordersProvider.notifier).getOrderById(order.id);
+                    }),
+                icon: Icon(Icons.swap_horiz, size: 20.sp),
+                label: Text(
+                  'Change Rider',
+                  style: AppTextStyles.button().copyWith(
+                    fontSize: 15.sp,
+                    color: AppColorsDark.warning,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(vertical: 14.h),
+                  side: const BorderSide(
+                    color: AppColorsDark.warning,
+                    width: 2,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleUpdateStatus(
+    OrderModel order,
+    OrderStatus newStatus,
+  ) async {
+    setState(() => _isProcessing = true);
+    try {
+      await FirebaseFirestore.instance
+          .collection('orders')
+          .doc(order.id)
+          .update({
+            'status': newStatus.name,
+            'updatedAt': FieldValue.serverTimestamp(),
+            'statusHistory': FieldValue.arrayUnion([
+              {
+                'status': newStatus.name,
+                'timestamp': Timestamp.now(),
+                'note': 'Status updated by admin',
+                'updatedBy': 'admin',
+              },
+            ]),
+          });
+
+      if (mounted) {
+        await ref.read(ordersProvider.notifier).getOrderById(order.id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8.w),
+                Text(
+                  'Order updated to ${_getStatusText(newStatus).toLowerCase()}',
+                ),
+              ],
+            ),
+            backgroundColor: AppColorsDark.success,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update status: ${e.toString()}'),
+            backgroundColor: AppColorsDark.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // ORDER ITEMS — with variant, addons, per-item instructions
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildOrderItems(OrderModel order) {
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: AppColorsDark.cardBackground,
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: AppColorsDark.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Order Items (${order.items.length})',
+            style: AppTextStyles.titleMedium().copyWith(
+              color: AppColorsDark.textPrimary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: 16.h),
+          ...order.items.map((item) => _buildOrderItemRow(item)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOrderItemRow(CartItemModel item) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 14.h),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Name + qty
+                Text(
+                  '${item.quantity}x ${item.productName}',
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+
+                // ✅ Variant
+                if (item.selectedVariant != null) ...[
+                  SizedBox(height: 3.h),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.straighten,
+                        size: 12.sp,
+                        color: AppColorsDark.primary,
+                      ),
+                      SizedBox(width: 4.w),
+                      Text(
+                        'Size: ${item.selectedVariant!.name}',
+                        style: AppTextStyles.bodySmall().copyWith(
+                          color: AppColorsDark.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+
+                // ✅ Addons
+                if (item.selectedAddons.isNotEmpty) ...[
+                  SizedBox(height: 3.h),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.add_circle_outline,
+                        size: 12.sp,
+                        color: AppColorsDark.success,
+                      ),
+                      SizedBox(width: 4.w),
+                      Expanded(
+                        child: Text(
+                          item.selectedAddons.map((a) => a.name).join(', '),
+                          style: AppTextStyles.bodySmall().copyWith(
+                            color: AppColorsDark.success,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+
+                // ✅ Per-item special instructions
+                if (item.specialInstructions != null &&
+                    item.specialInstructions!.isNotEmpty) ...[
+                  SizedBox(height: 5.h),
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 8.w,
+                      vertical: 5.h,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColorsDark.warning.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6.r),
+                      border: Border.all(
+                        color: AppColorsDark.warning.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.note_alt_outlined,
+                          size: 12.sp,
+                          color: AppColorsDark.warning,
+                        ),
+                        SizedBox(width: 4.w),
+                        Expanded(
+                          child: Text(
+                            item.specialInstructions!,
+                            style: AppTextStyles.bodySmall().copyWith(
+                              color: AppColorsDark.warning,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          // ✅ Price: discountedPrice × quantity (effective variant price)
+          Text(
+            'PKR ${(item.discountedPrice * item.quantity).toInt()}',
+            style: AppTextStyles.bodyMedium().copyWith(
+              color: AppColorsDark.primary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // PAYMENT INFO — method + status + proof screenshot
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildPaymentInfo(OrderModel order) {
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: AppColorsDark.cardBackground,
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: AppColorsDark.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Icon(Icons.payment, color: AppColorsDark.primary, size: 20.sp),
+              SizedBox(width: 8.w),
+              Text(
+                'Payment',
+                style: AppTextStyles.titleMedium().copyWith(
+                  color: AppColorsDark.textPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          const Divider(color: AppColorsDark.border),
+          SizedBox(height: 12.h),
+
+          // Method
+          _buildInfoRow('Method', _getPaymentMethodName(order.paymentMethod)),
+          SizedBox(height: 8.h),
+
+          // Status badge
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Status',
+                style: AppTextStyles.bodyMedium().copyWith(
+                  color: AppColorsDark.textSecondary,
+                ),
+              ),
+              _buildPaymentStatusBadge(order.paymentStatus),
+            ],
+          ),
+
+          // ✅ PROOF IMAGE — this was the missing block
+          if (order.paymentProofUrl != null &&
+              order.paymentProofUrl!.isNotEmpty) ...[
+            SizedBox(height: 16.h),
+            const Divider(color: AppColorsDark.border),
+            SizedBox(height: 12.h),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Payment Proof',
+                  style: AppTextStyles.titleSmall().copyWith(
+                    color: AppColorsDark.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (order.paymentStatus == PaymentStatus.pending)
+                  ElevatedButton.icon(
+                    onPressed:
+                        _isProcessing
+                            ? null
+                            : () => _handleVerifyPayment(order),
+                    icon: Icon(Icons.verified, size: 16.sp),
+                    label: const Text('Verify'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColorsDark.success,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 12.w,
+                        vertical: 8.h,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            SizedBox(height: 12.h),
+
+            GestureDetector(
+              onTap: () => _showFullScreenImage(order.paymentProofUrl!),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12.r),
+                child: Image.network(
+                  order.paymentProofUrl!,
+                  width: double.infinity,
+                  height: 250.h,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      height: 250.h,
+                      color: AppColorsDark.surfaceContainer,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(
+                              color: AppColorsDark.primary,
+                              value:
+                                  loadingProgress.expectedTotalBytes != null
+                                      ? loadingProgress.cumulativeBytesLoaded /
+                                          loadingProgress.expectedTotalBytes!
+                                      : null,
+                            ),
+                            SizedBox(height: 8.h),
+                            Text(
+                              'Loading payment proof...',
+                              style: AppTextStyles.bodySmall().copyWith(
+                                color: AppColorsDark.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                  errorBuilder: (_, error, stackTrace) {
+                    debugPrint('Payment proof load error: $error');
+                    return Container(
+                      height: 100.h,
+                      decoration: BoxDecoration(
+                        color: AppColorsDark.surfaceContainer,
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.broken_image_outlined,
+                            color: AppColorsDark.error,
+                            size: 32.sp,
+                          ),
+                          SizedBox(height: 8.h),
+                          Text(
+                            'Failed to load image',
+                            style: AppTextStyles.bodySmall().copyWith(
+                              color: AppColorsDark.error,
+                            ),
+                          ),
+                          SizedBox(height: 4.h),
+                          // Shows the actual error in debug so you can diagnose
+                          Text(
+                            error.toString(),
+                            style: AppTextStyles.bodySmall().copyWith(
+                              color: AppColorsDark.textTertiary,
+                              fontSize: 10.sp,
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            SizedBox(height: 6.h),
+            Text(
+              'Tap to view full screen',
+              style: AppTextStyles.bodySmall().copyWith(
+                color: AppColorsDark.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentStatusBadge(PaymentStatus status) {
+    Color color;
+    String text;
+    switch (status) {
+      case PaymentStatus.pending:
+        color = AppColorsDark.warning;
+        text = 'Pending Verification';
+        break;
+      case PaymentStatus.completed:
+        color = AppColorsDark.success;
+        text = 'Verified';
+        break;
+      case PaymentStatus.failed:
+        color = AppColorsDark.error;
+        text = 'Failed';
+        break;
+    }
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(6.r),
+      ),
+      child: Text(
+        text,
+        style: AppTextStyles.labelSmall().copyWith(
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  void _showFullScreenImage(String imageUrl) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (_) => Scaffold(
+              backgroundColor: Colors.black,
+              appBar: AppBar(
+                backgroundColor: Colors.black,
+                iconTheme: const IconThemeData(color: Colors.white),
+                title: const Text(
+                  'Payment Proof',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+              body: Center(
+                child: InteractiveViewer(child: Image.network(imageUrl)),
+              ),
+            ),
+      ),
+    );
+  }
+
+  Future<void> _handleVerifyPayment(OrderModel order) async {
+    setState(() => _isProcessing = true);
+    try {
+      await FirebaseFirestore.instance
+          .collection('orders')
+          .doc(order.id)
+          .update({'paymentStatus': 'completed'});
+
+      if (mounted) {
+        await ref.read(ordersProvider.notifier).getOrderById(order.id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Payment verified successfully'),
+            backgroundColor: AppColorsDark.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to verify: ${e.toString()}'),
+            backgroundColor: AppColorsDark.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // REMAINING WIDGETS (unchanged from your version)
+  // ─────────────────────────────────────────────────────────────────────────
+
   bool _canCancelOrder(OrderStatus status) {
     return status == OrderStatus.pending ||
         status == OrderStatus.confirmed ||
         status == OrderStatus.preparing ||
-        status == OrderStatus.outForDelivery; // ✅ REMOVED: OrderStatus.ready
+        status == OrderStatus.outForDelivery;
   }
 
-  // ✅ Action Buttons
   Widget _buildActionButtons(OrderModel order) {
     return Container(
       padding: EdgeInsets.all(16.w),
@@ -220,7 +921,6 @@ class _AdminOrderDetailsScreenState
     );
   }
 
-  // ✅ Cancel Order Dialog
   void _showCancelOrderDialog(OrderModel order) {
     final reasonController = TextEditingController();
     final formKey = GlobalKey<FormState>();
@@ -398,10 +1098,8 @@ class _AdminOrderDetailsScreenState
     );
   }
 
-  // ✅ Handle Cancel Order
   Future<void> _handleCancelOrder(String orderId, String reason) async {
     setState(() => _isProcessing = true);
-
     try {
       final success = await ref
           .read(ordersProvider.notifier)
@@ -421,8 +1119,6 @@ class _AdminOrderDetailsScreenState
             behavior: SnackBarBehavior.floating,
           ),
         );
-
-        // Reload order
         await ref.read(ordersProvider.notifier).getOrderById(orderId);
       } else {
         throw Exception('Failed to cancel order');
@@ -444,20 +1140,15 @@ class _AdminOrderDetailsScreenState
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isProcessing = false);
-      }
+      if (mounted) setState(() => _isProcessing = false);
     }
   }
 
-  // ✅ Cancellation Info Display
   Widget _buildCancellationInfo(OrderModel order) {
-    // ✅ Check for cancellationReason field (not just status)
     if (order.status != OrderStatus.cancelled ||
         order.cancellationReason == null) {
       return const SizedBox.shrink();
     }
-
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
@@ -484,7 +1175,6 @@ class _AdminOrderDetailsScreenState
           SizedBox(height: 12.h),
           const Divider(color: AppColorsDark.error),
           SizedBox(height: 12.h),
-          // ✅ Show cancelled by
           if (order.cancelledBy != null) ...[
             Text(
               'Cancelled by: ${order.cancelledBy!.toUpperCase()}',
@@ -495,7 +1185,6 @@ class _AdminOrderDetailsScreenState
             ),
             SizedBox(height: 8.h),
           ],
-          // ✅ Show reason from cancellationReason field
           Text(
             'Reason:',
             style: AppTextStyles.labelSmall().copyWith(
@@ -510,7 +1199,6 @@ class _AdminOrderDetailsScreenState
               color: AppColorsDark.error,
             ),
           ),
-          // ✅ Show timestamp from cancelledAt field
           if (order.cancelledAt != null) ...[
             SizedBox(height: 8.h),
             Text(
@@ -525,12 +1213,8 @@ class _AdminOrderDetailsScreenState
     );
   }
 
-  // ✅ Optional: Show rider refusal info if order was refused
   Widget _buildRiderRefusalInfo(OrderModel order) {
-    if (order.riderRefusalReason == null) {
-      return const SizedBox.shrink();
-    }
-
+    if (order.riderRefusalReason == null) return const SizedBox.shrink();
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
@@ -589,10 +1273,6 @@ class _AdminOrderDetailsScreenState
     );
   }
 
-  // ... (Keep all other existing widgets: _buildOrderStatusCard, _buildCustomerInfo,
-  // _buildRiderInfo, _buildDeliveryAddress, _buildOrderItems, _buildPaymentInfo,
-  // _buildPriceBreakdown, _buildSpecialInstructions, _buildErrorState)
-
   Widget _buildOrderStatusCard(OrderModel order) {
     return Container(
       padding: EdgeInsets.all(20.w),
@@ -607,51 +1287,44 @@ class _AdminOrderDetailsScreenState
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Order #${order.id.substring(order.id.length - 8)}',
-                      style: AppTextStyles.headlineSmall().copyWith(
-                        color: AppColorsDark.white,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                    SizedBox(height: 4.h),
-                    Text(
-                      DateFormat(
-                        'MMM d, yyyy • h:mm a',
-                      ).format(order.createdAt),
-                      style: AppTextStyles.bodySmall().copyWith(
-                        color: AppColorsDark.white.withOpacity(0.8),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-                decoration: BoxDecoration(
-                  color: AppColorsDark.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20.r),
-                ),
-                child: Text(
-                  _getStatusText(order.status),
-                  style: AppTextStyles.labelMedium().copyWith(
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Order #${order.id.substring(order.id.length - 8)}',
+                  style: AppTextStyles.headlineSmall().copyWith(
                     color: AppColorsDark.white,
                     fontWeight: FontWeight.bold,
+                    letterSpacing: 1.5,
                   ),
                 ),
+                SizedBox(height: 4.h),
+                Text(
+                  DateFormat('MMM d, yyyy • h:mm a').format(order.createdAt),
+                  style: AppTextStyles.bodySmall().copyWith(
+                    color: AppColorsDark.white.withOpacity(0.8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+            decoration: BoxDecoration(
+              color: AppColorsDark.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(20.r),
+            ),
+            child: Text(
+              _getStatusText(order.status),
+              style: AppTextStyles.labelMedium().copyWith(
+                color: AppColorsDark.white,
+                fontWeight: FontWeight.bold,
               ),
-            ],
+            ),
           ),
         ],
       ),
@@ -774,423 +1447,44 @@ class _AdminOrderDetailsScreenState
     );
   }
 
-  Widget _buildOrderItems(OrderModel order) {
+  Widget _buildSpecialInstructions(String instructions) {
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
-        color: AppColorsDark.cardBackground,
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: AppColorsDark.border),
+        color: AppColorsDark.info.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: AppColorsDark.info.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Order Items (${order.items.length})',
-            style: AppTextStyles.titleMedium().copyWith(
-              color: AppColorsDark.textPrimary,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          SizedBox(height: 16.h),
-          ...order.items.map((item) => _buildOrderItemRow(item)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOrderItemRow(CartItemModel item) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: 14.h),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Details ────────────────────────────────────────────────────────
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Name + qty
-                Text(
-                  '${item.quantity}x ${item.productName}',
-                  style: AppTextStyles.bodyMedium().copyWith(
-                    color: AppColorsDark.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-
-                // ✅ Selected size variant
-                if (item.selectedVariant != null) ...[
-                  SizedBox(height: 3.h),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.straighten,
-                        size: 12.sp,
-                        color: AppColorsDark.primary,
-                      ),
-                      SizedBox(width: 4.w),
-                      Text(
-                        'Size: ${item.selectedVariant!.name}',
-                        style: AppTextStyles.bodySmall().copyWith(
-                          color: AppColorsDark.primary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-
-                // ✅ Selected addons
-                if (item.selectedAddons.isNotEmpty) ...[
-                  SizedBox(height: 3.h),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.add_circle_outline,
-                        size: 12.sp,
-                        color: AppColorsDark.success,
-                      ),
-                      SizedBox(width: 4.w),
-                      Expanded(
-                        child: Text(
-                          item.selectedAddons.map((a) => a.name).join(', '),
-                          style: AppTextStyles.bodySmall().copyWith(
-                            color: AppColorsDark.success,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-
-                // ✅ Per-item special instructions
-                if (item.specialInstructions != null &&
-                    item.specialInstructions!.isNotEmpty) ...[
-                  SizedBox(height: 5.h),
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 8.w,
-                      vertical: 5.h,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColorsDark.warning.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(6.r),
-                      border: Border.all(
-                        color: AppColorsDark.warning.withOpacity(0.3),
-                      ),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          Icons.note_alt_outlined,
-                          size: 12.sp,
-                          color: AppColorsDark.warning,
-                        ),
-                        SizedBox(width: 4.w),
-                        Expanded(
-                          child: Text(
-                            item.specialInstructions!,
-                            style: AppTextStyles.bodySmall().copyWith(
-                              color: AppColorsDark.warning,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-
-          // ── Price ─────────────────────────────────────────────────────────
-          // ✅ FIXED: was item.total (could be stale base price).
-          //    discountedPrice holds the effective variant price from addToCart.
-          Text(
-            'PKR ${(item.discountedPrice * item.quantity).toInt()}',
-            style: AppTextStyles.bodyMedium().copyWith(
-              color: AppColorsDark.primary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPaymentInfo(OrderModel order) {
-    return Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: AppColorsDark.cardBackground,
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: AppColorsDark.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Header ────────────────────────────────────────────────────────
           Row(
             children: [
-              Icon(Icons.payment, color: AppColorsDark.primary, size: 20.sp),
+              Icon(
+                Icons.note_alt_outlined,
+                color: AppColorsDark.info,
+                size: 16.sp,
+              ),
               SizedBox(width: 8.w),
               Text(
-                'Payment',
-                style: AppTextStyles.titleMedium().copyWith(
-                  color: AppColorsDark.textPrimary,
-                  fontWeight: FontWeight.bold,
+                'Special Instructions',
+                style: AppTextStyles.titleSmall().copyWith(
+                  color: AppColorsDark.info,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
-          SizedBox(height: 12.h),
-          const Divider(color: AppColorsDark.border),
-          SizedBox(height: 12.h),
-
-          // ── Method ────────────────────────────────────────────────────────
-          _buildInfoRow('Method', _getPaymentMethodName(order.paymentMethod)),
           SizedBox(height: 8.h),
-
-          // ── Payment Status badge ──────────────────────────────────────────
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Status',
-                style: AppTextStyles.bodyMedium().copyWith(
-                  color: AppColorsDark.textSecondary,
-                ),
-              ),
-              _buildPaymentStatusBadge(order.paymentStatus),
-            ],
+          Text(
+            instructions,
+            style: AppTextStyles.bodySmall().copyWith(
+              color: AppColorsDark.info,
+            ),
           ),
-
-          // ── Payment Proof Screenshot ──────────────────────────────────────
-          // ✅ FIX: This block was completely absent in the updated screen.
-          //    Re-added with _toJpgUrl to fix Android WebP/AVIF decode failure.
-          if (order.paymentProofUrl != null &&
-              order.paymentProofUrl!.isNotEmpty) ...[
-            SizedBox(height: 16.h),
-            const Divider(color: AppColorsDark.border),
-            SizedBox(height: 12.h),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Payment Proof',
-                  style: AppTextStyles.titleSmall().copyWith(
-                    color: AppColorsDark.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                // Verify button — only shown when payment is pending
-                if (order.paymentStatus == PaymentStatus.pending)
-                  ElevatedButton.icon(
-                    onPressed:
-                        _isProcessing
-                            ? null
-                            : () => _handleVerifyPayment(order),
-                    icon: Icon(Icons.verified, size: 16.sp),
-                    label: const Text('Verify'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColorsDark.success,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 12.w,
-                        vertical: 8.h,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            SizedBox(height: 12.h),
-
-            GestureDetector(
-              onTap:
-                  () => _showFullScreenImage(_toJpgUrl(order.paymentProofUrl!)),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12.r),
-                child: Image.network(
-                  _toJpgUrl(order.paymentProofUrl!), // ✅ Force JPEG for Android
-                  width: double.infinity,
-                  height: 250.h,
-                  fit: BoxFit.cover,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Container(
-                      height: 250.h,
-                      color: AppColorsDark.surfaceContainer,
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CircularProgressIndicator(
-                              color: AppColorsDark.primary,
-                              value:
-                                  loadingProgress.expectedTotalBytes != null
-                                      ? loadingProgress.cumulativeBytesLoaded /
-                                          loadingProgress.expectedTotalBytes!
-                                      : null,
-                            ),
-                            SizedBox(height: 8.h),
-                            Text(
-                              'Loading payment proof...',
-                              style: AppTextStyles.bodySmall().copyWith(
-                                color: AppColorsDark.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                  errorBuilder:
-                      (_, __, ___) => Container(
-                        height: 100.h,
-                        decoration: BoxDecoration(
-                          color: AppColorsDark.surfaceContainer,
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.broken_image_outlined,
-                              color: AppColorsDark.error,
-                              size: 32.sp,
-                            ),
-                            SizedBox(height: 8.h),
-                            Text(
-                              'Failed to load image',
-                              style: AppTextStyles.bodySmall().copyWith(
-                                color: AppColorsDark.error,
-                              ),
-                            ),
-                            SizedBox(height: 4.h),
-                            GestureDetector(
-                              onTap:
-                                  () => _showFullScreenImage(
-                                    order.paymentProofUrl!,
-                                  ),
-                              child: Text(
-                                'Tap to try original URL',
-                                style: AppTextStyles.bodySmall().copyWith(
-                                  color: AppColorsDark.primary,
-                                  decoration: TextDecoration.underline,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                ),
-              ),
-            ),
-            SizedBox(height: 6.h),
-            Text(
-              'Tap image to view full screen',
-              style: AppTextStyles.bodySmall().copyWith(
-                color: AppColorsDark.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
         ],
       ),
     );
-  }
-
-  Widget _buildPaymentStatusBadge(PaymentStatus status) {
-    Color color;
-    String text;
-    switch (status) {
-      case PaymentStatus.pending:
-        color = AppColorsDark.warning;
-        text = 'Pending Verification';
-        break;
-      case PaymentStatus.completed:
-        color = AppColorsDark.success;
-        text = 'Verified';
-        break;
-      case PaymentStatus.failed:
-        color = AppColorsDark.error;
-        text = 'Failed';
-        break;
-    }
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(6.r),
-      ),
-      child: Text(
-        text,
-        style: AppTextStyles.labelSmall().copyWith(
-          color: color,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-
-  /// Opens the image full-screen with pinch-to-zoom
-  void _showFullScreenImage(String imageUrl) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder:
-            (_) => Scaffold(
-              backgroundColor: Colors.black,
-              appBar: AppBar(
-                backgroundColor: Colors.black,
-                iconTheme: const IconThemeData(color: Colors.white),
-                title: const Text(
-                  'Payment Proof',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
-              body: Center(
-                child: InteractiveViewer(child: Image.network(imageUrl)),
-              ),
-            ),
-      ),
-    );
-  }
-
-  /// Verify payment and refresh order
-  Future<void> _handleVerifyPayment(OrderModel order) async {
-    setState(() => _isProcessing = true);
-    try {
-      await FirebaseFirestore.instance
-          .collection('orders')
-          .doc(order.id)
-          .update({'paymentStatus': 'completed'});
-
-      if (mounted) {
-        await ref.read(ordersProvider.notifier).getOrderById(order.id);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Payment verified successfully'),
-            backgroundColor: AppColorsDark.success,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to verify: ${e.toString()}'),
-            backgroundColor: AppColorsDark.error,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isProcessing = false);
-    }
   }
 
   Widget _buildPriceBreakdown(OrderModel order) {
@@ -1231,46 +1525,6 @@ class _AdminOrderDetailsScreenState
                 ),
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSpecialInstructions(String instructions) {
-    return Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: AppColorsDark.info.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppColorsDark.info.withOpacity(0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.note_alt_outlined,
-                color: AppColorsDark.info,
-                size: 16.sp,
-              ),
-              SizedBox(width: 8.w),
-              Text(
-                'Special Instructions',
-                style: AppTextStyles.titleSmall().copyWith(
-                  color: AppColorsDark.info,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 8.h),
-          Text(
-            instructions,
-            style: AppTextStyles.bodySmall().copyWith(
-              color: AppColorsDark.info,
-            ),
           ),
         ],
       ),
@@ -1377,7 +1631,6 @@ class _AdminOrderDetailsScreenState
         return 'CONFIRMED';
       case OrderStatus.preparing:
         return 'PREPARING';
-
       case OrderStatus.outForDelivery:
         return 'OUT FOR DELIVERY';
       case OrderStatus.delivered:

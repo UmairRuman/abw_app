@@ -3,6 +3,8 @@
 // COMPLETE REPLACEMENT:
 
 import 'package:abw_app/core/routes/app_router.dart';
+import 'package:abw_app/features/customer/presentation/screens/home/all_products_screen.dart';
+import 'package:abw_app/features/customer/presentation/screens/home/all_stores_screen.dart';
 import 'package:abw_app/features/stores/data/models/store_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -156,8 +158,21 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
                         ),
                       ),
                       TextButton(
+                        // ✅ FIXED: now opens AllProductsScreen with current category
                         onPressed: () {
-                          context.push('/customer/search');
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (_) => AllProductsScreen(
+                                    initialCategoryId: _selectedCategoryId,
+                                    initialCategoryName:
+                                        _selectedCategoryId.isEmpty
+                                            ? 'All'
+                                            : _getCategoryName(),
+                                  ),
+                            ),
+                          );
                         },
                         child: Text(
                           'See All',
@@ -216,13 +231,30 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      if (storesState is StoresLoaded)
-                        Text(
-                          '${_getNonFeaturedStores(storesState).length} stores',
-                          style: AppTextStyles.bodyMedium().copyWith(
-                            color: AppColorsDark.textSecondary,
+                      // ✅ ADDED: See All button for stores
+                      TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (_) => AllStoresScreen(
+                                    initialCategoryId: _selectedCategoryId,
+                                    initialCategoryName:
+                                        _selectedCategoryId.isEmpty
+                                            ? 'All'
+                                            : _getCategoryName(),
+                                  ),
+                            ),
+                          );
+                        },
+                        child: Text(
+                          'See All',
+                          style: AppTextStyles.labelMedium().copyWith(
+                            color: AppColorsDark.primary,
                           ),
                         ),
+                      ),
                     ],
                   ),
                 ),
@@ -246,6 +278,23 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
   // ============================================================
   // APP BAR
   // ============================================================
+
+  // ── STEP 5: ADD this helper method inside _CustomerHomeScreenState ─────────────
+  // Used by See All buttons to pass the current category name
+
+  String _getCategoryName() {
+    final state = ref.read(categoriesProvider);
+    if (state is CategoriesLoaded) {
+      try {
+        return state.categories
+            .firstWhere((c) => c.id == _selectedCategoryId)
+            .name;
+      } catch (_) {
+        return 'All';
+      }
+    }
+    return 'All';
+  }
 
   Widget _buildSliverAppBar(CartState cartState) {
     return SliverAppBar(

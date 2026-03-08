@@ -20,7 +20,6 @@ class ImageUploadNotifier extends Notifier<ImageUploadState> {
   }
 
   // Upload payment proof screenshots
-  // Upload payment proof screenshots
   Future<List<String>> uploadPaymentProof(List<File> images) async {
     try {
       final uploadedUrls = <String>[];
@@ -29,7 +28,9 @@ class ImageUploadNotifier extends Notifier<ImageUploadState> {
         final timestamp = DateTime.now().millisecondsSinceEpoch;
         final publicId = 'proof_$timestamp';
 
-        final uploadedPublicId = await _collection.uploadImage(
+        // ✅ Use uploadImageGetUrl which returns Cloudinary's own secure_url
+        // directly from the upload response — no URL construction at all.
+        final secureUrl = await _collection.uploadImageGetUrl(
           imageFile: image,
           folder: 'abw_app/payment_proofs',
           publicId: publicId,
@@ -38,18 +39,8 @@ class ImageUploadNotifier extends Notifier<ImageUploadState> {
           },
         );
 
-        if (uploadedPublicId != null) {
-          // ✅ ROOT CAUSE FIX:
-          // getOptimizedUrl() with no width/height generates:
-          //   /image/upload/c_fill,q_auto,f_auto/...
-          // c_fill WITHOUT w_ and h_ is an invalid Cloudinary transformation
-          // and returns a 400 error — that's why the image never loads.
-          //
-          // Payment proofs don't need cropping/resizing — just deliver the
-          // original JPEG at auto quality. No c_fill, no f_auto.
-          final url =
-              '${_collection.baseImageUrl}/q_auto,f_jpg/$uploadedPublicId';
-          uploadedUrls.add(url);
+        if (secureUrl != null) {
+          uploadedUrls.add(secureUrl);
         }
       }
 
