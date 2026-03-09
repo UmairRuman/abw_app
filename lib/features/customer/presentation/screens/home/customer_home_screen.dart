@@ -5,6 +5,8 @@
 import 'package:abw_app/core/routes/app_router.dart';
 import 'package:abw_app/features/customer/presentation/screens/home/all_products_screen.dart';
 import 'package:abw_app/features/customer/presentation/screens/home/all_stores_screen.dart';
+import 'package:abw_app/features/settings/data/models/contact_settings_model.dart';
+import 'package:abw_app/features/settings/presentation/providers/contact_settings_provider.dart';
 import 'package:abw_app/features/stores/data/models/store_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -66,10 +68,8 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
   Future<void> _loadData() async {
     await Future.delayed(const Duration(milliseconds: 300));
 
-    // Load categories first
     await ref.read(categoriesProvider.notifier).getActiveCategories();
 
-    // Set default category to first category (should be food)
     final categoriesState = ref.read(categoriesProvider);
     if (categoriesState is CategoriesLoaded &&
         categoriesState.categories.isNotEmpty) {
@@ -77,15 +77,11 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
         _selectedCategoryId = categoriesState.categories.first.id;
         _isInitialized = true;
       });
-
-      // Load products for the selected category (Food)
-      await ref
-          .read(productsProvider.notifier)
-          .getProductsByCategory(categoriesState.categories.first.id);
     }
 
-    // Load other data
+    // ✅ NEW: load top 10 products from featured stores + stores + cart in parallel
     await Future.wait([
+      ref.read(productsProvider.notifier).getTopProductsFromFeaturedStores(),
       ref.read(storesProvider.notifier).getAllStores(),
       _loadCart(),
     ]);
@@ -260,6 +256,10 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
                 ),
               ),
 
+              SliverToBoxAdapter(child: _buildContactSection()),
+
+              SliverToBoxAdapter(child: SizedBox(height: 100.h)),
+
               // Store List (Non-Featured)
               if (storesState is StoresLoaded)
                 _buildStoreList(storesState)
@@ -275,6 +275,156 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
     );
   }
 
+  Widget _buildContactSection() {
+    final contactState = ref.watch(contactSettingsProvider);
+
+    // Don't show section if still loading or errored with no data
+    if (contactState is ContactSettingsInitial ||
+        contactState is ContactSettingsLoading) {
+      return const SizedBox.shrink();
+    }
+
+    ContactSettingsModel? settings;
+    if (contactState is ContactSettingsLoaded) {
+      settings = contactState.settings;
+    }
+
+    // Hide entire section if nothing is configured yet
+    if (settings == null ||
+        (settings.bannerUrl.isEmpty &&
+            settings.whatsappNumber.isEmpty &&
+            settings.phoneNumber.isEmpty)) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin: EdgeInsets.fromLTRB(16.w, 24.h, 16.w, 16.h),
+      decoration: BoxDecoration(
+        color: AppColorsDark.cardBackground,
+        borderRadius: BorderRadius.circular(20.r),
+        border: Border.all(color: AppColorsDark.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header ──────────────────────────────────────────────────────
+          Padding(
+            padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 0),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.support_agent,
+                  color: AppColorsDark.primary,
+                  size: 22.sp,
+                ),
+                SizedBox(width: 8.w),
+                Text(
+                  'Contact Us',
+                  style: AppTextStyles.titleLarge().copyWith(
+                    color: AppColorsDark.textPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ── Banner Image ─────────────────────────────────────────────────
+          if (settings.bannerUrl.isNotEmpty) ...[
+            SizedBox(height: 12.h),
+            ClipRRect(
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(0),
+                topRight: Radius.circular(0),
+              ),
+              child: Image.network(
+                settings.bannerUrl,
+                width: double.infinity,
+                height: 160.h,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              ),
+            ),
+          ],
+
+          // ── Contact Numbers ──────────────────────────────────────────────
+          Padding(
+            padding: EdgeInsets.all(16.w),
+            child: Column(
+              children: [
+                if (settings.whatsappNumber.isNotEmpty)
+                  _buildContactRow(
+                    icon: Icons.chat,
+                    iconColor: const Color(0xFF25D366), // WhatsApp green
+                    label: 'WhatsApp',
+                    value: settings.whatsappNumber,
+                  ),
+                if (settings.whatsappNumber.isNotEmpty &&
+                    settings.phoneNumber.isNotEmpty)
+                  SizedBox(height: 12.h),
+                if (settings.phoneNumber.isNotEmpty)
+                  _buildContactRow(
+                    icon: Icons.phone,
+                    iconColor: AppColorsDark.primary,
+                    label: 'Phone / PTCL',
+                    value: settings.phoneNumber,
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContactRow({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+      decoration: BoxDecoration(
+        color: AppColorsDark.surfaceContainer,
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: AppColorsDark.border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38.w,
+            height: 38.w,
+            decoration: BoxDecoration(
+              color: iconColor.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10.r),
+            ),
+            child: Icon(icon, color: iconColor, size: 20.sp),
+          ),
+          SizedBox(width: 12.w),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: AppTextStyles.bodySmall().copyWith(
+                  color: AppColorsDark.textSecondary,
+                ),
+              ),
+              SizedBox(height: 2.h),
+              Text(
+                value,
+                style: AppTextStyles.titleSmall().copyWith(
+                  color: AppColorsDark.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
   // ============================================================
   // APP BAR
   // ============================================================
@@ -338,22 +488,15 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
         ],
       ),
       actions: [
-        IconButton(
-          icon: const Icon(Icons.notifications_outlined),
-          color: AppColorsDark.textPrimary,
-          onPressed: () {},
-        ),
+        // ✅ Notification icon REMOVED
         IconButton(
           icon: const Icon(Icons.person_outline),
           color: AppColorsDark.textPrimary,
-          onPressed: () {
-            context.push('/customer/profile');
-          },
+          onPressed: () => context.push('/customer/profile'),
         ),
       ],
     );
   }
-
   // ============================================================
   // SEARCH BAR
   // ============================================================
@@ -990,8 +1133,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
                         color: AppColorsDark.textPrimary,
                         fontWeight: FontWeight.w600,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
                     ),
                     SizedBox(height: 4.h),
                     Text(

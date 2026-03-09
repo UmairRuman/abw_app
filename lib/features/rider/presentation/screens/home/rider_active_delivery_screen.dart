@@ -1,4 +1,5 @@
 // lib/features/rider/presentation/screens/home/rider_active_delivery_screen.dart
+// UPDATED: OrderMapWidget integrated at top of screen
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../../core/theme/colors/app_colors_dark.dart';
 import '../../../../../core/theme/text_styles/app_text_styles.dart';
+import '../../../../../core/widgets/order_map_widget.dart';
 import '../../../../orders/presentation/providers/orders_provider.dart';
 import '../../../../orders/data/models/order_model.dart';
 import '../../../../orders/domain/entities/order_entity.dart';
@@ -76,6 +78,10 @@ class _RiderActiveDeliveryScreenState
                 _buildStatusCard(order),
                 SizedBox(height: 20.h),
 
+                // ✅ MAP — full road route + address card + directions button
+                OrderMapWidget(order: order, mapHeight: 270),
+                SizedBox(height: 20.h),
+
                 // Pickup Details
                 _buildSection(
                   title: 'Pickup From',
@@ -121,17 +127,18 @@ class _RiderActiveDeliveryScreenState
                       ),
                       SizedBox(height: 8.h),
                       Text(
-                        '${order.deliveryAddress.addressLine1}, ${order.deliveryAddress.area}, ${order.deliveryAddress.city}',
+                        '${order.deliveryAddress.addressLine1}, '
+                        '${order.deliveryAddress.area}, '
+                        '${order.deliveryAddress.city}',
                         style: AppTextStyles.bodySmall().copyWith(
                           color: AppColorsDark.textSecondary,
                         ),
                       ),
                       SizedBox(height: 12.h),
-                      // Call Customer Button
                       OutlinedButton.icon(
                         onPressed: () => _copyPhone(context, order.userPhone),
-                        icon: Icon(Icons.phone, size: 16.sp),
-                        label: Text('Copy Number: ${order.userPhone}'),
+                        icon: Icon(Icons.copy, size: 16.sp),
+                        label: Text('Copy: ${order.userPhone}'),
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: AppColorsDark.primary),
                           padding: EdgeInsets.symmetric(
@@ -219,27 +226,12 @@ class _RiderActiveDeliveryScreenState
                           ],
                         ],
                       ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            'Your Earnings',
-                            style: AppTextStyles.bodySmall().copyWith(
-                              color: AppColorsDark.textSecondary,
-                            ),
-                          ),
-                          Text(
-                            'PKR ${order.deliveryFee.toInt()}',
-                            style: AppTextStyles.titleMedium().copyWith(
-                              color: AppColorsDark.success,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
+                      // ✅ "Your Earnings" removed — riders don't see salary
                     ],
                   ),
                 ),
+
+                SizedBox(height: 80.h), // space for bottom bar
               ],
             ),
           ),
@@ -250,6 +242,8 @@ class _RiderActiveDeliveryScreenState
       ],
     );
   }
+
+  // ── Widgets ────────────────────────────────────────────────────────────────
 
   Widget _buildStatusCard(OrderModel order) {
     return Container(
@@ -378,6 +372,8 @@ class _RiderActiveDeliveryScreenState
     );
   }
 
+  // ── Handlers ───────────────────────────────────────────────────────────────
+
   void _copyPhone(BuildContext context, String phone) {
     Clipboard.setData(ClipboardData(text: phone));
     ScaffoldMessenger.of(context).showSnackBar(
@@ -439,12 +435,10 @@ class _RiderActiveDeliveryScreenState
 
         if (mounted) {
           if (success) {
-            Navigator.pop(context); // Go back to home
+            Navigator.pop(context);
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  '🎉 Delivery complete! PKR ${order.deliveryFee.toInt()} earned!',
-                ),
+              const SnackBar(
+                content: Text('🎉 Delivery completed successfully!'),
                 backgroundColor: AppColorsDark.success,
               ),
             );

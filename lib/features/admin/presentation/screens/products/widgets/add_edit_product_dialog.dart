@@ -65,13 +65,33 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
 
   // Tags
   final List<String> _availableTags = [
+    // Original tags
     'New',
     'Best Seller',
     'Hot Deal',
     'Limited',
     'Organic',
     'Fresh',
+
+    // Food categories
+    'Fast Food',
+    'BBQ',
+    'Desi Food',
+    'Vegetarian',
+    'Drinks & Juice',
+    'Desserts',
+    'Sweets',
+    'Fish',
+    'Ice Cream',
+    'Deals',
+
+    // Other categories
+    'Baby Items',
+    'Poultry & Dairy',
+    'Gifts',
+    'Other',
   ];
+
   final List<String> _selectedTags = [];
 
   @override

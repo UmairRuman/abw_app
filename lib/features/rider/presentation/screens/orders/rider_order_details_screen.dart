@@ -3,19 +3,19 @@
 //   ✅ Special instructions HIDDEN from rider
 //   ✅ Full status control: preparing → outForDelivery → delivered
 //   ✅ Cash check-in button for COD orders after delivery
+//   ✅ _buildMap() + _buildDistanceCard() replaced with OrderMapWidget
+//      (real OSRM road route, distance+ETA chips, address card, directions button)
 
 import 'package:abw_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:abw_app/features/auth/presentation/providers/auth_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../../core/theme/colors/app_colors_dark.dart';
 import '../../../../../core/theme/text_styles/app_text_styles.dart';
-import '../../../../../core/services/location_service.dart';
+import '../../../../../core/widgets/order_map_widget.dart'; // ✅ replaces flutter_map + location_service imports
 import '../../../../orders/presentation/providers/orders_provider.dart';
 import '../../../../orders/data/models/order_model.dart';
 import '../../../../orders/domain/entities/order_entity.dart';
@@ -76,13 +76,19 @@ class _RiderOrderDetailsScreenState
           child: SingleChildScrollView(
             child: Column(
               children: [
-                _buildMap(order),
+                // ✅ REPLACES _buildMap() + _buildDistanceCard()
+                // OrderMapWidget handles: real road route via OSRM, distance +
+                // ETA overlay chips, pickup/delivery address card, and a
+                // Get Directions button that opens Google Maps / OSM.
                 Padding(
                   padding: EdgeInsets.all(16.w),
+                  child: OrderMapWidget(order: order, mapHeight: 250),
+                ),
+
+                Padding(
+                  padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 16.w),
                   child: Column(
                     children: [
-                      _buildDistanceCard(order),
-                      SizedBox(height: 16.h),
                       // ✅ Status stepper shown to rider
                       _buildStatusStepper(order),
                       SizedBox(height: 16.h),
@@ -229,148 +235,7 @@ class _RiderOrderDetailsScreenState
     );
   }
 
-  // ── Map ───────────────────────────────────────────────────────────────────
-
-  Widget _buildMap(OrderModel order) {
-    if (order.pickupLatitude == null ||
-        order.pickupLongitude == null ||
-        order.deliveryLatitude == null ||
-        order.deliveryLongitude == null) {
-      return Container(
-        height: 220.h,
-        color: AppColorsDark.surfaceVariant,
-        child: Center(
-          child: Text(
-            'No location data available',
-            style: AppTextStyles.bodyMedium().copyWith(
-              color: AppColorsDark.textSecondary,
-            ),
-          ),
-        ),
-      );
-    }
-
-    final pickupPoint = LatLng(order.pickupLatitude!, order.pickupLongitude!);
-    final deliveryPoint = LatLng(
-      order.deliveryLatitude!,
-      order.deliveryLongitude!,
-    );
-    final centerLat = (order.pickupLatitude! + order.deliveryLatitude!) / 2;
-    final centerLng = (order.pickupLongitude! + order.deliveryLongitude!) / 2;
-
-    return SizedBox(
-      height: 220.h,
-      child: FlutterMap(
-        options: MapOptions(
-          initialCenter: LatLng(centerLat, centerLng),
-          initialZoom: 12.0,
-        ),
-        children: [
-          TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'com.abw.app',
-          ),
-          MarkerLayer(
-            markers: [
-              Marker(
-                point: pickupPoint,
-                width: 40.w,
-                height: 40.w,
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: AppColorsDark.success,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.store,
-                    color: AppColorsDark.white,
-                    size: 20.sp,
-                  ),
-                ),
-              ),
-              Marker(
-                point: deliveryPoint,
-                width: 40.w,
-                height: 40.w,
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: AppColorsDark.error,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.location_on,
-                    color: AppColorsDark.white,
-                    size: 20.sp,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          PolylineLayer(
-            polylines: [
-              Polyline(
-                points: [pickupPoint, deliveryPoint],
-                color: AppColorsDark.primary,
-                strokeWidth: 3.0,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDistanceCard(OrderModel order) {
-    final distance = order.distance ?? 0.0;
-    return Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        gradient: AppColorsDark.primaryGradient,
-        borderRadius: BorderRadius.circular(16.r),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Delivery Distance',
-                style: AppTextStyles.bodyMedium().copyWith(
-                  color: AppColorsDark.white.withOpacity(0.9),
-                ),
-              ),
-              Text(
-                LocationService.formatDistance(distance),
-                style: AppTextStyles.headlineMedium().copyWith(
-                  color: AppColorsDark.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                'Delivery Fee',
-                style: AppTextStyles.bodyMedium().copyWith(
-                  color: AppColorsDark.white.withOpacity(0.9),
-                ),
-              ),
-              Text(
-                'PKR ${order.deliveryFee.toInt()}',
-                style: AppTextStyles.titleLarge().copyWith(
-                  color: AppColorsDark.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  // ── Info Cards ────────────────────────────────────────────────────────────
 
   Widget _buildStoreInfo(OrderModel order) {
     return Container(

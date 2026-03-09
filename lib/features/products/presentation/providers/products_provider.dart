@@ -30,6 +30,43 @@ class ProductsNotifier extends Notifier<ProductsState> {
     }
   }
 
+  Future<List<ProductModel>> fetchAllProducts() async {
+    state = ProductsLoading();
+    try {
+      final products = await _collection.getAllProducts();
+      state = ProductsLoaded(products: products);
+      return products;
+    } catch (e) {
+      state = ProductsError(error: e.toString());
+      log('Error in fetchAllProducts: ${e.toString()}');
+      return [];
+    }
+  }
+
+  Future<void> getTopProductsFromFeaturedStores() async {
+    state = ProductsLoading();
+    try {
+      final products = await _collection.getTopProductsFromFeaturedStores();
+      state = ProductsLoaded(products: products);
+    } catch (e) {
+      state = ProductsError(error: e.toString());
+      log('Error in getTopProductsFromFeaturedStores: ${e.toString()}');
+    }
+  }
+
+  Future<List<ProductModel>> fetchProductsByCategory(String categoryId) async {
+    state = ProductsLoading();
+    try {
+      final products = await _collection.getProductsByCategory(categoryId);
+      state = ProductsLoaded(products: products);
+      return products;
+    } catch (e) {
+      state = ProductsError(error: e.toString());
+      log('Error in fetchProductsByCategory: ${e.toString()}');
+      return [];
+    }
+  }
+
   /// Get all products
   Future<void> getAllProducts() async {
     state = ProductsLoading();

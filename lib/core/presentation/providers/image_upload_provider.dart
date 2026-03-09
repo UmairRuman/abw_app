@@ -149,6 +149,42 @@ class ImageUploadNotifier extends Notifier<ImageUploadState> {
     }
   }
 
+  /// Upload contact banner — returns Cloudinary secure_url directly.
+  Future<String?> uploadContactBanner(File imageFile) async {
+    if (!_collection.validateImage(imageFile)) {
+      state = ImageUploadError(error: 'Invalid image file');
+      return null;
+    }
+
+    state = ImageUploading(progress: 0.0);
+
+    try {
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final publicId = 'contact_banner_$timestamp';
+
+      final secureUrl = await _collection.uploadImageGetUrl(
+        imageFile: imageFile,
+        folder: 'abw_app/contact_banners',
+        publicId: publicId,
+        onProgress: (progress) {
+          state = ImageUploading(progress: progress);
+        },
+      );
+
+      if (secureUrl != null) {
+        state = ImageUploaded(url: secureUrl, publicId: publicId);
+        return secureUrl;
+      } else {
+        state = ImageUploadError(error: 'Upload failed');
+        return null;
+      }
+    } catch (e) {
+      state = ImageUploadError(error: e.toString());
+      log('Error in uploadContactBanner: ${e.toString()}');
+      return null;
+    }
+  }
+
   /// Upload category icon
   Future<String?> uploadCategoryIcon(File imageFile, String categoryId) async {
     return await uploadImage(

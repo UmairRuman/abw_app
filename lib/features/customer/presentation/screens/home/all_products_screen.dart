@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:go_router/go_router.dart';
+
 import '../../../../../core/theme/colors/app_colors_dark.dart';
 import '../../../../../core/theme/text_styles/app_text_styles.dart';
 import '../../../../categories/presentation/providers/categories_provider.dart';
@@ -27,15 +27,14 @@ class AllProductsScreen extends ConsumerStatefulWidget {
 class _AllProductsScreenState extends ConsumerState<AllProductsScreen> {
   final ScrollController _scrollController = ScrollController();
 
-  // Pagination state
-  final List<ProductModel> _products = [];
+  List<ProductModel> _allProducts = []; // full result from Firestore
+  List<ProductModel> _visible = []; // paginated slice shown in grid
+
   bool _isLoading = false;
   bool _isLoadingMore = false;
-  bool _hasMore = true;
+  bool _hasMore = false;
   static const int _pageSize = 12;
-  int _currentPage = 0;
 
-  // Filter state
   String _selectedCategoryId = '';
   String _selectedCategoryName = 'All';
 
@@ -45,8 +44,15 @@ class _AllProductsScreenState extends ConsumerState<AllProductsScreen> {
     _selectedCategoryId = widget.initialCategoryId ?? '';
     _selectedCategoryName = widget.initialCategoryName ?? 'All';
     _scrollController.addListener(_onScroll);
-    _loadCategories();
-    _loadFirstPage();
+
+    // ✅ FIX: Wrap in Future.microtask so calls happen AFTER the first build.
+    // Without this, the setState() inside _loadAll() fires synchronously
+    // during initState — Flutter drops it silently, so the spinner never
+    // shows and the products never render on first open.
+    Future.microtask(() {
+      _loadCategories();
+      _loadAll();
+    });
   }
 
   @override
@@ -57,10 +63,10 @@ class _AllProductsScreenState extends ConsumerState<AllProductsScreen> {
 
   void _onScroll() {
     if (_scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 200 &&
+            _scrollController.position.maxScrollExtent - 300 &&
         !_isLoadingMore &&
         _hasMore) {
-      _loadNextPage();
+      _showNextPage();
     }
   }
 
@@ -68,64 +74,57 @@ class _AllProductsScreenState extends ConsumerState<AllProductsScreen> {
     await ref.read(categoriesProvider.notifier).getActiveCategories();
   }
 
-  Future<void> _loadFirstPage() async {
+  Future<void> _loadAll() async {
     setState(() {
       _isLoading = true;
-      _products.clear();
-      _currentPage = 0;
-      _hasMore = true;
+      _allProducts = [];
+      _visible = [];
+      _hasMore = false;
     });
-    await _fetchPage(0);
+
+    try {
+      if (_selectedCategoryId.isEmpty) {
+        _allProducts =
+            await ref.read(productsProvider.notifier).fetchAllProducts();
+      } else {
+        _allProducts = await ref
+            .read(productsProvider.notifier)
+            .fetchProductsByCategory(_selectedCategoryId);
+      }
+    } catch (e) {
+      debugPrint('AllProductsScreen load error: $e');
+      _allProducts = [];
+    }
+
+    _appendPage();
     setState(() => _isLoading = false);
   }
 
-  Future<void> _loadNextPage() async {
+  void _showNextPage() {
     if (_isLoadingMore || !_hasMore) return;
     setState(() => _isLoadingMore = true);
-    await _fetchPage(_currentPage + 1);
+    _appendPage();
     setState(() => _isLoadingMore = false);
   }
 
-  Future<void> _fetchPage(int page) async {
-    try {
-      // Use the provider to fetch — pass page offset
-      if (_selectedCategoryId.isEmpty) {
-        await ref.read(productsProvider.notifier).getFeaturedProducts();
-      } else {
-        await ref
-            .read(productsProvider.notifier)
-            .getProductsByCategory(_selectedCategoryId);
-      }
-
-      final state = ref.read(productsProvider);
-      if (state is ProductsLoaded) {
-        final allProducts = state.products;
-        final start = page * _pageSize;
-        final end = (start + _pageSize).clamp(0, allProducts.length);
-
-        if (start >= allProducts.length) {
-          setState(() => _hasMore = false);
-          return;
-        }
-
-        final newItems = allProducts.sublist(start, end);
-        setState(() {
-          _products.addAll(newItems);
-          _currentPage = page;
-          _hasMore = end < allProducts.length;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error fetching products: $e');
+  void _appendPage() {
+    final start = _visible.length;
+    final end = (start + _pageSize).clamp(0, _allProducts.length);
+    if (start >= _allProducts.length) {
+      _hasMore = false;
+      return;
     }
+    _visible.addAll(_allProducts.sublist(start, end));
+    _hasMore = end < _allProducts.length;
   }
 
   void _onCategoryChanged(String id, String name) {
+    if (_selectedCategoryId == id) return;
     setState(() {
       _selectedCategoryId = id;
       _selectedCategoryName = name;
     });
-    _loadFirstPage();
+    _loadAll();
   }
 
   @override
@@ -137,9 +136,7 @@ class _AllProductsScreenState extends ConsumerState<AllProductsScreen> {
       appBar: AppBar(
         backgroundColor: AppColorsDark.surface,
         title: Text(
-          _selectedCategoryName.isEmpty
-              ? 'All Products'
-              : _selectedCategoryName,
+          _selectedCategoryId.isEmpty ? 'All Products' : _selectedCategoryName,
           style: AppTextStyles.titleLarge().copyWith(
             color: AppColorsDark.textPrimary,
           ),
@@ -147,12 +144,12 @@ class _AllProductsScreenState extends ConsumerState<AllProductsScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           color: AppColorsDark.textPrimary,
-          onPressed: () => context.pop(),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: Column(
         children: [
-          // ── Category filter chips ──────────────────────────────────────
+          // Category chips
           if (categoriesState is CategoriesLoaded)
             Container(
               color: AppColorsDark.surface,
@@ -162,17 +159,29 @@ class _AllProductsScreenState extends ConsumerState<AllProductsScreen> {
                 padding: EdgeInsets.symmetric(horizontal: 16.w),
                 child: Row(
                   children: [
-                    _buildChip('', 'All', _selectedCategoryId.isEmpty),
+                    _chip('', 'All', _selectedCategoryId.isEmpty),
                     ...categoriesState.categories.map(
-                      (c) =>
-                          _buildChip(c.id, c.name, _selectedCategoryId == c.id),
+                      (c) => _chip(c.id, c.name, _selectedCategoryId == c.id),
                     ),
                   ],
                 ),
               ),
             ),
 
-          // ── Products grid ──────────────────────────────────────────────
+          // Count
+          if (!_isLoading && _allProducts.isNotEmpty)
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+              child: Text(
+                'Showing ${_visible.length} of ${_allProducts.length} products',
+                style: AppTextStyles.bodySmall().copyWith(
+                  color: AppColorsDark.textSecondary,
+                ),
+              ),
+            ),
+
+          // Grid
           Expanded(
             child:
                 _isLoading
@@ -181,10 +190,10 @@ class _AllProductsScreenState extends ConsumerState<AllProductsScreen> {
                         color: AppColorsDark.primary,
                       ),
                     )
-                    : _products.isEmpty
-                    ? _buildEmpty()
+                    : _visible.isEmpty
+                    ? _empty()
                     : RefreshIndicator(
-                      onRefresh: _loadFirstPage,
+                      onRefresh: _loadAll,
                       color: AppColorsDark.primary,
                       child: GridView.builder(
                         controller: _scrollController,
@@ -195,12 +204,10 @@ class _AllProductsScreenState extends ConsumerState<AllProductsScreen> {
                           mainAxisSpacing: 12.h,
                           childAspectRatio: 0.72,
                         ),
-                        itemCount: _products.length + (_isLoadingMore ? 2 : 0),
+                        itemCount: _visible.length + (_isLoadingMore ? 2 : 0),
                         itemBuilder: (context, index) {
-                          if (index >= _products.length) {
-                            return _buildShimmerCard();
-                          }
-                          return _buildProductCard(_products[index]);
+                          if (index >= _visible.length) return _shimmer();
+                          return _productCard(_visible[index]);
                         },
                       ),
                     ),
@@ -210,7 +217,7 @@ class _AllProductsScreenState extends ConsumerState<AllProductsScreen> {
     );
   }
 
-  Widget _buildChip(String id, String name, bool selected) {
+  Widget _chip(String id, String name, bool selected) {
     return Padding(
       padding: EdgeInsets.only(right: 8.w),
       child: InkWell(
@@ -239,9 +246,13 @@ class _AllProductsScreenState extends ConsumerState<AllProductsScreen> {
     );
   }
 
-  Widget _buildProductCard(ProductModel product) {
+  Widget _productCard(ProductModel product) {
     return InkWell(
-      onTap: () => context.push('/customer/store/${product.storeId}'),
+      onTap:
+          () => Navigator.pushNamed(
+            context,
+            '/customer/store/${product.storeId}',
+          ),
       borderRadius: BorderRadius.circular(12.r),
       child: Container(
         decoration: BoxDecoration(
@@ -252,7 +263,6 @@ class _AllProductsScreenState extends ConsumerState<AllProductsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image
             Stack(
               children: [
                 ClipRRect(
@@ -267,10 +277,9 @@ class _AllProductsScreenState extends ConsumerState<AllProductsScreen> {
                             width: double.infinity,
                             height: 130.h,
                             fit: BoxFit.cover,
-                            errorBuilder:
-                                (_, __, ___) => _buildImgPlaceholder(),
+                            errorBuilder: (_, __, ___) => _imgPlaceholder(),
                           )
-                          : _buildImgPlaceholder(),
+                          : _imgPlaceholder(),
                 ),
                 if (product.discount > 0)
                   Positioned(
@@ -317,8 +326,6 @@ class _AllProductsScreenState extends ConsumerState<AllProductsScreen> {
                   ),
               ],
             ),
-
-            // Details
             Expanded(
               child: Padding(
                 padding: EdgeInsets.all(10.w),
@@ -393,60 +400,54 @@ class _AllProductsScreenState extends ConsumerState<AllProductsScreen> {
     );
   }
 
-  Widget _buildImgPlaceholder() {
-    return Container(
-      width: double.infinity,
-      height: 130.h,
+  Widget _imgPlaceholder() => Container(
+    width: double.infinity,
+    height: 130.h,
+    color: AppColorsDark.surfaceContainer,
+    child: Icon(
+      Icons.image_outlined,
+      size: 36.sp,
+      color: AppColorsDark.textTertiary,
+    ),
+  );
+
+  Widget _shimmer() => Container(
+    decoration: BoxDecoration(
       color: AppColorsDark.surfaceContainer,
-      child: Icon(
-        Icons.image_outlined,
-        size: 36.sp,
-        color: AppColorsDark.textTertiary,
+      borderRadius: BorderRadius.circular(12.r),
+    ),
+    child: const Center(
+      child: CircularProgressIndicator(
+        color: AppColorsDark.primary,
+        strokeWidth: 2,
       ),
-    );
-  }
+    ),
+  );
 
-  Widget _buildShimmerCard() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColorsDark.surfaceContainer,
-        borderRadius: BorderRadius.circular(12.r),
-      ),
-      child: const Center(
-        child: CircularProgressIndicator(
-          color: AppColorsDark.primary,
-          strokeWidth: 2,
+  Widget _empty() => Center(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.shopping_bag_outlined,
+          size: 64.sp,
+          color: AppColorsDark.textTertiary,
         ),
-      ),
-    );
-  }
-
-  Widget _buildEmpty() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.shopping_bag_outlined,
-            size: 64.sp,
-            color: AppColorsDark.textTertiary,
+        SizedBox(height: 16.h),
+        Text(
+          'No products found',
+          style: AppTextStyles.titleMedium().copyWith(
+            color: AppColorsDark.textPrimary,
           ),
-          SizedBox(height: 16.h),
-          Text(
-            'No products found',
-            style: AppTextStyles.titleMedium().copyWith(
-              color: AppColorsDark.textPrimary,
-            ),
+        ),
+        SizedBox(height: 8.h),
+        Text(
+          'Try selecting a different category',
+          style: AppTextStyles.bodySmall().copyWith(
+            color: AppColorsDark.textSecondary,
           ),
-          SizedBox(height: 8.h),
-          Text(
-            'Try selecting a different category',
-            style: AppTextStyles.bodySmall().copyWith(
-              color: AppColorsDark.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
 }

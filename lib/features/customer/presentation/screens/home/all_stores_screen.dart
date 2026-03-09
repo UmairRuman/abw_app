@@ -68,6 +68,9 @@ class _AllStoresScreenState extends ConsumerState<AllStoresScreen> {
   }
 
   Future<void> _loadCategories() async {
+    await Future.delayed(
+      const Duration(milliseconds: 500),
+    ); // Simulate loading delay
     await ref.read(categoriesProvider.notifier).getActiveCategories();
   }
 
@@ -78,6 +81,7 @@ class _AllStoresScreenState extends ConsumerState<AllStoresScreen> {
       _currentPage = 0;
       _hasMore = true;
     });
+    await Future.delayed(const Duration(milliseconds: 500));
     await ref.read(storesProvider.notifier).getAllStores();
     await _fetchPage(0);
     setState(() => _isLoading = false);

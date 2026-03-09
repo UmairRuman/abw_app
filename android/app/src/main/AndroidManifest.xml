@@ -30,6 +30,7 @@
     <!-- ✅ SINGLE APPLICATION TAG - Everything goes inside here -->
     <application
         android:label="abw_app"
+        android:usesCleartextTraffic="true"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 

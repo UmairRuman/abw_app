@@ -48,6 +48,96 @@ class ProductsCollection {
     }
   }
 
+  Future<List<ProductModel>> getTopProductsFromFeaturedStores() async {
+    final List<ProductModel> products = [];
+
+    try {
+      // Step 1: Get all featured store IDs
+      final storesSnapshot =
+          await _firestore
+              .collection('stores')
+              .where('isFeatured', isEqualTo: true)
+              .where('isActive', isEqualTo: true)
+              .get();
+
+      if (storesSnapshot.docs.isEmpty) {
+        log('No featured stores found, falling back to all products');
+        return getTopProducts();
+      }
+
+      final featuredStoreIds =
+          storesSnapshot.docs.map((doc) => doc.id).toList();
+
+      log('Found ${featuredStoreIds.length} featured stores');
+
+      // Step 2: Firestore whereIn supports max 10 values — chunk if needed
+      final List<Future<QuerySnapshot>> queries = [];
+      for (int i = 0; i < featuredStoreIds.length; i += 10) {
+        final chunk = featuredStoreIds.sublist(
+          i,
+          (i + 10).clamp(0, featuredStoreIds.length),
+        );
+        queries.add(
+          _firestore
+              .collection('products')
+              .where('storeId', whereIn: chunk)
+              .where('isAvailable', isEqualTo: true)
+              .orderBy('totalSold', descending: true)
+              .get(),
+        );
+      }
+
+      final snapshots = await Future.wait(queries);
+
+      for (final snapshot in snapshots) {
+        for (final doc in snapshot.docs) {
+          products.add(
+            ProductModel.fromJson(doc.data() as Map<String, dynamic>),
+          );
+        }
+      }
+
+      // Sort combined results by totalSold and take top 10
+      products.sort((a, b) => b.totalSold.compareTo(a.totalSold));
+      final top10 = products.take(10).toList();
+
+      log('Fetched ${top10.length} top products from featured stores');
+      return top10;
+    } on FirebaseException catch (e) {
+      log(
+        'Firebase Error getting top products from featured stores: ${e.code} - ${e.message}',
+      );
+      return [];
+    } catch (e) {
+      log('Error getting top products from featured stores: ${e.toString()}');
+      return [];
+    }
+  }
+
+  /// Fallback: get top 10 products by totalSold across all stores
+  Future<List<ProductModel>> getTopProducts() async {
+    final List<ProductModel> products = [];
+    try {
+      final snapshot =
+          await _firestore
+              .collection('products')
+              .where('isAvailable', isEqualTo: true)
+              .orderBy('totalSold', descending: true)
+              .limit(10)
+              .get();
+
+      for (var doc in snapshot.docs) {
+        products.add(ProductModel.fromJson(doc.data()));
+      }
+
+      log('Fetched ${products.length} top products (fallback)');
+      return products;
+    } catch (e) {
+      log('Error in getTopProducts fallback: ${e.toString()}');
+      return [];
+    }
+  }
+
   /// 🔥 CRITICAL: Update product in BOTH locations using batch write
   Future<bool> updateProduct(ProductModel product) async {
     try {
