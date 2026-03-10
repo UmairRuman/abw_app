@@ -5,11 +5,13 @@ import 'dart:developer';
 import 'package:abw_app/features/admin/presentation/screens/analytics/analytics_screen.dart';
 import 'package:abw_app/features/admin/presentation/screens/riders/rider_details_screen.dart';
 import 'package:abw_app/features/admin/presentation/screens/riders/riders_list_screen.dart';
+import 'package:abw_app/features/admin/presentation/screens/settings/admin_contact_settings_screen.dart';
 import 'package:abw_app/features/auth/presentation/screens/location/location_capture_screen.dart';
 import 'package:abw_app/features/auth/presentation/screens/phone_verification/phone_confirm_screen.dart';
 import 'package:abw_app/features/auth/presentation/screens/phone_verification/phone_input_screen.dart';
 import 'package:abw_app/features/auth/presentation/screens/phone_verification/phone_verification_screen.dart';
 import 'package:abw_app/features/auth/presentation/screens/signup/admin_signup_screen.dart';
+import 'package:abw_app/features/customer/presentation/screens/contact/customer_contact_screen.dart';
 import 'package:abw_app/features/customer/presentation/screens/location/location_picker_screen.dart';
 import 'package:abw_app/features/customer/presentation/screens/profile/customer_edit_profile_screen.dart';
 import 'package:abw_app/features/rider/presentation/screens/main/rider_main_screen.dart';
@@ -191,6 +193,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           return OrderConfirmationScreen(orderId: orderId);
         },
       ),
+      GoRoute(
+        path: '/customer/contact-us',
+        name: 'contact-us',
+        builder: (context, state) => const CustomerContactScreen(),
+      ),
 
       GoRoute(
         path: '/verify-phone',
@@ -269,6 +276,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const CustomerEditProfileScreen(),
       ),
 
+      GoRoute(
+        path: '/customer/location-setup',
+        builder:
+            (context, state) => const LocationPickerScreen(isFirstTime: true),
+      ),
+
       // ============================================================
       // ADMIN ROUTES
       // ============================================================
@@ -304,6 +317,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           final orderId = state.pathParameters['orderId'] ?? '';
           return AdminOrderDetailsScreen(orderId: orderId);
         },
+      ),
+
+      GoRoute(
+        path: '/admin/contact-settings',
+        name: 'admin-contact-settings',
+        builder: (context, state) => const AdminContactSettingsScreen(),
       ),
 
       // ============================================================

@@ -1,13 +1,10 @@
-// lib/features/customer/presentation/screens/location/location_picker_screen.dart
-// FOODPANDA-STYLE LOCATION PICKER
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:developer' as dev;
 
 import '../../../../../core/theme/colors/app_colors_dark.dart';
@@ -19,7 +16,11 @@ import '../../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../auth/presentation/providers/auth_state.dart';
 
 class LocationPickerScreen extends ConsumerStatefulWidget {
-  const LocationPickerScreen({super.key});
+  /// true  → first-time setup, navigates to home after saving
+  /// false → called from profile/checkout, pops after saving
+  final bool isFirstTime;
+
+  const LocationPickerScreen({super.key, this.isFirstTime = false});
 
   @override
   ConsumerState<LocationPickerScreen> createState() =>
@@ -32,7 +33,6 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
   bool _isGettingLocation = false;
   bool _isSaving = false;
 
-  // Address details
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _addressLine1Controller = TextEditingController();
@@ -41,6 +41,7 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
   @override
   void initState() {
     super.initState();
+    _prefillFromAuth();
     _getCurrentLocation();
   }
 
@@ -53,25 +54,28 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
     super.dispose();
   }
 
+  /// Pre-fill name & phone from logged-in user
+  void _prefillFromAuth() {
+    final authState = ref.read(authProvider);
+    if (authState is Authenticated) {
+      _nameController.text = authState.user.name;
+      _phoneController.text = authState.user.phone;
+    }
+  }
+
   Future<void> _getCurrentLocation() async {
     setState(() => _isGettingLocation = true);
-
     try {
       final position = await LocationService.getCurrentLocation();
-
       if (position != null) {
         setState(() {
           _currentLocation = LatLng(position.latitude, position.longitude);
         });
-
-        // Move map to current location
         _mapController.move(_currentLocation!, 15.0);
-
         dev.log('✅ Location: ${position.latitude}, ${position.longitude}');
       } else {
-        // Default to a city center if GPS fails
         setState(() {
-          _currentLocation = const LatLng(31.5204, 74.3587); // Lahore, Pakistan
+          _currentLocation = const LatLng(31.5204, 74.3587); // Lahore default
         });
       }
     } catch (e) {
@@ -90,7 +94,7 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
       backgroundColor: AppColorsDark.background,
       body: Stack(
         children: [
-          // Map
+          // ── Map ────────────────────────────────────────────────────────
           if (_currentLocation != null)
             FlutterMap(
               mapController: _mapController,
@@ -99,9 +103,7 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
                 initialZoom: 15.0,
                 onPositionChanged: (position, hasGesture) {
                   if (hasGesture) {
-                    setState(() {
-                      _currentLocation = position.center;
-                    });
+                    setState(() => _currentLocation = position.center);
                   }
                 },
               ),
@@ -113,7 +115,7 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
               ],
             ),
 
-          // Center pin (fixed in center)
+          // ── Fixed center pin ───────────────────────────────────────────
           Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -123,12 +125,12 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
                   size: 48.sp,
                   color: AppColorsDark.error,
                 ),
-                SizedBox(height: 40.h), // Offset to center the bottom of pin
+                SizedBox(height: 40.h),
               ],
             ),
           ),
 
-          // Loading overlay
+          // ── Loading overlay ────────────────────────────────────────────
           if (_isGettingLocation)
             Container(
               color: Colors.black54,
@@ -137,10 +139,10 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
               ),
             ),
 
-          // Top bar
+          // ── Top bar ────────────────────────────────────────────────────
           _buildTopBar(),
 
-          // Bottom sheet
+          // ── Bottom sheet ───────────────────────────────────────────────
           _buildBottomSheet(),
         ],
       ),
@@ -154,7 +156,7 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
       right: 0,
       child: SafeArea(
         child: Container(
-          padding: EdgeInsets.all(16.w),
+          padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 8.h),
           decoration: const BoxDecoration(
             color: AppColorsDark.surface,
             boxShadow: [
@@ -167,20 +169,24 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
           ),
           child: Row(
             children: [
-              IconButton(
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: AppColorsDark.textPrimary,
+              // Only show back button when NOT first-time setup
+              if (!widget.isFirstTime)
+                IconButton(
+                  icon: const Icon(
+                    Icons.arrow_back,
+                    color: AppColorsDark.textPrimary,
+                  ),
+                  onPressed: () => Navigator.pop(context),
                 ),
-                onPressed: () => Navigator.pop(context),
-              ),
-              SizedBox(width: 8.w),
+              SizedBox(width: widget.isFirstTime ? 16.w : 0),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Select Delivery Location',
+                      widget.isFirstTime
+                          ? 'Set Your Delivery Location'
+                          : 'Select Delivery Location',
                       style: AppTextStyles.titleMedium().copyWith(
                         color: AppColorsDark.textPrimary,
                         fontWeight: FontWeight.bold,
@@ -195,16 +201,11 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
                   ],
                 ),
               ),
-              // Current location button
               IconButton(
                 onPressed: _getCurrentLocation,
                 icon: const Icon(
                   Icons.my_location,
                   color: AppColorsDark.primary,
-                ),
-                style: IconButton.styleFrom(
-                  backgroundColor: AppColorsDark.surface,
-                  shape: const CircleBorder(),
                 ),
               ),
             ],
@@ -234,122 +235,180 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Drag handle
-            Container(
-              margin: EdgeInsets.only(top: 12.h),
-              width: 40.w,
-              height: 4.h,
-              decoration: BoxDecoration(
-                color: AppColorsDark.textTertiary,
-                borderRadius: BorderRadius.circular(2.r),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Drag handle
+              Container(
+                margin: EdgeInsets.only(top: 12.h),
+                width: 40.w,
+                height: 4.h,
+                decoration: BoxDecoration(
+                  color: AppColorsDark.textTertiary,
+                  borderRadius: BorderRadius.circular(2.r),
+                ),
               ),
-            ),
 
-            Padding(
-              padding: EdgeInsets.all(20.w),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Location info
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.location_on,
-                        color: AppColorsDark.primary,
-                        size: 24.sp,
-                      ),
-                      SizedBox(width: 12.w),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+              Padding(
+                padding: EdgeInsets.all(20.w),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // First-time welcome message
+                    if (widget.isFirstTime) ...[
+                      Container(
+                        padding: EdgeInsets.all(12.w),
+                        decoration: BoxDecoration(
+                          color: AppColorsDark.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12.r),
+                          border: Border.all(
+                            color: AppColorsDark.primary.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
                           children: [
-                            Text(
-                              'Delivery Location',
-                              style: AppTextStyles.titleSmall().copyWith(
-                                color: AppColorsDark.textPrimary,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            Icon(
+                              Icons.info_outline,
+                              color: AppColorsDark.primary,
+                              size: 20.sp,
                             ),
-                            SizedBox(height: 4.h),
-                            Text(
-                              _currentLocation != null
-                                  ? '${_currentLocation!.latitude.toStringAsFixed(6)}, ${_currentLocation!.longitude.toStringAsFixed(6)}'
-                                  : 'Loading...',
-                              style: AppTextStyles.bodySmall().copyWith(
-                                color: AppColorsDark.textSecondary,
+                            SizedBox(width: 10.w),
+                            Expanded(
+                              child: Text(
+                                'Set your location so we can show nearby stores and calculate delivery.',
+                                style: AppTextStyles.bodySmall().copyWith(
+                                  color: AppColorsDark.primary,
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ),
+                      SizedBox(height: 16.h),
                     ],
-                  ),
 
-                  SizedBox(height: 20.h),
-
-                  // Quick details form
-                  _buildTextField(
-                    controller: _nameController,
-                    label: 'Your Name',
-                    icon: Icons.person,
-                    hint: 'Full name',
-                  ),
-                  SizedBox(height: 12.h),
-                  _buildTextField(
-                    controller: _phoneController,
-                    label: 'Phone Number',
-                    icon: Icons.phone,
-                    hint: '03001234567',
-                    keyboardType: TextInputType.phone,
-                  ),
-                  SizedBox(height: 12.h),
-                  _buildTextField(
-                    controller: _addressLine1Controller,
-                    label: 'House/Flat No, Building',
-                    icon: Icons.home,
-                    hint: 'e.g., Flat 2A, Blue Tower',
-                  ),
-                  SizedBox(height: 12.h),
-                  _buildTextField(
-                    controller: _landmarkController,
-                    label: 'Nearby Landmark (Optional)',
-                    icon: Icons.location_searching,
-                    hint: 'e.g., Near Subway',
-                  ),
-
-                  SizedBox(height: 20.h),
-
-                  // Confirm button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isSaving ? null : _saveLocation,
-                      style: ElevatedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(vertical: 16.h),
-                      ),
-                      child:
-                          _isSaving
-                              ? SizedBox(
-                                height: 20.h,
-                                width: 20.w,
-                                child: const CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColorsDark.white,
+                    // Pin location display
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on,
+                          color: AppColorsDark.primary,
+                          size: 24.sp,
+                        ),
+                        SizedBox(width: 12.w),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Pin Location',
+                                style: AppTextStyles.titleSmall().copyWith(
+                                  color: AppColorsDark.textPrimary,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                              )
-                              : Text(
-                                'Confirm Location',
-                                style: AppTextStyles.button(),
                               ),
+                              SizedBox(height: 2.h),
+                              Text(
+                                _currentLocation != null
+                                    ? '${_currentLocation!.latitude.toStringAsFixed(5)}, ${_currentLocation!.longitude.toStringAsFixed(5)}'
+                                    : 'Getting location...',
+                                style: AppTextStyles.bodySmall().copyWith(
+                                  color: AppColorsDark.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+
+                    SizedBox(height: 16.h),
+
+                    _buildTextField(
+                      controller: _nameController,
+                      label: 'Your Name',
+                      icon: Icons.person,
+                      hint: 'Full name',
+                    ),
+                    SizedBox(height: 12.h),
+                    _buildTextField(
+                      controller: _phoneController,
+                      label: 'Phone Number',
+                      icon: Icons.phone,
+                      hint: '03001234567',
+                      keyboardType: TextInputType.phone,
+                    ),
+                    SizedBox(height: 12.h),
+                    _buildTextField(
+                      controller: _addressLine1Controller,
+                      label: 'House/Flat No, Building',
+                      icon: Icons.home,
+                      hint: 'e.g., Flat 2A, Blue Tower',
+                    ),
+                    SizedBox(height: 12.h),
+                    _buildTextField(
+                      controller: _landmarkController,
+                      label: 'Nearby Landmark (Optional)',
+                      icon: Icons.location_searching,
+                      hint: 'e.g., Near Subway',
+                    ),
+
+                    SizedBox(height: 20.h),
+
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _isSaving ? null : _saveLocation,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColorsDark.primary,
+                          padding: EdgeInsets.symmetric(vertical: 16.h),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12.r),
+                          ),
+                        ),
+                        child:
+                            _isSaving
+                                ? SizedBox(
+                                  height: 20.h,
+                                  width: 20.w,
+                                  child: const CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColorsDark.white,
+                                  ),
+                                )
+                                : Text(
+                                  widget.isFirstTime
+                                      ? 'Confirm & Continue'
+                                      : 'Confirm Location',
+                                  style: AppTextStyles.button(),
+                                ),
+                      ),
+                    ),
+
+                    // Skip option for first-time (goes home without saving)
+                    if (widget.isFirstTime) ...[
+                      SizedBox(height: 10.h),
+                      SizedBox(
+                        width: double.infinity,
+                        child: TextButton(
+                          onPressed: () => context.go('/customer/home'),
+                          child: Text(
+                            'Skip for now',
+                            style: AppTextStyles.labelMedium().copyWith(
+                              color: AppColorsDark.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    SizedBox(height: 8.h),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -371,56 +430,39 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        prefixIcon: Icon(icon, size: 20.sp),
+        prefixIcon: Icon(icon, size: 20.sp, color: AppColorsDark.primary),
         filled: true,
         fillColor: AppColorsDark.surfaceVariant,
+        labelStyle: AppTextStyles.bodySmall().copyWith(
+          color: AppColorsDark.textSecondary,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12.r),
           borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.r),
+          borderSide: const BorderSide(color: AppColorsDark.primary, width: 2),
         ),
       ),
     );
   }
 
   Future<void> _saveLocation() async {
-    // Validate
     if (_nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter your name'),
-          backgroundColor: AppColorsDark.error,
-        ),
-      );
+      _showSnack('Please enter your name', isError: true);
       return;
     }
-
     if (_phoneController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter your phone number'),
-          backgroundColor: AppColorsDark.error,
-        ),
-      );
+      _showSnack('Please enter your phone number', isError: true);
       return;
     }
-
     if (_addressLine1Controller.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter your address'),
-          backgroundColor: AppColorsDark.error,
-        ),
-      );
+      _showSnack('Please enter your address', isError: true);
       return;
     }
-
     if (_currentLocation == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a location'),
-          backgroundColor: AppColorsDark.error,
-        ),
-      );
+      _showSnack('Please select a location on the map', isError: true);
       return;
     }
 
@@ -428,21 +470,21 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
 
     try {
       final authState = ref.read(authProvider);
-      if (authState is! Authenticated) {
-        throw Exception('Not authenticated');
-      }
+      if (authState is! Authenticated) throw Exception('Not authenticated');
 
-      // Create address
+      final userId = authState.user.id;
+
+      // 1. Save address to addresses collection
       final address = AddressModel(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
-        userId: authState.user.id,
-        label: 'Home', // Default label
+        userId: userId,
+        label: 'Home',
         name: _nameController.text.trim(),
         phone: _phoneController.text.trim(),
         addressLine1: _addressLine1Controller.text.trim(),
         addressLine2: null,
-        area: 'Area', // TODO: Get from reverse geocoding
-        city: 'City', // TODO: Get from reverse geocoding
+        area: 'Area',
+        city: 'City',
         state: 'Punjab',
         postalCode: '',
         country: 'Pakistan',
@@ -458,35 +500,52 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
         updatedAt: DateTime.now(),
       );
 
-      // Save address
-      final success = await ref
-          .read(addressesProvider.notifier)
-          .addAddress(address);
+      await ref.read(addressesProvider.notifier).addAddress(address);
 
-      if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Location saved successfully!'),
-            backgroundColor: AppColorsDark.success,
-          ),
-        );
+      // 2. ✅ Also update latitude/longitude on the customer document itself
+      //    so splash screen can check it next time
+      await FirebaseFirestore.instance.collection('users').doc(userId).update({
+        'latitude': _currentLocation!.latitude,
+        'longitude': _currentLocation!.longitude,
+        'address': _addressLine1Controller.text.trim(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
-        // Navigate back to checkout
-        context.pop();
+      dev.log(
+        '✅ Location saved: ${_currentLocation!.latitude}, ${_currentLocation!.longitude}',
+      );
+
+      if (mounted) {
+        _showSnack('Location saved successfully!');
+
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        if (mounted) {
+          if (widget.isFirstTime) {
+            // First time → go to home
+            context.go('/customer/home');
+          } else {
+            // Normal usage → pop back
+            Navigator.pop(context);
+          }
+        }
       }
     } catch (e) {
+      dev.log('❌ Save location error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: AppColorsDark.error,
-          ),
-        );
+        _showSnack('Error: ${e.toString()}', isError: true);
       }
     } finally {
-      if (mounted) {
-        setState(() => _isSaving = false);
-      }
+      if (mounted) setState(() => _isSaving = false);
     }
+  }
+
+  void _showSnack(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? AppColorsDark.error : AppColorsDark.success,
+      ),
+    );
   }
 }

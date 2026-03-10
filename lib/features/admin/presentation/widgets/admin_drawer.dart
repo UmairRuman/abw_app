@@ -135,13 +135,14 @@ class AdminDrawer extends ConsumerWidget {
                       // Show payment settings dialog
                     },
                   ),
+
                   _buildDrawerItem(
                     context,
-                    icon: Icons.notifications_rounded,
-                    title: 'Notifications',
+                    icon: Icons.support_agent_rounded,
+                    title: 'Contact Us Settings',
                     onTap: () {
                       Navigator.pop(context);
-                      // Navigate to notifications
+                      context.push('/admin/contact-settings');
                     },
                   ),
                 ],

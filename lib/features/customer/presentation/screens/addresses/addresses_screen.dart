@@ -1,6 +1,13 @@
-// lib/features/customer/presentation/screens/addresses/addresses_screen.dart
+// ─────────────────────────────────────────────────────────────────────────────
+// FILE: lib/features/customer/presentation/screens/addresses/addresses_screen.dart
+// CHANGES:
+//   1. Add import for LocationPickerScreen
+//   2. Replace _showAddAddressDialog with _navigateToLocationPicker
+//   3. Keep edit dialog as-is (editing existing address, map not needed)
+// ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:abw_app/features/auth/presentation/providers/auth_state.dart';
+import 'package:abw_app/features/customer/presentation/screens/location/location_picker_screen.dart'; // ✅ ADD
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -26,13 +33,25 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
   }
 
   Future<void> _loadAddresses() async {
-     await Future.delayed(const Duration(milliseconds: 200)); // Ensure context is available
+    await Future.delayed(const Duration(milliseconds: 200));
     final authState = ref.read(authProvider);
     if (authState is Authenticated) {
       await ref
           .read(addressesProvider.notifier)
           .loadUserAddresses(authState.user.id);
     }
+  }
+
+  // ✅ CHANGED: Navigate to LocationPickerScreen instead of dialog
+  Future<void> _navigateToLocationPicker() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const LocationPickerScreen(isFirstTime: false),
+      ),
+    );
+    // Refresh addresses after returning
+    _loadAddresses();
   }
 
   @override
@@ -57,26 +76,34 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
           ),
         ),
       ),
-      body: addressesState is AddressesLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColorsDark.primary))
-          : addressesState is AddressesLoaded
+      body:
+          addressesState is AddressesLoading
+              ? const Center(
+                child: CircularProgressIndicator(color: AppColorsDark.primary),
+              )
+              : addressesState is AddressesLoaded
               ? addressesState.addresses.isEmpty
-                  ? _buildEmptyState(authState.user.id)
+                  ? _buildEmptyState()
                   : _buildAddressesList(addressesState, authState.user.id)
               : addressesState is AddressesError
-                  ? _buildErrorState(addressesState.error)
-                  : _buildEmptyState(authState.user.id),
+              ? _buildErrorState(addressesState.error)
+              : _buildEmptyState(),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddAddressDialog(authState.user.id),
+        // ✅ CHANGED
+        onPressed: _navigateToLocationPicker,
         backgroundColor: AppColorsDark.primary,
-        icon: const Icon(Icons.add_location_alt),
-        label: const Text('Add Address'),
+        icon: const Icon(Icons.add_location_alt, color: AppColorsDark.white),
+        label: Text(
+          'Add Address',
+          style: AppTextStyles.labelMedium().copyWith(
+            color: AppColorsDark.white,
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildEmptyState(String userId) {
+  Widget _buildEmptyState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -102,7 +129,8 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
           ),
           SizedBox(height: 32.h),
           ElevatedButton.icon(
-            onPressed: () => _showAddAddressDialog(userId),
+            // ✅ CHANGED
+            onPressed: _navigateToLocationPicker,
             icon: const Icon(Icons.add_location_alt),
             label: const Text('Add Address'),
           ),
@@ -116,11 +144,7 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.error_outline,
-            size: 64.sp,
-            color: AppColorsDark.error,
-          ),
+          Icon(Icons.error_outline, size: 64.sp, color: AppColorsDark.error),
           SizedBox(height: 16.h),
           Text(
             'Error loading addresses',
@@ -164,9 +188,8 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
         color: AppColorsDark.cardBackground,
         borderRadius: BorderRadius.circular(16.r),
         border: Border.all(
-          color: address.isDefault
-              ? AppColorsDark.primary
-              : AppColorsDark.border,
+          color:
+              address.isDefault ? AppColorsDark.primary : AppColorsDark.border,
           width: address.isDefault ? 2 : 1,
         ),
       ),
@@ -176,9 +199,10 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
           Container(
             padding: EdgeInsets.all(16.w),
             decoration: BoxDecoration(
-              color: address.isDefault
-                  ? AppColorsDark.primary.withOpacity(0.1)
-                  : null,
+              color:
+                  address.isDefault
+                      ? AppColorsDark.primary.withOpacity(0.1)
+                      : null,
               borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(16.r),
                 topRight: Radius.circular(16.r),
@@ -189,16 +213,18 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
                 Container(
                   padding: EdgeInsets.all(10.w),
                   decoration: BoxDecoration(
-                    color: address.isDefault
-                        ? AppColorsDark.primary.withOpacity(0.2)
-                        : AppColorsDark.surfaceVariant,
+                    color:
+                        address.isDefault
+                            ? AppColorsDark.primary.withOpacity(0.2)
+                            : AppColorsDark.surfaceVariant,
                     borderRadius: BorderRadius.circular(10.r),
                   ),
                   child: Icon(
                     _getAddressIcon(address.addressType),
-                    color: address.isDefault
-                        ? AppColorsDark.primary
-                        : AppColorsDark.textSecondary,
+                    color:
+                        address.isDefault
+                            ? AppColorsDark.primary
+                            : AppColorsDark.textSecondary,
                     size: 24.sp,
                   ),
                 ),
@@ -255,48 +281,49 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
                     color: AppColorsDark.textSecondary,
                   ),
                   color: AppColorsDark.surface,
-                  onSelected: (value) =>
-                      _handleAddressAction(value, address, userId),
-                  itemBuilder: (context) => [
-                    if (!address.isDefault)
-                      PopupMenuItem(
-                        value: 'default',
-                        child: Row(
-                          children: [
-                            Icon(Icons.check_circle, size: 20.sp),
-                            SizedBox(width: 8.w),
-                            const Text('Set as Default'),
-                          ],
+                  onSelected:
+                      (value) => _handleAddressAction(value, address, userId),
+                  itemBuilder:
+                      (context) => [
+                        if (!address.isDefault)
+                          PopupMenuItem(
+                            value: 'default',
+                            child: Row(
+                              children: [
+                                Icon(Icons.check_circle, size: 20.sp),
+                                SizedBox(width: 8.w),
+                                const Text('Set as Default'),
+                              ],
+                            ),
+                          ),
+                        PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, size: 20.sp),
+                              SizedBox(width: 8.w),
+                              const Text('Edit'),
+                            ],
+                          ),
                         ),
-                      ),
-                    PopupMenuItem(
-                      value: 'edit',
-                      child: Row(
-                        children: [
-                          Icon(Icons.edit, size: 20.sp),
-                          SizedBox(width: 8.w),
-                          const Text('Edit'),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.delete,
-                            size: 20.sp,
-                            color: AppColorsDark.error,
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.delete,
+                                size: 20.sp,
+                                color: AppColorsDark.error,
+                              ),
+                              SizedBox(width: 8.w),
+                              const Text(
+                                'Delete',
+                                style: TextStyle(color: AppColorsDark.error),
+                              ),
+                            ],
                           ),
-                          SizedBox(width: 8.w),
-                          const Text(
-                            'Delete',
-                            style: TextStyle(color: AppColorsDark.error),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                        ),
+                      ],
                 ),
               ],
             ),
@@ -308,7 +335,6 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Full Address
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -328,10 +354,7 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
                     ),
                   ],
                 ),
-
                 SizedBox(height: 12.h),
-
-                // Phone
                 Row(
                   children: [
                     Icon(
@@ -348,9 +371,8 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
                     ),
                   ],
                 ),
-
-                // Landmark (if available)
-                if (address.landmark != null && address.landmark!.isNotEmpty) ...[
+                if (address.landmark != null &&
+                    address.landmark!.isNotEmpty) ...[
                   SizedBox(height: 12.h),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -363,7 +385,7 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
                       SizedBox(width: 8.w),
                       Expanded(
                         child: Text(
-                          'Landmark: ${address.landmark}',
+                          'Near ${address.landmark}',
                           style: AppTextStyles.bodySmall().copyWith(
                             color: AppColorsDark.textSecondary,
                           ),
@@ -386,8 +408,6 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
         return Icons.home;
       case 'work':
         return Icons.work;
-      case 'other':
-        return Icons.location_on;
       default:
         return Icons.location_on;
     }
@@ -402,7 +422,7 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
       case 'default':
         await ref
             .read(addressesProvider.notifier)
-            .setDefaultAddress(userId, address.id);
+            .setDefaultAddress(address.id, userId);
         break;
       case 'edit':
         _showEditAddressDialog(userId, address);
@@ -413,59 +433,51 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
     }
   }
 
-  void _showAddAddressDialog(String userId) {
-    showDialog(
-      context: context,
-      builder: (context) => AddEditAddressDialog(userId: userId),
-    );
-  }
-
   void _showEditAddressDialog(String userId, AddressModel address) {
     showDialog(
       context: context,
-      builder: (context) => AddEditAddressDialog(
-        userId: userId,
-        address: address,
-      ),
+      builder:
+          (context) => AddEditAddressDialog(userId: userId, address: address),
     );
   }
 
   void _showDeleteDialog(String userId, AddressModel address) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColorsDark.surface,
-        title: Text(
-          'Delete Address',
-          style: AppTextStyles.titleMedium().copyWith(
-            color: AppColorsDark.error,
-          ),
-        ),
-        content: Text(
-          'Are you sure you want to delete "${address.label}"?',
-          style: AppTextStyles.bodyMedium().copyWith(
-            color: AppColorsDark.textSecondary,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await ref
-                  .read(addressesProvider.notifier)
-                  .deleteAddress(userId, address.id);
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColorsDark.error,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: AppColorsDark.surface,
+            title: Text(
+              'Delete Address',
+              style: AppTextStyles.titleMedium().copyWith(
+                color: AppColorsDark.error,
+              ),
             ),
-            child: const Text('Delete'),
+            content: Text(
+              'Are you sure you want to delete "${address.label}"?',
+              style: AppTextStyles.bodyMedium().copyWith(
+                color: AppColorsDark.textSecondary,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await ref
+                      .read(addressesProvider.notifier)
+                      .deleteAddress(address.id, userId);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColorsDark.error,
+                ),
+                child: const Text('Delete'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 }

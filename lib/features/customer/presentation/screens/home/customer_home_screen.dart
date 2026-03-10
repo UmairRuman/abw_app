@@ -3,6 +3,7 @@
 // COMPLETE REPLACEMENT:
 
 import 'package:abw_app/core/routes/app_router.dart';
+import 'package:abw_app/features/customer/presentation/screens/contact/customer_contact_screen.dart';
 import 'package:abw_app/features/customer/presentation/screens/home/all_products_screen.dart';
 import 'package:abw_app/features/customer/presentation/screens/home/all_stores_screen.dart';
 import 'package:abw_app/features/settings/data/models/contact_settings_model.dart';
@@ -83,6 +84,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
     await Future.wait([
       ref.read(productsProvider.notifier).getTopProductsFromFeaturedStores(),
       ref.read(storesProvider.notifier).getAllStores(),
+      ref.read(contactSettingsProvider.notifier).load(), // ✅ ADD THIS
       _loadCart(),
     ]);
   }
@@ -256,10 +258,6 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
                 ),
               ),
 
-              SliverToBoxAdapter(child: _buildContactSection()),
-
-              SliverToBoxAdapter(child: SizedBox(height: 100.h)),
-
               // Store List (Non-Featured)
               if (storesState is StoresLoaded)
                 _buildStoreList(storesState)
@@ -333,7 +331,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
           if (settings.bannerUrl.isNotEmpty) ...[
             SizedBox(height: 12.h),
             ClipRRect(
-              borderRadius: BorderRadius.only(
+              borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(0),
                 topRight: Radius.circular(0),
               ),
@@ -488,7 +486,14 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
         ],
       ),
       actions: [
-        // ✅ Notification icon REMOVED
+        // ✅ Contact Us icon
+        IconButton(
+          icon: const Icon(Icons.support_agent_outlined),
+          color: AppColorsDark.textPrimary,
+          tooltip: 'Contact Us',
+          onPressed: () => context.push('/customer/contact-us'),
+        ),
+        // Profile icon
         IconButton(
           icon: const Icon(Icons.person_outline),
           color: AppColorsDark.textPrimary,

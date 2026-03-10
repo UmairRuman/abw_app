@@ -2,6 +2,7 @@
 
 import 'package:abw_app/features/checkout/data/models/checkout_model.dart';
 import 'package:abw_app/features/customer/presentation/screens/addresses/addresses_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -718,7 +719,35 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
   }
 
-  void _proceedToPayment() {
-    context.push('/customer/payment');
+  Future<bool> _customerHasLocation(String userId) async {
+    try {
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .get();
+
+      if (!doc.exists) return false;
+      final data = doc.data();
+      final lat = data?['latitude'];
+      final lng = data?['longitude'];
+      // Has location if both are non-null and non-zero
+      return lat != null && lng != null && lat != 0.0 && lng != 0.0;
+    } catch (e) {
+      return false; // On error, send to location picker anyway
+    }
+  }
+
+  void _proceedToPayment() async {
+    final authState = ref.read(authProvider);
+    final hasLocation = await _customerHasLocation(
+      authState is Authenticated ? authState.user.id : '',
+    );
+    if (!hasLocation && mounted) {
+      context.go('/customer/location-setup');
+      return;
+    } else {
+      context.push('/customer/payment');
+    }
   }
 }

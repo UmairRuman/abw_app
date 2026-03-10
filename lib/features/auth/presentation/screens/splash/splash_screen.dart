@@ -147,16 +147,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     if (authState is Authenticated) {
       final user = authState.user;
 
-      // ✅ BLOCK CHECK: Only applies to customers (admin/rider bypass).
-      // If a customer's phone is blocked, sign them out and redirect to login.
+      // Block check — customers only
       if (user.role == UserRole.customer) {
         final isBlocked = await _isUserBlocked(user.id);
         if (isBlocked && mounted) {
-          // Sign out from Firebase so the session is fully cleared
           await FirebaseAuth.instance.signOut();
-
           if (mounted) {
-            // Show a message before navigating away
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text(
@@ -170,9 +166,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           }
           return;
         }
+
+        // ✅ LOCATION CHECK: If customer has no saved location, go to picker first
+        final hasLocation = await _customerHasLocation(user.id);
+        if (!hasLocation && mounted) {
+          context.go('/customer/location-setup');
+          return;
+        }
       }
 
-      // Not blocked — navigate normally based on role
+      // Normal navigation
       if (mounted) {
         switch (user.role) {
           case UserRole.customer:
@@ -190,6 +193,26 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       if (mounted) context.go('/rider/pending');
     } else {
       if (mounted) context.go('/login');
+    }
+  }
+
+  /// Returns true if the customer already has latitude/longitude saved.
+  Future<bool> _customerHasLocation(String userId) async {
+    try {
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .get();
+
+      if (!doc.exists) return false;
+      final data = doc.data();
+      final lat = data?['latitude'];
+      final lng = data?['longitude'];
+      // Has location if both are non-null and non-zero
+      return lat != null && lng != null && lat != 0.0 && lng != 0.0;
+    } catch (e) {
+      return false; // On error, send to location picker anyway
     }
   }
 
