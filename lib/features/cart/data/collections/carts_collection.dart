@@ -6,28 +6,29 @@ import '../models/cart_model.dart';
 import '../models/cart_item_model.dart';
 
 class CartsCollection {
-  // Singleton pattern
   static final CartsCollection instance = CartsCollection._internal();
   CartsCollection._internal();
-
-  factory CartsCollection() {
-    return instance;
-  }
+  factory CartsCollection() => instance;
 
   static final _cartsCollection = FirebaseFirestore.instance.collection(
     'carts',
   );
 
-  /// Get user's cart (or return empty cart)
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  /// Derive the cart item key from a raw Firestore map.
+  /// Falls back to productId so old cart docs (without cartItemKey) still work.
+  String _keyOf(Map<String, dynamic> item) =>
+      item['cartItemKey'] as String? ?? item['productId'] as String;
+
+  // ── Read ──────────────────────────────────────────────────────────────────
+
   Future<CartModel> getCart(String userId) async {
     try {
       final snapshot = await _cartsCollection.doc(userId).get();
-
       if (snapshot.exists && snapshot.data() != null) {
         return CartModel.fromJson(snapshot.data()!);
       }
-
-      // Return empty cart if doesn't exist
       log('Cart not found for user: $userId, returning empty cart');
       return CartModel.empty(userId);
     } on FirebaseException catch (e) {
@@ -38,6 +39,8 @@ class CartsCollection {
       return CartModel.empty(userId);
     }
   }
+
+  // ── Add ───────────────────────────────────────────────────────────────────
 
   Future<bool> addItemToCart(
     String userId,
@@ -51,101 +54,59 @@ class CartsCollection {
         final cartData = cartDoc.data()!;
         final currentStoreId = cartData['storeId'] as String?;
 
-        // ✅ CHECK DIFFERENT STORE
+        // Different store → caller shows replace-cart dialog
         if (currentStoreId != null &&
             currentStoreId.isNotEmpty &&
             currentStoreId != item.storeId) {
           return false;
         }
 
-        // ✅ GET EXISTING ITEMS
         final rawItems = List<Map<String, dynamic>>.from(
           cartData['items'] as List? ?? [],
         );
 
-        // ✅ CHECK IF ITEM ALREADY EXISTS
+        // ✅ FIX: match on cartItemKey, not productId.
+        // This makes Small Pizza and Large Pizza separate entries.
         final existingIndex = rawItems.indexWhere(
-          (i) => i['productId'] == item.productId,
+          (i) => _keyOf(i) == item.cartItemKey,
         );
 
         if (existingIndex >= 0) {
-          // ✅ UPDATE EXISTING ITEM
+          // Same product + same variant → just increase quantity
           final newQty =
               (rawItems[existingIndex]['quantity'] as int) + item.quantity;
           final unitPrice =
               (rawItems[existingIndex]['discountedPrice'] as num).toDouble();
           rawItems[existingIndex]['quantity'] = newQty;
-          rawItems[existingIndex]['total'] =
-              unitPrice * newQty; // ✅ RECALCULATE
+          rawItems[existingIndex]['total'] = unitPrice * newQty;
         } else {
-          // ✅ ADD NEW ITEM WITH CORRECT TOTAL
+          // Different variant (or brand-new product) → add as separate row
           final newItem = item.toJson();
-          newItem['total'] =
-              item.discountedPrice * item.quantity; // ✅ ENSURE CORRECT
+          newItem['total'] = item.discountedPrice * item.quantity;
           rawItems.add(newItem);
         }
 
-        // ✅ RECALCULATE SUBTOTAL FROM ALL ITEMS
-        double subtotal = 0;
-        int totalItems = 0;
-        for (final i in rawItems) {
-          final qty = (i['quantity'] as num).toInt();
-          final price = (i['discountedPrice'] as num).toDouble();
-          final itemTotal = price * qty; // ✅ ALWAYS RECALCULATE
-          i['total'] = itemTotal; // ✅ SYNC ITEM TOTAL
-          subtotal += itemTotal;
-          totalItems += qty;
-        }
-
-        // ✅ GET CURRENT DELIVERY FEE
-        final currentDeliveryFee =
-            (cartData['deliveryFee'] as num?)?.toDouble() ?? deliveryFee;
-
-        await _cartsCollection.doc(userId).update({
-          'items': rawItems,
-          'storeId': item.storeId,
-          'storeName': item.storeName,
-          'subtotal': subtotal,
-          'deliveryFee': currentDeliveryFee,
-          'total': subtotal + currentDeliveryFee,
-          'totalItems': totalItems,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-
-        log(
-          '✅ Cart updated - subtotal: $subtotal, deliveryFee: $currentDeliveryFee, total: ${subtotal + currentDeliveryFee}',
-        );
+        await _recalculateAndUpdate(userId, cartData, rawItems);
         return true;
       } else {
-        // ✅ CREATE NEW CART
+        // ── Create new cart ────────────────────────────────────────────────
         final itemTotal = item.discountedPrice * item.quantity;
-        final subtotal = itemTotal;
-        final total = subtotal + deliveryFee;
-
-        final cartData = {
+        await _cartsCollection.doc(userId).set({
           'userId': userId,
           'storeId': item.storeId,
           'storeName': item.storeName,
           'items': [
-            {
-              ...item.toJson(),
-              'total': itemTotal, // ✅ ENSURE CORRECT TOTAL
-            },
+            {...item.toJson(), 'total': itemTotal},
           ],
-          'subtotal': subtotal,
-          'deliveryFee': deliveryFee, // ✅ FROM STORE
+          'subtotal': itemTotal,
+          'deliveryFee': deliveryFee,
           'discount': 0.0,
-          'total': total,
+          'total': itemTotal + deliveryFee,
           'totalItems': item.quantity,
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
-        };
-
-        await _cartsCollection.doc(userId).set(cartData);
-
-        log(
-          '✅ New cart created - subtotal: $subtotal, deliveryFee: $deliveryFee, total: $total',
-        );
+        });
+        log('✅ New cart created - total: ${itemTotal + deliveryFee}');
         return true;
       }
     } catch (e) {
@@ -154,59 +115,41 @@ class CartsCollection {
     }
   }
 
-  /// Update item quantity
+  // ── Quantity ──────────────────────────────────────────────────────────────
+
+  /// Update quantity by cartItemKey (supports variant-specific items).
   Future<bool> updateItemQuantity(
     String userId,
-    String productId,
+    String cartItemKey,
     int newQuantity,
   ) async {
     try {
       final cart = await getCart(userId);
+      if (cart.isEmpty) return false;
 
-      if (cart.isEmpty) {
-        log('Cart is empty');
-        return false;
-      }
-
+      // ✅ FIX: find by cartItemKey
       final itemIndex = cart.items.indexWhere(
-        (item) => item.productId == productId,
+        (item) => item.cartItemKey == cartItemKey,
       );
-
       if (itemIndex == -1) {
-        log('Item not found in cart: $productId');
+        log('Item not found in cart: $cartItemKey');
         return false;
       }
-
-      // VALIDATION: Check quantity limits
-      if (newQuantity < 1) {
-        log('Quantity must be at least 1');
-        return false;
-      }
+      if (newQuantity < 1) return false;
 
       final item = cart.items[itemIndex];
       if (newQuantity > item.maxQuantity) {
-        log('Quantity exceeds maximum: ${item.maxQuantity}');
         throw Exception('Maximum quantity is ${item.maxQuantity}');
       }
 
-      // Update item
       final List<CartItemModel> updatedItems = List.from(cart.items);
       updatedItems[itemIndex] = item.copyWith(
         quantity: newQuantity,
-        total:
-            (item.discountedPrice > 0 ? item.discountedPrice : item.price) *
-            newQuantity,
+        total: item.discountedPrice * newQuantity,
       );
 
-      // Recalculate totals
-      final newSubtotal = updatedItems.fold<double>(
-        0.0,
-        (sum, item) => sum + item.total,
-      );
-      final newTotalItems = updatedItems.fold<int>(
-        0,
-        (sum, item) => sum + item.quantity,
-      );
+      final newSubtotal = updatedItems.fold<double>(0.0, (s, i) => s + i.total);
+      final newTotalItems = updatedItems.fold<int>(0, (s, i) => s + i.quantity);
 
       final updatedCart = cart.copyWith(
         items: updatedItems,
@@ -217,8 +160,6 @@ class CartsCollection {
       );
 
       await _cartsCollection.doc(userId).update(updatedCart.toJson());
-
-      log('Item quantity updated: $productId -> $newQuantity');
       return true;
     } on FirebaseException catch (e) {
       log('Firebase Error updating quantity: ${e.code} - ${e.message}');
@@ -229,7 +170,7 @@ class CartsCollection {
     }
   }
 
-  Future<void> incrementQuantity(String userId, String productId) async {
+  Future<void> incrementQuantity(String userId, String cartItemKey) async {
     try {
       final cartDoc = await _cartsCollection.doc(userId).get();
       if (!cartDoc.exists) return;
@@ -239,25 +180,23 @@ class CartsCollection {
         cartData['items'] as List? ?? [],
       );
 
-      final index = rawItems.indexWhere((i) => i['productId'] == productId);
+      // ✅ FIX: match on cartItemKey
+      final index = rawItems.indexWhere((i) => _keyOf(i) == cartItemKey);
       if (index < 0) return;
 
-      // ✅ INCREMENT AND RECALCULATE
       rawItems[index]['quantity'] = (rawItems[index]['quantity'] as int) + 1;
       rawItems[index]['total'] =
           (rawItems[index]['discountedPrice'] as num).toDouble() *
           (rawItems[index]['quantity'] as num);
 
-      // ✅ RECALCULATE ALL TOTALS
-      _recalculateAndUpdate(userId, cartData, rawItems);
+      await _recalculateAndUpdate(userId, cartData, rawItems);
     } catch (e) {
       log('Error incrementing: $e');
       rethrow;
     }
   }
 
-  // REPLACE decrementQuantity:
-  Future<void> decrementQuantity(String userId, String productId) async {
+  Future<void> decrementQuantity(String userId, String cartItemKey) async {
     try {
       final cartDoc = await _cartsCollection.doc(userId).get();
       if (!cartDoc.exists) return;
@@ -267,30 +206,144 @@ class CartsCollection {
         cartData['items'] as List? ?? [],
       );
 
-      final index = rawItems.indexWhere((i) => i['productId'] == productId);
+      // ✅ FIX: match on cartItemKey
+      final index = rawItems.indexWhere((i) => _keyOf(i) == cartItemKey);
       if (index < 0) return;
 
       final currentQty = rawItems[index]['quantity'] as int;
-
       if (currentQty <= 1) {
-        // Remove item
         rawItems.removeAt(index);
       } else {
-        // ✅ DECREMENT AND RECALCULATE
         rawItems[index]['quantity'] = currentQty - 1;
         rawItems[index]['total'] =
             (rawItems[index]['discountedPrice'] as num).toDouble() *
             (rawItems[index]['quantity'] as num);
       }
 
-      _recalculateAndUpdate(userId, cartData, rawItems);
+      await _recalculateAndUpdate(userId, cartData, rawItems);
     } catch (e) {
       log('Error decrementing: $e');
       rethrow;
     }
   }
 
-  // ✅ ADD THIS HELPER METHOD:
+  // ── Remove ────────────────────────────────────────────────────────────────
+
+  /// Remove a single cart entry by cartItemKey.
+  Future<bool> removeItemFromCart(String userId, String cartItemKey) async {
+    try {
+      final cart = await getCart(userId);
+      if (cart.isEmpty) return false;
+
+      // ✅ FIX: filter by cartItemKey so only that variant row is removed
+      final updatedItems =
+          cart.items.where((item) => item.cartItemKey != cartItemKey).toList();
+
+      if (updatedItems.length == cart.items.length) {
+        log('Item not found in cart: $cartItemKey');
+        return false;
+      }
+
+      if (updatedItems.isEmpty) {
+        await clearCart(userId);
+        return true;
+      }
+
+      final newSubtotal = updatedItems.fold<double>(0.0, (s, i) => s + i.total);
+      final newTotalItems = updatedItems.fold<int>(0, (s, i) => s + i.quantity);
+
+      final updatedCart = cart.copyWith(
+        items: updatedItems,
+        totalItems: newTotalItems,
+        subtotal: newSubtotal,
+        total: newSubtotal + cart.deliveryFee - cart.discount,
+        updatedAt: DateTime.now(),
+      );
+
+      await _cartsCollection.doc(userId).update(updatedCart.toJson());
+      log('Item removed from cart: $cartItemKey');
+      return true;
+    } on FirebaseException catch (e) {
+      log('Firebase Error removing item: ${e.code} - ${e.message}');
+      return false;
+    } catch (e) {
+      log('Error removing item: ${e.toString()}');
+      return false;
+    }
+  }
+
+  // ── Clear ─────────────────────────────────────────────────────────────────
+
+  Future<bool> clearCart(String userId) async {
+    try {
+      await _cartsCollection.doc(userId).delete();
+      log('Cart cleared for user: $userId');
+      return true;
+    } on FirebaseException catch (e) {
+      log('Firebase Error clearing cart: ${e.code} - ${e.message}');
+      return false;
+    } catch (e) {
+      log('Error clearing cart: ${e.toString()}');
+      return false;
+    }
+  }
+
+  // ── Misc ──────────────────────────────────────────────────────────────────
+
+  Future<int> getCartItemCount(String userId) async {
+    try {
+      final cart = await getCart(userId);
+      return cart.totalItems;
+    } catch (e) {
+      log('Error getting cart count: ${e.toString()}');
+      return 0;
+    }
+  }
+
+  Future<bool> validateCart(String userId) async {
+    try {
+      // Placeholder — fetch products and validate availability/prices here.
+      return true;
+    } catch (e) {
+      log('Error validating cart: ${e.toString()}');
+      return false;
+    }
+  }
+
+  Future<bool> updateDeliveryFee(String userId, double deliveryFee) async {
+    try {
+      final cart = await getCart(userId);
+      final updatedCart = cart.copyWith(
+        deliveryFee: deliveryFee,
+        total: cart.subtotal + deliveryFee - cart.discount,
+        updatedAt: DateTime.now(),
+      );
+      await _cartsCollection.doc(userId).update(updatedCart.toJson());
+      return true;
+    } catch (e) {
+      log('Error updating delivery fee: ${e.toString()}');
+      return false;
+    }
+  }
+
+  Future<bool> applyDiscount(String userId, double discount) async {
+    try {
+      final cart = await getCart(userId);
+      final updatedCart = cart.copyWith(
+        discount: discount,
+        total: cart.subtotal + cart.deliveryFee - discount,
+        updatedAt: DateTime.now(),
+      );
+      await _cartsCollection.doc(userId).update(updatedCart.toJson());
+      return true;
+    } catch (e) {
+      log('Error applying discount: ${e.toString()}');
+      return false;
+    }
+  }
+
+  // ── Private helpers ───────────────────────────────────────────────────────
+
   Future<void> _recalculateAndUpdate(
     String userId,
     Map<String, dynamic> cartData,
@@ -313,194 +366,18 @@ class CartsCollection {
             ? 0.0
             : (cartData['deliveryFee'] as num?)?.toDouble() ?? 50.0;
 
-    final total = subtotal + deliveryFee;
-
     await _cartsCollection.doc(userId).update({
       'items': items,
       'subtotal': subtotal,
       'deliveryFee': items.isEmpty ? 0.0 : deliveryFee,
-      'total': total,
+      'total': subtotal + deliveryFee,
       'totalItems': totalItems,
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
     log(
-      '✅ Recalculated - subtotal: $subtotal, fee: $deliveryFee, total: $total, items: $totalItems',
+      '✅ Cart recalculated — subtotal: $subtotal, fee: $deliveryFee, '
+      'total: ${subtotal + deliveryFee}, items: $totalItems',
     );
-  }
-
-  /// Remove item from cart
-  Future<bool> removeItemFromCart(String userId, String productId) async {
-    try {
-      final cart = await getCart(userId);
-
-      if (cart.isEmpty) {
-        log('Cart is empty');
-        return false;
-      }
-
-      // Remove item
-      final updatedItems =
-          cart.items.where((item) => item.productId != productId).toList();
-
-      if (updatedItems.length == cart.items.length) {
-        log('Item not found in cart: $productId');
-        return false;
-      }
-
-      // If cart becomes empty, clear storeId
-      if (updatedItems.isEmpty) {
-        await clearCart(userId);
-        log('Last item removed, cart cleared');
-        return true;
-      }
-
-      // Recalculate totals
-      final newSubtotal = updatedItems.fold<double>(
-        0.0,
-        (sum, item) => sum + item.total,
-      );
-      final newTotalItems = updatedItems.fold<int>(
-        0,
-        (sum, item) => sum + item.quantity,
-      );
-
-      final updatedCart = cart.copyWith(
-        items: updatedItems,
-        totalItems: newTotalItems,
-        subtotal: newSubtotal,
-        total: newSubtotal + cart.deliveryFee - cart.discount,
-        updatedAt: DateTime.now(),
-      );
-
-      await _cartsCollection.doc(userId).update(updatedCart.toJson());
-
-      log('Item removed from cart: $productId');
-      return true;
-    } on FirebaseException catch (e) {
-      log('Firebase Error removing item: ${e.code} - ${e.message}');
-      return false;
-    } catch (e) {
-      log('Error removing item: ${e.toString()}');
-      return false;
-    }
-  }
-
-  /// Clear entire cart
-  Future<bool> clearCart(String userId) async {
-    try {
-      await _cartsCollection.doc(userId).delete();
-      log('Cart cleared for user: $userId');
-      return true;
-    } on FirebaseException catch (e) {
-      log('Firebase Error clearing cart: ${e.code} - ${e.message}');
-      return false;
-    } catch (e) {
-      log('Error clearing cart: ${e.toString()}');
-      return false;
-    }
-  }
-
-  /// Get cart item count
-  Future<int> getCartItemCount(String userId) async {
-    try {
-      final cart = await getCart(userId);
-      return cart.totalItems;
-    } catch (e) {
-      log('Error getting cart count: ${e.toString()}');
-      return 0;
-    }
-  }
-
-  /// Validate cart (check availability and prices)
-  Future<bool> validateCart(String userId) async {
-    try {
-      final cart = await getCart(userId);
-
-      if (cart.isEmpty) return true;
-
-      final bool needsUpdate = false;
-      final List<CartItemModel> validItems = [];
-
-      // Check each item
-      for (var item in cart.items) {
-        // Here you would fetch the actual product to check:
-        // 1. Is it still available?
-        // 2. Has the price changed?
-        // 3. Is there enough stock?
-
-        // For now, we'll assume validation passes
-        // In production, fetch product and validate
-        validItems.add(item);
-      }
-
-      if (needsUpdate) {
-        // Update cart with valid items
-        final newSubtotal = validItems.fold<double>(
-          0.0,
-          (sum, item) => sum + item.total,
-        );
-        final newTotalItems = validItems.fold<int>(
-          0,
-          (sum, item) => sum + item.quantity,
-        );
-
-        final updatedCart = cart.copyWith(
-          items: validItems,
-          totalItems: newTotalItems,
-          subtotal: newSubtotal,
-          total: newSubtotal + cart.deliveryFee - cart.discount,
-          updatedAt: DateTime.now(),
-        );
-
-        await _cartsCollection.doc(userId).update(updatedCart.toJson());
-        log('Cart validated and updated');
-      }
-
-      return true;
-    } catch (e) {
-      log('Error validating cart: ${e.toString()}');
-      return false;
-    }
-  }
-
-  /// Update delivery fee
-  Future<bool> updateDeliveryFee(String userId, double deliveryFee) async {
-    try {
-      final cart = await getCart(userId);
-
-      final updatedCart = cart.copyWith(
-        deliveryFee: deliveryFee,
-        total: cart.subtotal + deliveryFee - cart.discount,
-        updatedAt: DateTime.now(),
-      );
-
-      await _cartsCollection.doc(userId).update(updatedCart.toJson());
-      log('Delivery fee updated: $deliveryFee');
-      return true;
-    } catch (e) {
-      log('Error updating delivery fee: ${e.toString()}');
-      return false;
-    }
-  }
-
-  /// Apply discount
-  Future<bool> applyDiscount(String userId, double discount) async {
-    try {
-      final cart = await getCart(userId);
-
-      final updatedCart = cart.copyWith(
-        discount: discount,
-        total: cart.subtotal + cart.deliveryFee - discount,
-        updatedAt: DateTime.now(),
-      );
-
-      await _cartsCollection.doc(userId).update(updatedCart.toJson());
-      log('Discount applied: $discount');
-      return true;
-    } catch (e) {
-      log('Error applying discount: ${e.toString()}');
-      return false;
-    }
   }
 }

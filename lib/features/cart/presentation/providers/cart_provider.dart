@@ -22,10 +22,10 @@ class CartNotifier extends Notifier<CartState> {
     return CartInitial();
   }
 
-  /// Load user's cart
+  // ── Load ──────────────────────────────────────────────────────────────────
+
   Future<void> loadCart(String userId) async {
     state = CartLoading();
-
     try {
       final cart = await _collection.getCart(userId);
       state = CartLoaded(cart: cart);
@@ -35,7 +35,8 @@ class CartNotifier extends Notifier<CartState> {
     }
   }
 
-  /// Add item to cart
+  // ── Add ───────────────────────────────────────────────────────────────────
+
   Future<bool> addToCart(
     String userId,
     ProductModel product,
@@ -45,7 +46,7 @@ class CartNotifier extends Notifier<CartState> {
     String? specialInstructions,
   }) async {
     try {
-      // ── STEP 1: Fetch delivery fee ────────────────────────────────────────
+      // ── Fetch delivery fee ────────────────────────────────────────────────
       double deliveryFee = 50.0;
       try {
         final storeDoc =
@@ -56,25 +57,17 @@ class CartNotifier extends Notifier<CartState> {
         if (storeDoc.exists) {
           deliveryFee =
               (storeDoc.data()!['deliveryFee'] as num?)?.toDouble() ?? 50.0;
-          log('✅ Delivery fee from store: $deliveryFee');
         }
       } catch (e) {
         log('⚠️ Could not fetch delivery fee, using default: $e');
       }
 
-      // ── STEP 2: Calculate effective price ─────────────────────────────────
-      //
-      // Rule:
-      //   • If the product has a selected variant  → variant.price IS the price
-      //     (it is a standalone size price, e.g. Small=500, Medium=750, Large=1200)
-      //   • If no variant selected                 → use product.discountedPrice
-      //   • Addons are ALWAYS additional on top of whichever price applies
-      //
+      // ── Effective price ───────────────────────────────────────────────────
+      // Variant price IS the full item price (not an extra on top).
       final double itemBasePrice =
           selectedVariant != null
-              ? selectedVariant
-                  .price // ← variant price = full item price
-              : product.discountedPrice; // ← fallback for plain products
+              ? selectedVariant.price
+              : product.discountedPrice;
 
       final double addonsExtra = selectedAddons.fold(
         0.0,
@@ -83,22 +76,19 @@ class CartNotifier extends Notifier<CartState> {
       final double effectivePrice = itemBasePrice + addonsExtra;
 
       log(
-        '💰 Price → variant/base: $itemBasePrice + addons: $addonsExtra = $effectivePrice',
+        '💰 Price → base: $itemBasePrice + addons: $addonsExtra = $effectivePrice',
       );
 
-      // ── STEP 3: Build cart item ───────────────────────────────────────────
-      // IMPORTANT: store effectivePrice as discountedPrice so that
-      // CartModel.fromJson (which computes subtotal = Σ item.discountedPrice * qty)
-      // always reflects the correct price shown to the customer.
+      // ── Build cart item ───────────────────────────────────────────────────
       final cartItem = CartItemModel(
         productId: product.id,
         productName: product.name,
         productImage: product.thumbnail,
         storeId: product.storeId,
         storeName: product.storeName,
-        price: product.price, // original list price (for reference)
+        price: product.price, // original list price (display only)
         quantity: quantity,
-        discountedPrice: effectivePrice, // ✅ FIXED: was product.discountedPrice
+        discountedPrice: effectivePrice, // effective price per unit
         total: effectivePrice * quantity,
         isAvailable: product.isAvailable,
         maxQuantity: product.maxOrderQuantity,
@@ -108,19 +98,15 @@ class CartNotifier extends Notifier<CartState> {
         specialInstructions: specialInstructions,
       );
 
-      // ── STEP 4: Persist ───────────────────────────────────────────────────
+      // ── Persist ───────────────────────────────────────────────────────────
       final success = await _collection.addItemToCart(
         userId,
         cartItem,
         deliveryFee: deliveryFee,
       );
 
-      if (!success) {
-        // Different store — caller handles the replace-cart dialog
-        return false;
-      }
+      if (!success) return false; // Different store — caller handles dialog
 
-      // ── STEP 5: Reload ────────────────────────────────────────────────────
       await loadCart(userId);
       return true;
     } catch (e) {
@@ -130,7 +116,6 @@ class CartNotifier extends Notifier<CartState> {
     }
   }
 
-  /// Clear cart and add a new item (used when switching stores).
   Future<bool> clearAndAddToCart(
     String userId,
     ProductModel product,
@@ -156,25 +141,22 @@ class CartNotifier extends Notifier<CartState> {
     }
   }
 
-  /// Update item quantity
+  // ── Quantity ──────────────────────────────────────────────────────────────
+
+  /// ✅ FIX: all quantity methods now take cartItemKey, not productId.
   Future<bool> updateQuantity(
     String userId,
-    String productId,
+    String cartItemKey,
     int quantity,
   ) async {
     try {
       final success = await _collection.updateItemQuantity(
         userId,
-        productId,
+        cartItemKey,
         quantity,
       );
-
-      if (success) {
-        await loadCart(userId);
-        return true;
-      }
-
-      return false;
+      if (success) await loadCart(userId);
+      return success;
     } catch (e) {
       state = CartError(error: e.toString());
       log('Error in updateQuantity: ${e.toString()}');
@@ -182,23 +164,18 @@ class CartNotifier extends Notifier<CartState> {
     }
   }
 
-  /// Increment quantity
-  Future<bool> incrementQuantity(String userId, String productId) async {
+  Future<bool> incrementQuantity(String userId, String cartItemKey) async {
     try {
-      // Get current cart
-      if (state is! CartLoaded) {
-        await loadCart(userId);
-      }
+      if (state is! CartLoaded) await loadCart(userId);
 
       if (state is CartLoaded) {
         final cart = (state as CartLoaded).cart;
+        // ✅ FIX: look up by cartItemKey
         final item = cart.items.firstWhere(
-          (item) => item.productId == productId,
+          (item) => item.cartItemKey == cartItemKey,
         );
-
-        return await updateQuantity(userId, productId, item.quantity + 1);
+        return await updateQuantity(userId, cartItemKey, item.quantity + 1);
       }
-
       return false;
     } catch (e) {
       log('Error in incrementQuantity: ${e.toString()}');
@@ -206,29 +183,22 @@ class CartNotifier extends Notifier<CartState> {
     }
   }
 
-  /// Decrement quantity
-  Future<bool> decrementQuantity(String userId, String productId) async {
+  Future<bool> decrementQuantity(String userId, String cartItemKey) async {
     try {
-      if (state is! CartLoaded) {
-        await loadCart(userId);
-      }
+      if (state is! CartLoaded) await loadCart(userId);
 
       if (state is CartLoaded) {
         final cart = (state as CartLoaded).cart;
+        // ✅ FIX: look up by cartItemKey
         final item = cart.items.firstWhere(
-          (item) => item.productId == productId,
+          (item) => item.cartItemKey == cartItemKey,
         );
 
-        final newQuantity = item.quantity - 1;
-
-        if (newQuantity < 1) {
-          // Remove item if quantity becomes 0
-          return await removeItem(userId, productId);
+        if (item.quantity - 1 < 1) {
+          return await removeItem(userId, cartItemKey);
         }
-
-        return await updateQuantity(userId, productId, newQuantity);
+        return await updateQuantity(userId, cartItemKey, item.quantity - 1);
       }
-
       return false;
     } catch (e) {
       log('Error in decrementQuantity: ${e.toString()}');
@@ -236,17 +206,13 @@ class CartNotifier extends Notifier<CartState> {
     }
   }
 
-  /// Remove item from cart
-  Future<bool> removeItem(String userId, String productId) async {
+  // ── Remove ────────────────────────────────────────────────────────────────
+
+  Future<bool> removeItem(String userId, String cartItemKey) async {
     try {
-      final success = await _collection.removeItemFromCart(userId, productId);
-
-      if (success) {
-        await loadCart(userId);
-        return true;
-      }
-
-      return false;
+      final success = await _collection.removeItemFromCart(userId, cartItemKey);
+      if (success) await loadCart(userId);
+      return success;
     } catch (e) {
       state = CartError(error: e.toString());
       log('Error in removeItem: ${e.toString()}');
@@ -254,17 +220,13 @@ class CartNotifier extends Notifier<CartState> {
     }
   }
 
-  /// Clear entire cart
+  // ── Clear ─────────────────────────────────────────────────────────────────
+
   Future<bool> clearCart(String userId) async {
     try {
       final success = await _collection.clearCart(userId);
-
-      if (success) {
-        state = CartLoaded(cart: CartModel.empty(userId));
-        return true;
-      }
-
-      return false;
+      if (success) state = CartLoaded(cart: CartModel.empty(userId));
+      return success;
     } catch (e) {
       state = CartError(error: e.toString());
       log('Error in clearCart: ${e.toString()}');
@@ -272,24 +234,19 @@ class CartNotifier extends Notifier<CartState> {
     }
   }
 
-  /// Validate cart
+  // ── Misc ──────────────────────────────────────────────────────────────────
+
   Future<bool> validateCart(String userId) async {
     try {
       final success = await _collection.validateCart(userId);
-
-      if (success) {
-        await loadCart(userId);
-        return true;
-      }
-
-      return false;
+      if (success) await loadCart(userId);
+      return success;
     } catch (e) {
       log('Error in validateCart: ${e.toString()}');
       return false;
     }
   }
 
-  /// Get cart item count
   Future<int> getCartCount(String userId) async {
     try {
       return await _collection.getCartItemCount(userId);
@@ -299,81 +256,52 @@ class CartNotifier extends Notifier<CartState> {
     }
   }
 
-  /// Update delivery fee
   Future<bool> updateDeliveryFee(String userId, double fee) async {
     try {
       final success = await _collection.updateDeliveryFee(userId, fee);
-
-      if (success) {
-        await loadCart(userId);
-        return true;
-      }
-
-      return false;
+      if (success) await loadCart(userId);
+      return success;
     } catch (e) {
       log('Error in updateDeliveryFee: ${e.toString()}');
       return false;
     }
   }
 
-  /// Apply discount
   Future<bool> applyDiscount(String userId, double discount) async {
     try {
       final success = await _collection.applyDiscount(userId, discount);
-
-      if (success) {
-        await loadCart(userId);
-        return true;
-      }
-
-      return false;
+      if (success) await loadCart(userId);
+      return success;
     } catch (e) {
       log('Error in applyDiscount: ${e.toString()}');
       return false;
     }
   }
 
-  // UI Helper methods
-  double getSubtotal() {
-    if (state is CartLoaded) {
-      return (state as CartLoaded).cart.subtotal;
-    }
-    return 0.0;
-  }
+  // ── UI Helpers ────────────────────────────────────────────────────────────
 
-  double getTotal() {
-    if (state is CartLoaded) {
-      return (state as CartLoaded).cart.total;
-    }
-    return 0.0;
-  }
+  double getSubtotal() =>
+      state is CartLoaded ? (state as CartLoaded).cart.subtotal : 0.0;
 
-  int getItemCount() {
-    if (state is CartLoaded) {
-      return (state as CartLoaded).cart.totalItems;
-    }
-    return 0;
-  }
+  double getTotal() =>
+      state is CartLoaded ? (state as CartLoaded).cart.total : 0.0;
 
-  bool isEmpty() {
-    if (state is CartLoaded) {
-      return (state as CartLoaded).cart.isEmpty;
-    }
-    return true;
-  }
+  int getItemCount() =>
+      state is CartLoaded ? (state as CartLoaded).cart.totalItems : 0;
 
-  bool showCartBadge() {
-    return getItemCount() > 0;
-  }
+  bool isEmpty() =>
+      state is CartLoaded ? (state as CartLoaded).cart.isEmpty : true;
+
+  bool showCartBadge() => getItemCount() > 0;
 
   String getCartBadgeCount() {
     final count = getItemCount();
-    if (count > 9) return '9+';
-    return count.toString();
+    return count > 9 ? '9+' : count.toString();
   }
 }
 
-// States
+// ── States ────────────────────────────────────────────────────────────────────
+
 abstract class CartState {}
 
 class CartInitial extends CartState {}
@@ -382,12 +310,10 @@ class CartLoading extends CartState {}
 
 class CartLoaded extends CartState {
   final CartModel cart;
-
   CartLoaded({required this.cart});
 }
 
 class CartError extends CartState {
   final String error;
-
   CartError({required this.error});
 }

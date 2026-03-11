@@ -38,20 +38,27 @@ class CartItemModel {
     this.specialInstructions,
   });
 
-  /// ✅ FIXED: calculateTotal now includes variant extra + addons extra.
-  /// discountedPrice here is the base product discounted price (before variant).
+  // ✅ KEY FIX: Unique key per variant so Small Pizza ≠ Large Pizza in cart.
+  // Plain product (no variant) → just productId
+  // Product with variant       → productId_variantId  (e.g. "abc123_v_small")
+  String get cartItemKey =>
+      selectedVariant != null
+          ? '${productId}_${selectedVariant!.id}'
+          : productId;
+
   double calculateTotal() {
-    final double variantExtra = selectedVariant?.price ?? 0.0;
     final double addonsExtra = selectedAddons.fold(
       0.0,
       (sum, a) => sum + a.price,
     );
-    return (discountedPrice + variantExtra + addonsExtra) * quantity;
+    return (discountedPrice + addonsExtra) * quantity;
   }
 
   Map<String, dynamic> toJson() {
     return {
       'productId': productId,
+      'cartItemKey':
+          cartItemKey, // ✅ persisted so Firestore queries can match it
       'productName': productName,
       'productImage': productImage,
       'storeId': storeId,
@@ -69,9 +76,6 @@ class CartItemModel {
     };
   }
 
-  // ✅ FIXED: fromJson now correctly deserializes selectedVariant,
-  // selectedAddons, and specialInstructions — they were declared above
-  // but never assigned in the return statement before.
   factory CartItemModel.fromJson(Map<String, dynamic> json) {
     ProductVariant? selectedVariant;
     if (json['selectedVariant'] != null) {
@@ -99,15 +103,12 @@ class CartItemModel {
       isAvailable: json['isAvailable'] as bool? ?? true,
       maxQuantity: json['maxQuantity'] as int,
       unit: json['unit'] as String,
-      // ✅ These three were missing from the return before:
       selectedVariant: selectedVariant,
       selectedAddons: selectedAddons,
       specialInstructions: json['specialInstructions'] as String?,
     );
   }
 
-  // ✅ FIXED: copyWith now includes selectedVariant, selectedAddons,
-  // and specialInstructions so cart updates preserve customizations.
   CartItemModel copyWith({
     String? productId,
     String? productName,
@@ -121,9 +122,9 @@ class CartItemModel {
     bool? isAvailable,
     int? maxQuantity,
     String? unit,
-    ProductVariant? selectedVariant, // ✅ was missing
-    List<ProductAddon>? selectedAddons, // ✅ was missing
-    String? specialInstructions, // ✅ was missing
+    ProductVariant? selectedVariant,
+    List<ProductAddon>? selectedAddons,
+    String? specialInstructions,
   }) {
     return CartItemModel(
       productId: productId ?? this.productId,
@@ -146,7 +147,7 @@ class CartItemModel {
 
   @override
   String toString() {
-    return 'CartItemModel(productId: $productId, name: $productName, '
+    return 'CartItemModel(key: $cartItemKey, name: $productName, '
         'variant: ${selectedVariant?.name}, qty: $quantity, total: $total)';
   }
 }

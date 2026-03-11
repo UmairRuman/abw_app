@@ -1,5 +1,4 @@
 // lib/features/checkout/presentation/providers/checkout_provider.dart
-// UPDATED WITH DISTANCE CALCULATION - MERGED WITH YOUR EXISTING STRUCTURE
 
 import 'dart:developer';
 
@@ -12,7 +11,7 @@ import '../../../cart/presentation/providers/cart_provider.dart';
 import '../../../addresses/presentation/providers/addresses_provider.dart';
 import '../../../addresses/data/models/address_model.dart';
 import '../../../stores/data/models/store_model.dart';
-import '../../../../core/services/location_service.dart'; // ✅ NEW
+import '../../../../core/services/location_service.dart';
 
 // States
 abstract class CheckoutState {}
@@ -37,7 +36,6 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
 
   CheckoutNotifier(this.ref) : super(CheckoutInitial());
 
-  // ✅ UPDATED: Place order with admin notification
   Future<String?> placeOrder({
     required String userId,
     required String userName,
@@ -51,6 +49,48 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
 
     try {
       final orderId = DateTime.now().millisecondsSinceEpoch.toString();
+
+      // ── ✅ FIX: Fetch store coordinates for pickup lat/lng ────────────────
+      // prepareCheckout fetched the store but didn't pass coords to placeOrder.
+      // We fetch them again here so every order gets pickup + delivery coords.
+      double? pickupLat;
+      double? pickupLng;
+      double distance = 0.0;
+
+      try {
+        final storeDoc =
+            await FirebaseFirestore.instance
+                .collection('stores')
+                .doc(checkout.storeId)
+                .get();
+
+        if (storeDoc.exists && storeDoc.data() != null) {
+          final data = storeDoc.data()!;
+          pickupLat = (data['latitude'] as num?)?.toDouble();
+          pickupLng = (data['longitude'] as num?)?.toDouble();
+
+          // ✅ Recalculate distance now that we have all 4 coords
+          final deliveryLat = checkout.deliveryAddress.latitude;
+          final deliveryLng = checkout.deliveryAddress.longitude;
+
+          if (pickupLat != null &&
+              pickupLng != null &&
+              pickupLat != 0.0 &&
+              pickupLng != 0.0 &&
+              deliveryLat != 0.0 &&
+              deliveryLng != 0.0) {
+            distance = LocationService.calculateDistance(
+              startLat: pickupLat,
+              startLng: pickupLng,
+              endLat: deliveryLat,
+              endLng: deliveryLng,
+            );
+            dev.log('✅ Distance: ${LocationService.formatDistance(distance)}');
+          }
+        }
+      } catch (e) {
+        dev.log('⚠️ Could not fetch store coords for order: $e');
+      }
 
       final orderData = {
         'id': orderId,
@@ -67,10 +107,8 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
                     'productName': item.productName,
                     'productImage': item.productImage,
                     'quantity': item.quantity,
-                    // ✅ FIXED: use discountedPrice (effective variant price), not item.price (base)
                     'price': item.discountedPrice,
                     'total': item.discountedPrice * item.quantity,
-                    // ✅ NEW: persist variant & addon selection on the order
                     'selectedVariant':
                         item.selectedVariant != null
                             ? {
@@ -101,15 +139,40 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
           'latitude': checkout.deliveryAddress.latitude,
           'longitude': checkout.deliveryAddress.longitude,
         },
+
+        // ✅ FIX: Top-level coordinate fields — these are what OrderMapWidget reads.
+        // Previously these were never written, so the map always showed
+        // "Location Not Available" even when coordinates existed.
+        'pickupLatitude': pickupLat,
+        'pickupLongitude': pickupLng,
+        'deliveryLatitude':
+            checkout.deliveryAddress.latitude != 0.0
+                ? checkout.deliveryAddress.latitude
+                : null,
+        'deliveryLongitude':
+            checkout.deliveryAddress.longitude != 0.0
+                ? checkout.deliveryAddress.longitude
+                : null,
+        'distance': distance > 0 ? distance : null,
+
         'subtotal': checkout.subtotal,
         'deliveryFee': checkout.deliveryFee,
         'total': checkout.total,
+        'discount': 0.0,
         'specialInstructions': checkout.specialInstructions,
         'paymentMethod': paymentMethod,
         'paymentStatus': paymentMethod == 'cod' ? 'pending' : 'completed',
         'paymentProofUrl': paymentProofUrl,
         'paymentTransactionId': paymentTransactionId,
         'status': 'pending',
+        'statusHistory': [
+          {
+            'status': 'pending',
+            'timestamp': Timestamp.now(),
+            'note': 'Order placed',
+            'updatedBy': 'customer',
+          },
+        ],
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
@@ -120,6 +183,11 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
           .set(orderData);
 
       dev.log('✅ Order created: $orderId');
+      dev.log('   pickup: $pickupLat, $pickupLng');
+      dev.log(
+        '   delivery: ${checkout.deliveryAddress.latitude}, ${checkout.deliveryAddress.longitude}',
+      );
+      dev.log('   distance: $distance');
 
       await NotificationService.sendNewOrderNotificationToAdmin(
         orderId: orderId,
@@ -201,7 +269,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         store = StoreModel.fromJson({'id': doc.id, ...doc.data()!});
         dev.log('✅ Store loaded: ${store.name}');
         dev.log('✅ Store location: ${store.latitude}, ${store.longitude}');
-        dev.log('✅ Store commission: PKR ${store.commission}');
+        dev.log('✅ Store delivery fee: PKR ${store.deliveryFee}');
       } catch (e) {
         state = CheckoutError('Failed to load store details: $e');
         return;
@@ -253,19 +321,9 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       }
 
       // ── Step 6: Calculate totals ───────────────────────────────────────────
-      //
-      // ✅ FIXED: Use cart.subtotal (pure item prices) NOT cart.total.
-      //
-      // cart.total  = subtotal + deliveryFee  ← already includes delivery fee
-      // cart.subtotal = Σ (item.discountedPrice × qty)  ← pure item cost only
-      //
-      // Using cart.total was adding the cart's saved delivery fee into the
-      // subtotal, then adding the store's real delivery fee on top again,
-      // resulting in double-counted delivery (PKR 751 subtotal, PKR 1 fee).
-      //
-      final double subtotal = cart.subtotal; // ✅ pure item cost
-      final double deliveryFee = store.deliveryFee; // ✅ from store config
-      final double total = subtotal + deliveryFee; // ✅ correct total
+      final double subtotal = cart.subtotal;
+      final double deliveryFee = store.deliveryFee;
+      final double total = subtotal + deliveryFee;
 
       dev.log(
         '💰 Checkout totals → subtotal: $subtotal + delivery: $deliveryFee = $total',
@@ -293,7 +351,6 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     }
   }
 
-  // Update delivery address
   void updateDeliveryAddress(AddressModel address) {
     if (state is CheckoutLoaded) {
       final current = (state as CheckoutLoaded).checkout;
@@ -301,7 +358,6 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     }
   }
 
-  // Update special instructions
   void updateSpecialInstructions(String? instructions) {
     if (state is CheckoutLoaded) {
       final current = (state as CheckoutLoaded).checkout;
@@ -311,20 +367,12 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     }
   }
 
-  // Calculate estimated delivery time
   DateTime calculateEstimatedDeliveryTime() {
     return DateTime.now().add(const Duration(minutes: 30));
   }
 
-  // Get delivery time range string
-  String getDeliveryTimeRange() {
-    if (state is CheckoutLoaded) {
-      return '25-35 mins';
-    }
-    return '25-35 mins';
-  }
+  String getDeliveryTimeRange() => '25-35 mins';
 
-  // Reset checkout
   void reset() {
     state = CheckoutInitial();
   }

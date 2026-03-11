@@ -2,6 +2,7 @@
 
 // REPLACE ENTIRE FILE:
 
+import 'dart:developer';
 import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -168,18 +169,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         }
 
         // ✅ LOCATION CHECK: If customer has no saved location, go to picker first
-        final hasLocation = await _customerHasLocation(user.id);
-        if (!hasLocation && mounted) {
-          context.go('/customer/location-setup');
-          return;
-        }
       }
-
+      log('User role: ${user.role}');
       // Normal navigation
       if (mounted) {
         switch (user.role) {
           case UserRole.customer:
-            context.go('/customer/home');
+            final hasLocation = await _customerHasLocation(user.id);
+            if (!hasLocation && mounted) {
+              context.go('/customer/location-setup');
+              return;
+            }
+
             break;
           case UserRole.rider:
             context.go('/rider/dashboard');

@@ -1,5 +1,4 @@
 // lib/features/auth/presentation/providers/auth_notifier.dart
-// UPDATED: FCM token saving in background (non-blocking)
 
 import 'dart:developer';
 import 'dart:io';
@@ -11,6 +10,7 @@ import 'package:abw_app/features/auth/domain/entities/customer_entity.dart';
 import 'package:abw_app/features/auth/domain/entities/user_entity.dart';
 import 'package:abw_app/features/auth/domain/usecases/create_admin_usecase.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
@@ -60,10 +60,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   // ========================================================================
-  // HELPER METHOD: Save FCM Token in Background (Non-Blocking)
+  // HELPER: Correct collection name
   // ========================================================================
 
-  /// Save FCM token in background without blocking UI updates
+  /// ✅ FIX: All users (customers, riders) live in 'users' collection.
+  /// Only admins have their own 'admins' collection.
+  String _getUserCollection(UserRole role) {
+    switch (role) {
+      case UserRole.customer:
+      case UserRole.rider:
+        return 'users'; // ✅ FIXED — was returning 'riders' for riders
+      case UserRole.admin:
+        return 'admins';
+    }
+  }
+
+  // ========================================================================
+  // HELPER: Save FCM Token in Background
+  // ========================================================================
+
   Future<void> _saveFCMTokenInBackground(String userId, String role) async {
     try {
       await NotificationService().saveFCMTokenToFirestore(
@@ -73,48 +88,96 @@ class AuthNotifier extends StateNotifier<AuthState> {
       log('✅ FCM token saved for $role: $userId');
     } catch (e) {
       log('⚠️ Failed to save FCM token: $e');
-      // Don't rethrow - this is a background operation
     }
   }
 
   // ========================================================================
-  // CREATE ADMIN
+  // CHECK AUTH STATUS (ON APP STARTUP)
   // ========================================================================
 
-  /// ✅ FIXED: Create admin with FCM token
-  Future<void> createAdmin({
-    required String email,
-    required String password,
-    required String name,
-    required String phone,
-    required String accessKey,
-    List<String> permissions = const [],
-  }) async {
+  /// ✅ FIXED: Reads directly from Firestore 'users' collection and uses
+  /// the stored 'role' field to determine user type.
+  ///
+  /// Previously relied on _getCurrentUserUseCase which used
+  /// UserRole.rider.collectionName = 'riders' — but riders are stored in
+  /// 'users', so the use case couldn't find the rider document and fell
+  /// back to a CustomerModel. That caused Abdullah (a rider) to be treated
+  /// as a customer on every app restart.
+  Future<void> _checkAuthStatus() async {
     state = const AuthLoading();
 
-    final result = await _createAdminUseCase(
-      email: email,
-      password: password,
-      name: name,
-      phone: phone,
-      accessKey: accessKey,
-      permissions: permissions,
-    );
+    try {
+      final firebaseUser = FirebaseAuth.instance.currentUser;
 
-    result.fold(
-      (failure) {
-        state = AuthError(failure.message);
-      },
-      (admin) {
-        log('✅ Admin created successfully: ${admin.email}');
+      if (firebaseUser == null) {
+        state = const Unauthenticated();
+        return;
+      }
 
-        // ✅ Set state FIRST (synchronously)
+      final uid = firebaseUser.uid;
+
+      // ── Step 1: Try 'users' collection first (customers + riders) ─────────
+      final userDoc = await _firestore.collection('users').doc(uid).get();
+
+      if (userDoc.exists && userDoc.data() != null) {
+        final data = {'id': uid, ...userDoc.data()!};
+
+        // Add isPhoneVerified default if missing
+        if (!data.containsKey('isPhoneVerified')) {
+          data['isPhoneVerified'] = false;
+        }
+
+        final roleStr = data['role'] as String? ?? 'customer';
+        final role = UserRole.fromString(roleStr);
+
+        log('✅ User found on startup: ${firebaseUser.email} (${role.name})');
+
+        switch (role) {
+          case UserRole.customer:
+            final customer = CustomerModel.fromJson(data);
+            state = Authenticated(customer);
+            _saveFCMTokenInBackground(uid, 'customer');
+
+          case UserRole.rider:
+            final rider = RiderModel.fromJson(data);
+            log('   isApproved: ${rider.isApproved}');
+            if (!rider.isApproved) {
+              state = RiderPendingApproval(rider);
+            } else {
+              state = Authenticated(rider);
+            }
+            _saveFCMTokenInBackground(uid, 'rider');
+
+          case UserRole.admin:
+            // Admin accidentally stored in 'users'? Unlikely but handle it.
+            final admin = AdminModel.fromJson(data);
+            state = Authenticated(admin);
+            _saveFCMTokenInBackground(uid, 'admin');
+        }
+        return;
+      }
+
+      // ── Step 2: Try 'admins' collection ───────────────────────────────────
+      final adminDoc = await _firestore.collection('admins').doc(uid).get();
+
+      if (adminDoc.exists && adminDoc.data() != null) {
+        final data = {'id': uid, ...adminDoc.data()!};
+        log('✅ Admin found on startup: ${firebaseUser.email}');
+        final admin = AdminModel.fromJson(data);
         state = Authenticated(admin);
+        _saveFCMTokenInBackground(uid, 'admin');
+        return;
+      }
 
-        // ✅ Save FCM token in background
-        _saveFCMTokenInBackground(admin.id, 'admin');
-      },
-    );
+      // ── Not found anywhere ────────────────────────────────────────────────
+      log(
+        '⚠️ Firebase Auth session exists but no Firestore doc found for $uid',
+      );
+      state = const Unauthenticated();
+    } catch (e) {
+      log('❌ _checkAuthStatus error: $e');
+      state = const Unauthenticated();
+    }
   }
 
   // ========================================================================
@@ -142,21 +205,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
               ? (currentState as Authenticated).user.role
               : (currentState as RiderPendingApproval).user.role;
 
-      log('   User ID: $userId, Role: $role');
+      // ✅ FIXED: use _getUserCollection — always 'users' for customer/rider
+      final collection = _getUserCollection(role);
+      log('   Reading from collection: $collection for role: ${role.name}');
 
-      // Determine correct collection
-      final collection =
-          role == UserRole.rider ? 'riders' : role.collectionName;
-      log('   Reading from collection: $collection');
-
-      final doc =
-          await FirebaseFirestore.instance
-              .collection(collection)
-              .doc(userId)
-              .get();
+      final doc = await _firestore.collection(collection).doc(userId).get();
 
       if (!doc.exists) {
-        log('❌ Document not found in $collection');
+        log('❌ Document not found in $collection for $userId');
         return;
       }
 
@@ -165,20 +221,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
       switch (role) {
         case UserRole.customer:
           state = Authenticated(CustomerModel.fromJson(userData));
-          break;
         case UserRole.admin:
           state = Authenticated(AdminModel.fromJson(userData));
-          break;
         case UserRole.rider:
           final rider = RiderModel.fromJson(userData);
           log('   isApproved: ${rider.isApproved}');
-
           if (!rider.isApproved) {
             state = RiderPendingApproval(rider);
           } else {
             state = Authenticated(rider);
           }
-          break;
       }
 
       log('✅ User refreshed: ${state.runtimeType}');
@@ -187,9 +239,40 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  // Updating profile (only name for now)
+  // ========================================================================
+  // CREATE ADMIN
+  // ========================================================================
 
-  // ✅ UPDATED: Update user profile (name, phone, image)
+  Future<void> createAdmin({
+    required String email,
+    required String password,
+    required String name,
+    required String phone,
+    required String accessKey,
+    List<String> permissions = const [],
+  }) async {
+    state = const AuthLoading();
+
+    final result = await _createAdminUseCase(
+      email: email,
+      password: password,
+      name: name,
+      phone: phone,
+      accessKey: accessKey,
+      permissions: permissions,
+    );
+
+    result.fold((failure) => state = AuthError(failure.message), (admin) {
+      log('✅ Admin created successfully: ${admin.email}');
+      state = Authenticated(admin);
+      _saveFCMTokenInBackground(admin.id, 'admin');
+    });
+  }
+
+  // ========================================================================
+  // UPDATE PROFILE
+  // ========================================================================
+
   Future<bool> updateProfile({
     String? name,
     String? phone,
@@ -205,7 +288,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final user = currentState.user;
       log('📝 Updating profile for user: ${user.id}');
 
-      // Validate inputs
       if (name != null && (name.trim().isEmpty || name.trim().length < 3)) {
         log('❌ Invalid name: must be at least 3 characters');
         return false;
@@ -217,58 +299,46 @@ class AuthNotifier extends StateNotifier<AuthState> {
         return false;
       }
 
-      // Prepare update data
       final Map<String, dynamic> updateData = {
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      if (name != null) {
-        updateData['name'] = name.trim();
-      }
+      if (name != null) updateData['name'] = name.trim();
 
       bool phoneChanged = false;
       if (phone != null && phone.trim() != user.phone) {
         updateData['phone'] = phone.trim();
-        updateData['isPhoneVerified'] = false; // ✅ Reset verification
+        updateData['isPhoneVerified'] = false;
         phoneChanged = true;
         log('📱 Phone changed - verification required');
       }
 
       String? imageUrl;
       if (profileImage != null) {
-        // ✅ Upload image to Firebase Storage
         imageUrl = await _saveImageLocally(user.id, profileImage);
         if (imageUrl != null) {
           updateData['profileImage'] = imageUrl;
-          log('✅ Profile image uploaded: $imageUrl');
+          log('✅ Profile image saved: $imageUrl');
         }
       }
 
-      // Update in Firestore
+      // ✅ FIXED: update in the correct collection
       final userCollection = _getUserCollection(user.role);
       await _firestore
           .collection(userCollection)
           .doc(user.id)
           .update(updateData);
 
-      // Also update in 'users' collection if not a customer
-      if (user.role != UserRole.customer) {
-        await _firestore.collection('users').doc(user.id).update(updateData);
-      }
-
       log('✅ Profile updated successfully');
 
-      // Update local state
       final updatedUser = (user as CustomerEntity).copyWith(
         name: name ?? user.name,
         phone: phone ?? user.phone,
         profileImage: imageUrl ?? user.profileImage,
-        isPhoneVerified:
-            phoneChanged ? false : null, // Only update if phone changed
+        isPhoneVerified: phoneChanged ? false : null,
       );
 
       state = Authenticated(updatedUser);
-
       return true;
     } catch (e) {
       log('❌ Error updating profile: $e');
@@ -276,30 +346,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  // ✅ Upload profile image to Firebase Storage
   Future<String?> _uploadProfileImage(String userId, File imageFile) async {
     try {
       log('📤 Uploading profile image...');
-
-      // Create storage reference
       final storageRef = FirebaseStorage.instance
           .ref()
           .child('profile_images')
           .child('$userId.jpg');
-
-      // Upload file
       final uploadTask = storageRef.putFile(
         imageFile,
         SettableMetadata(contentType: 'image/jpeg'),
       );
-
-      // Wait for upload to complete
       final snapshot = await uploadTask.whenComplete(() {});
-
-      // Get download URL
       final downloadUrl = await snapshot.ref.getDownloadURL();
-
-      log('✅ Image uploaded successfully: $downloadUrl');
+      log('✅ Image uploaded: $downloadUrl');
       return downloadUrl;
     } catch (e) {
       log('❌ Error uploading image: $e');
@@ -307,93 +367,29 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  // ✅ ALTERNATIVE: Store image locally (no upload)
-  // Use this if you don't want to upload to Firebase Storage
   Future<String?> _saveImageLocally(String userId, File imageFile) async {
     try {
       log('💾 Saving image locally...');
-
-      // Get app directory
       final directory = await getApplicationDocumentsDirectory();
-
-      // Create profile_images folder
       final profileImagesDir = Directory('${directory.path}/profile_images');
       if (!await profileImagesDir.exists()) {
         await profileImagesDir.create(recursive: true);
       }
-
-      // Save image
-      final fileName = '$userId.jpg';
       final savedImage = await imageFile.copy(
-        '${profileImagesDir.path}/$fileName',
+        '${profileImagesDir.path}/$userId.jpg',
       );
-
-      final localPath = savedImage.path;
-      log('✅ Image saved locally: $localPath');
-      return localPath;
+      log('✅ Image saved locally: ${savedImage.path}');
+      return savedImage.path;
     } catch (e) {
       log('❌ Error saving image locally: $e');
       return null;
     }
   }
 
-  // Helper method to get correct collection based on role
-  String _getUserCollection(UserRole role) {
-    switch (role) {
-      case UserRole.customer:
-        return 'users';
-      case UserRole.admin:
-        return 'admins';
-      case UserRole.rider:
-        return 'riders';
-    }
-  }
-
-  // ========================================================================
-  // CHECK AUTH STATUS (ON APP STARTUP)
-  // ========================================================================
-
-  /// ✅ FIXED: Check current auth status on initialization
-  Future<void> _checkAuthStatus() async {
-    state = const AuthLoading();
-
-    final result = await _getCurrentUserUseCase();
-
-    result.fold(
-      (failure) {
-        state = const Unauthenticated();
-      },
-      (user) {
-        if (user == null) {
-          state = const Unauthenticated();
-          return;
-        }
-
-        log("✅ User found on startup: ${user.email} (${user.role.name})");
-
-        // ✅ Set state FIRST
-        if (user.role == UserRole.rider) {
-          final rider = user as RiderEntity;
-          if (!rider.isApproved) {
-            state = RiderPendingApproval(rider);
-          } else {
-            state = Authenticated(rider);
-          }
-        } else {
-          state = Authenticated(user);
-        }
-
-        // ✅ Refresh FCM token in background
-        _saveFCMTokenInBackground(user.id, user.role.name);
-      },
-    );
-  }
-
   // ========================================================================
   // LOGIN WITH EMAIL
   // ========================================================================
 
-  /// ✅ FIXED: Login with email and password
   Future<void> loginWithEmail({
     required String email,
     required String password,
@@ -409,62 +405,42 @@ class AuthNotifier extends StateNotifier<AuthState> {
       adminKey: adminKey,
     );
 
-    result.fold(
-      (failure) {
-        state = AuthError(failure.message);
-      },
-      (user) {
-        log("✅ Email login successful for ${user.email}");
-
-        // ✅ Set state FIRST (synchronously)
-        if (user.role == UserRole.rider) {
-          final rider = user as RiderEntity;
-          if (!rider.isApproved) {
-            state = RiderPendingApproval(rider);
-          } else {
-            state = Authenticated(rider);
-          }
+    result.fold((failure) => state = AuthError(failure.message), (user) {
+      log('✅ Email login successful for ${user.email} (${user.role.name})');
+      if (user.role == UserRole.rider) {
+        final rider = user as RiderEntity;
+        if (!rider.isApproved) {
+          state = RiderPendingApproval(rider);
         } else {
-          state = Authenticated(user);
+          state = Authenticated(rider);
         }
-
-        // ✅ Save FCM token in background
-        _saveFCMTokenInBackground(user.id, role.name);
-      },
-    );
+      } else {
+        state = Authenticated(user);
+      }
+      _saveFCMTokenInBackground(user.id, role.name);
+    });
   }
 
   // ========================================================================
   // LOGIN WITH GOOGLE
   // ========================================================================
 
-  /// ✅ FIXED: Login with Google
   Future<void> loginWithGoogle() async {
     state = const AuthLoading();
 
     final result = await _loginWithGoogleUseCase();
 
-    result.fold(
-      (failure) {
-        state = AuthError(failure.message);
-      },
-      (user) {
-        log("✅ Google login successful for ${user.email}");
-
-        // ✅ Set state FIRST (synchronously)
-        state = Authenticated(user);
-
-        // ✅ Save FCM token in background
-        _saveFCMTokenInBackground(user.id, user.role.name);
-      },
-    );
+    result.fold((failure) => state = AuthError(failure.message), (user) {
+      log('✅ Google login successful for ${user.email}');
+      state = Authenticated(user);
+      _saveFCMTokenInBackground(user.id, user.role.name);
+    });
   }
 
   // ========================================================================
-  // SIGN UP AS CUSTOMER
+  // SIGN UP
   // ========================================================================
 
-  /// ✅ FIXED: Sign up as customer
   Future<void> signUpCustomer({
     required String email,
     required String password,
@@ -480,27 +456,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
       phone: phone,
     );
 
-    result.fold(
-      (failure) {
-        state = AuthError(failure.message);
-      },
-      (user) {
-        log("✅ Customer signup successful for ${user.email}");
-
-        // ✅ Set state FIRST (synchronously)
-        state = Authenticated(user);
-
-        // ✅ Save FCM token in background
-        _saveFCMTokenInBackground(user.id, 'customer');
-      },
-    );
+    result.fold((failure) => state = AuthError(failure.message), (user) {
+      log('✅ Customer signup: ${user.email}');
+      state = Authenticated(user);
+      _saveFCMTokenInBackground(user.id, 'customer');
+    });
   }
 
-  // ========================================================================
-  // SIGN UP AS RIDER
-  // ========================================================================
-
-  /// ✅ FIXED: Sign up as rider
   Future<void> signUpRider({
     required String email,
     required String password,
@@ -522,63 +484,35 @@ class AuthNotifier extends StateNotifier<AuthState> {
       licenseNumber: licenseNumber,
     );
 
-    result.fold(
-      (failure) {
-        state = AuthError(failure.message);
-      },
-      (user) {
-        log("✅ Rider signup successful for ${user.email}");
-
-        // ✅ Set state FIRST (synchronously)
-        state = RiderPendingApproval(user);
-
-        // ✅ Save FCM token in background
-        _saveFCMTokenInBackground(user.id, 'rider');
-      },
-    );
+    result.fold((failure) => state = AuthError(failure.message), (user) {
+      log('✅ Rider signup: ${user.email}');
+      state = RiderPendingApproval(user);
+      _saveFCMTokenInBackground(user.id, 'rider');
+    });
   }
 
   // ========================================================================
-  // PASSWORD RESET
+  // PASSWORD RESET / LOGOUT / CLEAR ERROR
   // ========================================================================
 
-  /// Send password reset email
   Future<void> sendPasswordResetEmail(String email) async {
     state = const AuthLoading();
-
     final result = await _sendPasswordResetUseCase(email);
-
     result.fold(
-      (failure) {
-        state = AuthError(failure.message);
-      },
-      (_) {
-        state = const AuthInitial();
-      },
+      (failure) => state = AuthError(failure.message),
+      (_) => state = const AuthInitial(),
     );
   }
 
-  // ========================================================================
-  // LOGOUT
-  // ========================================================================
-
-  /// Logout
   Future<void> logout() async {
     state = const AuthLoading();
-
     final result = await _logoutUseCase();
-
     result.fold(
       (failure) => state = AuthError(failure.message),
       (_) => state = const Unauthenticated(),
     );
   }
 
-  // ========================================================================
-  // CLEAR ERROR
-  // ========================================================================
-
-  /// Clear error state
   void clearError() {
     if (state is AuthError) {
       state = const Unauthenticated();

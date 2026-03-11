@@ -3,6 +3,7 @@
 // COMPLETE REPLACEMENT:
 
 import 'package:abw_app/core/routes/app_router.dart';
+import 'package:abw_app/features/addresses/presentation/providers/addresses_provider.dart';
 import 'package:abw_app/features/customer/presentation/screens/contact/customer_contact_screen.dart';
 import 'package:abw_app/features/customer/presentation/screens/home/all_products_screen.dart';
 import 'package:abw_app/features/customer/presentation/screens/home/all_stores_screen.dart';
@@ -70,6 +71,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
     await Future.delayed(const Duration(milliseconds: 300));
 
     await ref.read(categoriesProvider.notifier).getActiveCategories();
+    final authState = ref.read(authProvider);
 
     final categoriesState = ref.read(categoriesProvider);
     if (categoriesState is CategoriesLoaded &&
@@ -86,6 +88,10 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
       ref.read(storesProvider.notifier).getAllStores(),
       ref.read(contactSettingsProvider.notifier).load(), // ✅ ADD THIS
       _loadCart(),
+      if (authState is Authenticated)
+        ref
+            .read(addressesProvider.notifier)
+            .loadDefaultAddress(authState.user.id),
     ]);
   }
 
@@ -445,53 +451,110 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
   }
 
   Widget _buildSliverAppBar(CartState cartState) {
+    final addressesState = ref.watch(addressesProvider);
+
+    // Resolve the label to show in the app bar
+    String locationLabel = 'Set your location';
+    String locationSub = 'Tap to add address';
+
+    if (addressesState is AddressSingleLoaded) {
+      final a = addressesState.address;
+      locationLabel = a.label; // e.g. "Home"
+      // Build a short readable line: "House, Area, City"
+      final parts = <String>[
+        if (a.addressLine1.isNotEmpty) a.addressLine1,
+        if (a.area.isNotEmpty) a.area,
+        if (a.city.isNotEmpty) a.city,
+      ];
+      locationSub = parts.join(', ');
+      // Trim long strings so the app bar doesn't overflow
+      if (locationSub.length > 40) {
+        locationSub = '${locationSub.substring(0, 38)}…';
+      }
+    } else if (addressesState is AddressesLoaded &&
+        addressesState.addresses.isNotEmpty) {
+      // Fallback: first address in list
+      final a = addressesState.addresses.firstWhere(
+        (x) => x.isDefault,
+        orElse: () => addressesState.addresses.first,
+      );
+      locationLabel = a.label;
+      final parts = <String>[
+        if (a.addressLine1.isNotEmpty) a.addressLine1,
+        if (a.area.isNotEmpty) a.area,
+        if (a.city.isNotEmpty) a.city,
+      ];
+      locationSub = parts.join(', ');
+      if (locationSub.length > 40) {
+        locationSub = '${locationSub.substring(0, 38)}…';
+      }
+    }
+
     return SliverAppBar(
       floating: true,
       backgroundColor: AppColorsDark.surface,
       elevation: 0,
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Deliver to',
-            style: AppTextStyles.bodySmall().copyWith(
-              color: AppColorsDark.textSecondary,
-            ),
-          ),
-          Row(
-            children: [
-              Icon(
-                Icons.location_on,
-                size: 16.sp,
-                color: AppColorsDark.primary,
-              ),
-              SizedBox(width: 4.w),
-              Expanded(
-                child: Text(
-                  'Current Location',
-                  style: AppTextStyles.titleSmall().copyWith(
-                    color: AppColorsDark.textPrimary,
+      title: GestureDetector(
+        onTap: () => context.push('/customer/addresses'),
+        child: Row(
+          children: [
+            Icon(Icons.location_on, size: 22.sp, color: AppColorsDark.primary),
+            SizedBox(width: 6.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Deliver to  ',
+                        style: AppTextStyles.bodySmall().copyWith(
+                          color: AppColorsDark.textSecondary,
+                        ),
+                      ),
+                      Text(
+                        locationLabel,
+                        style: AppTextStyles.bodySmall().copyWith(
+                          color: AppColorsDark.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Icon(
+                        Icons.keyboard_arrow_down,
+                        size: 16.sp,
+                        color: AppColorsDark.textSecondary,
+                      ),
+                    ],
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                  Text(
+                    locationSub,
+                    style: AppTextStyles.titleSmall().copyWith(
+                      color: AppColorsDark.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
-              Icon(
-                Icons.keyboard_arrow_down,
-                size: 20.sp,
-                color: AppColorsDark.textPrimary,
-              ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
       actions: [
-        // ✅ Contact Us icon
+        // Contact Us icon
         IconButton(
           icon: const Icon(Icons.support_agent_outlined),
           color: AppColorsDark.textPrimary,
           tooltip: 'Contact Us',
-          onPressed: () => context.push('/customer/contact-us'),
+          onPressed:
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const CustomerContactScreen(),
+                ),
+              ),
         ),
         // Profile icon
         IconButton(

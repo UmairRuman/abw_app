@@ -38,9 +38,8 @@ class CartScreen extends ConsumerWidget {
         actions: [
           if (cartState is CartLoaded && cartState.cart.isNotEmpty)
             TextButton(
-              onPressed: () {
-                _showClearCartDialog(context, ref, authState.user.id);
-              },
+              onPressed:
+                  () => _showClearCartDialog(context, ref, authState.user.id),
               child: const Text('Clear All'),
             ),
         ],
@@ -89,9 +88,7 @@ class CartScreen extends ConsumerWidget {
           ),
           SizedBox(height: 32.h),
           ElevatedButton(
-            onPressed: () {
-              context.go('/customer/home');
-            },
+            onPressed: () => context.go('/customer/home'),
             child: const Text('Browse Stores'),
           ),
         ],
@@ -107,7 +104,7 @@ class CartScreen extends ConsumerWidget {
   ) {
     return Column(
       children: [
-        // Store Info Banner
+        // Store banner
         Container(
           padding: EdgeInsets.all(16.w),
           color: AppColorsDark.surface,
@@ -139,7 +136,7 @@ class CartScreen extends ConsumerWidget {
           ),
         ),
 
-        // Cart Items
+        // Cart items
         Expanded(
           child: ListView.builder(
             padding: EdgeInsets.all(16.w),
@@ -151,7 +148,6 @@ class CartScreen extends ConsumerWidget {
           ),
         ),
 
-        // Bottom Summary
         _buildBottomSummary(context, ref, state),
       ],
     );
@@ -174,7 +170,7 @@ class CartScreen extends ConsumerWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ✅ FIXED: Show actual product image
+          // Product image
           ClipRRect(
             borderRadius: BorderRadius.circular(8.r),
             child:
@@ -196,6 +192,7 @@ class CartScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Product name
                 Text(
                   item.productName,
                   style: AppTextStyles.titleSmall().copyWith(
@@ -205,40 +202,84 @@ class CartScreen extends ConsumerWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
+
                 SizedBox(height: 4.h),
-                Text(
-                  item.unit,
-                  style: AppTextStyles.bodySmall().copyWith(
-                    color: AppColorsDark.textSecondary,
-                  ),
-                ),
-                SizedBox(height: 8.h),
-                Row(
-                  children: [
-                    Text(
-                      'PKR ${item.total.toInt()}',
-                      style: AppTextStyles.titleMedium().copyWith(
+
+                // ✅ FIX Bug 2: Show variant name OR unit — never crossed-out price
+                if (item.selectedVariant != null)
+                  Container(
+                    margin: EdgeInsets.only(bottom: 4.h),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 8.w,
+                      vertical: 2.h,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColorsDark.primary.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(6.r),
+                    ),
+                    child: Text(
+                      item.selectedVariant!.name,
+                      style: AppTextStyles.bodySmall().copyWith(
                         color: AppColorsDark.primary,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11.sp,
                       ),
                     ),
-                    if (item.discountedPrice < item.price) ...[
-                      SizedBox(width: 8.w),
-                      Text(
-                        'PKR ${item.price.toInt()}',
-                        style: AppTextStyles.bodySmall().copyWith(
-                          color: AppColorsDark.textTertiary,
-                          decoration: TextDecoration.lineThrough,
-                        ),
-                      ),
-                    ],
-                  ],
+                  )
+                else
+                  Text(
+                    item.unit,
+                    style: AppTextStyles.bodySmall().copyWith(
+                      color: AppColorsDark.textSecondary,
+                    ),
+                  ),
+
+                // Addons chips (if any)
+                if (item.selectedAddons.isNotEmpty) ...[
+                  SizedBox(height: 4.h),
+                  Wrap(
+                    spacing: 4.w,
+                    runSpacing: 2.h,
+                    children:
+                        item.selectedAddons
+                            .map(
+                              (addon) => Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 6.w,
+                                  vertical: 2.h,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColorsDark.surfaceVariant,
+                                  borderRadius: BorderRadius.circular(4.r),
+                                ),
+                                child: Text(
+                                  '+ ${addon.name}',
+                                  style: AppTextStyles.bodySmall().copyWith(
+                                    color: AppColorsDark.textSecondary,
+                                    fontSize: 10.sp,
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                  ),
+                ],
+
+                SizedBox(height: 6.h),
+
+                // Price — just the effective total, no strikethrough
+                Text(
+                  'PKR ${item.total.toInt()}',
+                  style: AppTextStyles.titleMedium().copyWith(
+                    color: AppColorsDark.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
           ),
 
-          // Quantity Controls
+          // ✅ FIX Bug 1: pass cartItemKey so +/- affect the right variant row
           Container(
             decoration: BoxDecoration(
               color: AppColorsDark.primary.withOpacity(0.1),
@@ -249,11 +290,10 @@ class CartScreen extends ConsumerWidget {
                 IconButton(
                   icon: Icon(Icons.add, size: 18.sp),
                   color: AppColorsDark.primary,
-                  onPressed: () {
-                    ref
-                        .read(cartProvider.notifier)
-                        .incrementQuantity(userId, item.productId);
-                  },
+                  onPressed:
+                      () => ref
+                          .read(cartProvider.notifier)
+                          .incrementQuantity(userId, item.cartItemKey),
                   constraints: BoxConstraints(minWidth: 36.w, minHeight: 36.h),
                   padding: EdgeInsets.zero,
                 ),
@@ -280,7 +320,7 @@ class CartScreen extends ConsumerWidget {
                     if (item.quantity > 1) {
                       ref
                           .read(cartProvider.notifier)
-                          .decrementQuantity(userId, item.productId);
+                          .decrementQuantity(userId, item.cartItemKey);
                     } else {
                       _showRemoveItemDialog(context, ref, userId, item);
                     }
@@ -296,7 +336,6 @@ class CartScreen extends ConsumerWidget {
     );
   }
 
-  // Add this helper method:
   Widget _buildImagePlaceholder() {
     return Container(
       width: 70.w,
@@ -342,9 +381,7 @@ class CartScreen extends ConsumerWidget {
             _buildSummaryRow('Total', state.cart.total, isTotal: true),
             SizedBox(height: 16.h),
             ElevatedButton(
-              onPressed: () {
-                context.push('/customer/checkout');
-              },
+              onPressed: () => context.push('/customer/checkout'),
               style: ElevatedButton.styleFrom(
                 minimumSize: Size(double.infinity, 56.h),
               ),
@@ -404,7 +441,11 @@ class CartScreen extends ConsumerWidget {
           (context) => AlertDialog(
             backgroundColor: AppColorsDark.surface,
             title: const Text('Remove Item?'),
-            content: Text('Remove ${item.productName} from cart?'),
+            content: Text(
+              'Remove ${item.productName}'
+              '${item.selectedVariant != null ? ' (${item.selectedVariant!.name})' : ''}'
+              ' from cart?',
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
@@ -412,9 +453,10 @@ class CartScreen extends ConsumerWidget {
               ),
               ElevatedButton(
                 onPressed: () {
+                  // ✅ FIX: pass cartItemKey so only this variant row is removed
                   ref
                       .read(cartProvider.notifier)
-                      .removeItem(userId, item.productId);
+                      .removeItem(userId, item.cartItemKey);
                   Navigator.pop(context);
                 },
                 style: ElevatedButton.styleFrom(
