@@ -5,6 +5,7 @@ import 'package:abw_app/features/auth/domain/entities/user_entity.dart';
 import 'package:abw_app/features/auth/presentation/providers/auth_state.dart';
 import 'package:abw_app/features/customer/presentation/screens/profile/customer_edit_profile_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -294,7 +295,7 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
     showDialog(
       context: context,
       builder:
-          (context) => AlertDialog(
+          (ctx) => AlertDialog(
             backgroundColor: AppColorsDark.surface,
             icon: Icon(
               Icons.warning_amber_rounded,
@@ -313,7 +314,7 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'This action will permanently delete your account.',
+                  'This will permanently delete your account from the app.',
                   style: AppTextStyles.bodyMedium().copyWith(
                     color: AppColorsDark.textPrimary,
                   ),
@@ -332,25 +333,17 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'What will happen:',
+                        'What happens:',
                         style: AppTextStyles.labelMedium().copyWith(
                           color: AppColorsDark.warning,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       SizedBox(height: 8.h),
+                      _buildConsequenceItem('Your login will be removed'),
+                      _buildConsequenceItem('You cannot sign in again'),
                       _buildConsequenceItem(
-                        'You will be logged out immediately',
-                      ),
-                      _buildConsequenceItem('You cannot place new orders'),
-                      _buildConsequenceItem('You cannot login again'),
-                      SizedBox(height: 8.h),
-                      Text(
-                        'Your order history will be kept for business records.',
-                        style: AppTextStyles.bodySmall().copyWith(
-                          color: AppColorsDark.info,
-                          fontStyle: FontStyle.italic,
-                        ),
+                        'Your order history is kept for records',
                       ),
                     ],
                   ),
@@ -359,7 +352,7 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(ctx),
                 child: Text(
                   'Cancel',
                   style: TextStyle(color: AppColorsDark.textSecondary),
@@ -367,8 +360,8 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
               ),
               ElevatedButton(
                 onPressed: () {
-                  Navigator.pop(context);
-                  _handleDeleteAccount(context);
+                  Navigator.pop(ctx);
+                  _handleDeleteAccount();
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColorsDark.error,
@@ -403,103 +396,258 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
   }
 
   // ✅ NEW: Handle Account Deletion
-  Future<void> _handleDeleteAccount(BuildContext context) async {
+  Future<void> _handleDeleteAccount() async {
     final authState = ref.read(authProvider);
     if (authState is! Authenticated) return;
 
-    try {
-      // Show loading dialog
+    final userId = authState.user.id;
+    bool dialogOpen = false;
+
+    // Helper: closes loading dialog safely
+    void closeDialog() {
+      if (dialogOpen && mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        dialogOpen = false;
+      }
+    }
+
+    // Show loading dialog
+    if (mounted) {
+      dialogOpen = true;
       showDialog(
         context: context,
         barrierDismissible: false,
         builder:
-            (context) => Center(
-              child: Container(
-                padding: EdgeInsets.all(24.w),
-                decoration: BoxDecoration(
-                  color: AppColorsDark.surface,
-                  borderRadius: BorderRadius.circular(16.r),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const CircularProgressIndicator(
-                      color: AppColorsDark.primary,
-                    ),
-                    SizedBox(height: 16.h),
-                    Text(
-                      'Deleting account...',
-                      style: AppTextStyles.bodyMedium().copyWith(
-                        color: AppColorsDark.textPrimary,
+            (_) => PopScope(
+              canPop: false,
+              child: Center(
+                child: Container(
+                  padding: EdgeInsets.all(24.w),
+                  decoration: BoxDecoration(
+                    color: AppColorsDark.surface,
+                    borderRadius: BorderRadius.circular(16.r),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircularProgressIndicator(
+                        color: AppColorsDark.primary,
                       ),
-                    ),
-                  ],
+                      SizedBox(height: 16.h),
+                      Text(
+                        'Deleting account...',
+                        style: AppTextStyles.bodyMedium().copyWith(
+                          color: AppColorsDark.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
       );
+    }
 
-      // ✅ Soft delete: Mark account as deleted
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(authState.user.id)
-          .update({
-            'isDeleted': true,
-            'deletedAt': FieldValue.serverTimestamp(),
-            'deletedReason': 'User requested deletion',
-          });
-
-      // Close loading dialog
-      if (context.mounted) {
-        Navigator.pop(context);
+    try {
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser == null) {
+        closeDialog();
+        return;
       }
 
-      // Logout
-      await ref.read(authProvider.notifier).logout();
+      // ── Step 1: Wipe personal data in Firestore ───────────────────────
+      // The document stays so admin can still see order history,
+      // but all personal info is removed (GDPR / Play Store compliant).
+      await FirebaseFirestore.instance.collection('users').doc(userId).update({
+        'isDeleted': true,
+        'deletedAt': FieldValue.serverTimestamp(),
+        'name': 'Deleted User',
+        'email': 'deleted_${userId.substring(0, 6)}@deleted.com',
+        'phone': '',
+        'profileImage': null,
+        'fcmToken': null,
+        'address': null,
+        'latitude': null,
+        'longitude': null,
+        'isActive': false,
+      });
 
-      // Show success message and navigate to login
-      if (context.mounted) {
+      // ── Step 2: Delete Firebase Auth account ─────────────────────────
+      // Required by Google Play Store & Apple App Store policies.
+      await firebaseUser.delete();
+
+      // ── Step 3: Sign out silently ─────────────────────────────────────
+      // Auth account is already gone — just clear the local session.
+      await FirebaseAuth.instance.signOut();
+
+      closeDialog();
+
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 12.w),
-                const Expanded(
-                  child: Text('Your account has been deleted successfully'),
-                ),
-              ],
-            ),
+          const SnackBar(
+            content: Text('Your account has been deleted.'),
             backgroundColor: AppColorsDark.success,
             behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 4),
+            duration: Duration(seconds: 3),
           ),
         );
-
-        // Navigate to login
         context.go('/login');
       }
+    } on FirebaseAuthException catch (e) {
+      closeDialog();
+      if (e.code == 'requires-recent-login') {
+        // Firebase requires a fresh login before deleting the account.
+        // Show password confirmation dialog and retry.
+        if (mounted) _showReAuthDialog();
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: ${e.message ?? e.code}'),
+              backgroundColor: AppColorsDark.error,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
     } catch (e) {
-      // Close loading dialog if still open
-      if (context.mounted) {
-        Navigator.pop(context);
-
-        // Show error message
+      closeDialog();
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white),
-                SizedBox(width: 12.w),
-                Expanded(child: Text('Error: ${e.toString()}')),
-              ],
-            ),
+            content: Text('Error: ${e.toString()}'),
             backgroundColor: AppColorsDark.error,
             behavior: SnackBarBehavior.floating,
           ),
         );
       }
     }
+  }
+
+  /// Firebase throws requires-recent-login when the session is old.
+  /// Re-authenticates with password then retries _handleDeleteAccount.
+  void _showReAuthDialog() {
+    final passwordController = TextEditingController();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        bool isLoading = false;
+        return StatefulBuilder(
+          builder:
+              (ctx, setDialogState) => AlertDialog(
+                backgroundColor: AppColorsDark.surface,
+                title: Text(
+                  'Confirm your password',
+                  style: AppTextStyles.titleMedium().copyWith(
+                    color: AppColorsDark.textPrimary,
+                  ),
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'For security, please enter your password to confirm deletion.',
+                      style: AppTextStyles.bodySmall().copyWith(
+                        color: AppColorsDark.textSecondary,
+                      ),
+                    ),
+                    SizedBox(height: 16.h),
+                    TextField(
+                      controller: passwordController,
+                      obscureText: true,
+                      style: AppTextStyles.bodyMedium().copyWith(
+                        color: AppColorsDark.textPrimary,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        filled: true,
+                        fillColor: AppColorsDark.surfaceVariant,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12.r),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12.r),
+                          borderSide: const BorderSide(
+                            color: AppColorsDark.primary,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: isLoading ? null : () => Navigator.pop(ctx),
+                    child: const Text('Cancel'),
+                  ),
+                  ElevatedButton(
+                    onPressed:
+                        isLoading
+                            ? null
+                            : () async {
+                              if (passwordController.text.trim().isEmpty)
+                                return;
+                              setDialogState(() => isLoading = true);
+
+                              try {
+                                final firebaseUser =
+                                    FirebaseAuth.instance.currentUser;
+                                if (firebaseUser?.email == null) {
+                                  Navigator.pop(ctx);
+                                  return;
+                                }
+
+                                // Re-authenticate with fresh credentials
+                                final credential = EmailAuthProvider.credential(
+                                  email: firebaseUser!.email!,
+                                  password: passwordController.text.trim(),
+                                );
+                                await firebaseUser.reauthenticateWithCredential(
+                                  credential,
+                                );
+
+                                Navigator.pop(ctx);
+                                // Session is now fresh — retry deletion
+                                _handleDeleteAccount();
+                              } on FirebaseAuthException catch (e) {
+                                setDialogState(() => isLoading = false);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      e.code == 'wrong-password'
+                                          ? 'Incorrect password. Please try again.'
+                                          : 'Error: ${e.message ?? e.code}',
+                                    ),
+                                    backgroundColor: AppColorsDark.error,
+                                  ),
+                                );
+                              }
+                            },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColorsDark.error,
+                    ),
+                    child:
+                        isLoading
+                            ? SizedBox(
+                              width: 18.w,
+                              height: 18.w,
+                              child: const CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColorsDark.white,
+                              ),
+                            )
+                            : const Text('Confirm'),
+                  ),
+                ],
+              ),
+        );
+      },
+    );
   }
 
   Widget _buildSection(BuildContext context, String title, List<Widget> items) {

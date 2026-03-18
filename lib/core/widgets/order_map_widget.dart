@@ -1,13 +1,7 @@
 // lib/core/widgets/order_map_widget.dart
-// Reusable map widget — drop into any screen with just an order object.
-// Features:
-//   ✅ Real road-following route via OSRM free API (no key needed)
-//   ✅ Pickup + delivery markers with labels
-//   ✅ Distance + ETA overlay chips
-//   ✅ Address text card below map
-//   ✅ Directions button → opens Google Maps / Apple Maps / OSM browser
 
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -21,8 +15,6 @@ import '../../features/orders/data/models/order_model.dart';
 
 class OrderMapWidget extends StatefulWidget {
   final OrderModel order;
-
-  /// Height of the map tile only (address card + directions are below)
   final double mapHeight;
 
   const OrderMapWidget({super.key, required this.order, this.mapHeight = 260});
@@ -34,39 +26,85 @@ class OrderMapWidget extends StatefulWidget {
 class _OrderMapWidgetState extends State<OrderMapWidget> {
   List<LatLng> _routePoints = [];
   bool _isLoadingRoute = true;
-  String? _routeError;
   double? _etaMinutes;
   double? _routeDistanceKm;
   final MapController _mapController = MapController();
 
+  // ✅ Resolved coordinates — may be fetched from store if null on order
+  double? _pickupLat;
+  double? _pickupLng;
+  double? _deliveryLat;
+  double? _deliveryLng;
+
   @override
   void initState() {
     super.initState();
-    _fetchRoute();
+    _resolveCoordinatesAndFetchRoute();
   }
 
-  // ── OSRM Free Routing API ─────────────────────────────────────────────────
+  // ── Step 1: Resolve all coordinates ───────────────────────────────────────
+  //
+  // Handles three cases:
+  //   A) New orders  → all 4 top-level coords present on order ✅
+  //   B) Old orders  → deliveryLatitude null, but present in deliveryAddress ✅
+  //                    (fixed in order_model.fromJson, will be non-null here)
+  //   C) Old orders  → pickupLatitude null (store coords never saved)
+  //                    → fetch from stores/{storeId} once ✅
 
-  Future<void> _fetchRoute() async {
+  Future<void> _resolveCoordinatesAndFetchRoute() async {
     final order = widget.order;
 
-    if (order.pickupLatitude == null ||
-        order.pickupLongitude == null ||
-        order.deliveryLatitude == null ||
-        order.deliveryLongitude == null) {
-      setState(() {
-        _isLoadingRoute = false;
-        _routeError = 'no_coordinates';
-      });
+    // Delivery coords — already resolved by order_model.fromJson fallback
+    _deliveryLat = order.deliveryLatitude;
+    _deliveryLng = order.deliveryLongitude;
+
+    // Pickup coords — try order first, then fetch from store
+    _pickupLat = order.pickupLatitude;
+    _pickupLng = order.pickupLongitude;
+
+    if ((_pickupLat == null || _pickupLat == 0.0) && order.storeId.isNotEmpty) {
+      // ✅ FIX: Pickup coords missing on old orders — fetch from store document
+      try {
+        final storeDoc =
+            await FirebaseFirestore.instance
+                .collection('stores')
+                .doc(order.storeId)
+                .get();
+
+        if (storeDoc.exists && storeDoc.data() != null) {
+          final data = storeDoc.data()!;
+          final lat = (data['latitude'] as num?)?.toDouble();
+          final lng = (data['longitude'] as num?)?.toDouble();
+          if (lat != null && lat != 0.0 && lng != null && lng != 0.0) {
+            _pickupLat = lat;
+            _pickupLng = lng;
+          }
+        }
+      } catch (e) {
+        debugPrint('⚠️ OrderMapWidget: could not fetch store coords: $e');
+      }
+    }
+
+    // Now fetch the route with resolved coords
+    await _fetchRoute();
+  }
+
+  // ── Step 2: OSRM route fetch ───────────────────────────────────────────────
+
+  Future<void> _fetchRoute() async {
+    if (_pickupLat == null ||
+        _pickupLng == null ||
+        _deliveryLat == null ||
+        _deliveryLng == null) {
+      if (mounted) setState(() => _isLoadingRoute = false);
       return;
     }
 
     try {
-      // OSRM public API — free, no key required
       final url =
           'http://router.project-osrm.org/route/v1/driving/'
-          '${order.pickupLongitude},${order.pickupLatitude};'
-          '${order.deliveryLongitude},${order.deliveryLatitude}'
+          '$_pickupLng,$_pickupLat;'
+          '$_deliveryLng,$_deliveryLat'
           '?overview=full&geometries=geojson';
 
       final response = await http
@@ -82,7 +120,6 @@ class _OrderMapWidgetState extends State<OrderMapWidget> {
           final geometry = route['geometry'] as Map<String, dynamic>;
           final coordinates = geometry['coordinates'] as List;
 
-          // OSRM returns [lng, lat] — we need LatLng(lat, lng)
           final points =
               coordinates
                   .map(
@@ -93,41 +130,42 @@ class _OrderMapWidgetState extends State<OrderMapWidget> {
                   )
                   .toList();
 
-          // Extract ETA and distance from OSRM response
           final durationSeconds = (route['duration'] as num?)?.toDouble() ?? 0;
           final distanceMeters = (route['distance'] as num?)?.toDouble() ?? 0;
 
-          setState(() {
-            _routePoints = points;
-            _etaMinutes = durationSeconds / 60;
-            _routeDistanceKm = distanceMeters / 1000;
-            _isLoadingRoute = false;
-          });
-
-          // Fit map to show full route
+          if (mounted) {
+            setState(() {
+              _routePoints = points;
+              _etaMinutes = durationSeconds / 60;
+              _routeDistanceKm = distanceMeters / 1000;
+              _isLoadingRoute = false;
+            });
+          }
           _fitMapToBounds();
+          return;
         }
-      } else {
-        _fallbackToStraightLine();
       }
-    } catch (e) {
-      // Network error or timeout → fall back to straight line
+      _fallbackToStraightLine();
+    } catch (_) {
       _fallbackToStraightLine();
     }
   }
 
   void _fallbackToStraightLine() {
-    final order = widget.order;
-    if (order.pickupLatitude == null) return;
-
-    setState(() {
-      _routePoints = [
-        LatLng(order.pickupLatitude!, order.pickupLongitude!),
-        LatLng(order.deliveryLatitude!, order.deliveryLongitude!),
-      ];
-      _routeDistanceKm = (order.distance ?? 0) / 1000;
-      _isLoadingRoute = false;
-    });
+    if (_pickupLat == null || _deliveryLat == null) {
+      if (mounted) setState(() => _isLoadingRoute = false);
+      return;
+    }
+    if (mounted) {
+      setState(() {
+        _routePoints = [
+          LatLng(_pickupLat!, _pickupLng!),
+          LatLng(_deliveryLat!, _deliveryLng!),
+        ];
+        _routeDistanceKm = (widget.order.distance ?? 0) / 1000;
+        _isLoadingRoute = false;
+      });
+    }
     _fitMapToBounds();
   }
 
@@ -147,42 +185,32 @@ class _OrderMapWidgetState extends State<OrderMapWidget> {
   // ── Directions ────────────────────────────────────────────────────────────
 
   Future<void> _openDirections() async {
-    final order = widget.order;
-    if (order.deliveryLatitude == null) return;
+    if (_deliveryLat == null || _pickupLat == null) return;
 
-    final lat = order.deliveryLatitude!;
-    final lng = order.deliveryLongitude!;
-    final pickLat = order.pickupLatitude!;
-    final pickLng = order.pickupLongitude!;
-
-    // Try Google Maps app first
     final googleMapsUrl = Uri.parse(
       'https://www.google.com/maps/dir/?api=1'
-      '&origin=$pickLat,$pickLng'
-      '&destination=$lat,$lng'
+      '&origin=$_pickupLat,$_pickupLng'
+      '&destination=$_deliveryLat,$_deliveryLng'
       '&travelmode=driving',
     );
 
-    // Fallback: OpenStreetMap in browser
     final osmUrl = Uri.parse(
       'https://www.openstreetmap.org/directions'
       '?engine=fossgis_osrm_car'
-      '&route=$pickLat,$pickLng;$lat,$lng',
+      '&route=$_pickupLat,$_pickupLng;$_deliveryLat,$_deliveryLng',
     );
 
     if (await canLaunchUrl(googleMapsUrl)) {
       await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
     } else if (await canLaunchUrl(osmUrl)) {
       await launchUrl(osmUrl, mode: LaunchMode.externalApplication);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not open maps app'),
-            backgroundColor: AppColorsDark.error,
-          ),
-        );
-      }
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not open maps app'),
+          backgroundColor: AppColorsDark.error,
+        ),
+      );
     }
   }
 
@@ -190,9 +218,12 @@ class _OrderMapWidgetState extends State<OrderMapWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final order = widget.order;
-    final hasCoords =
-        order.pickupLatitude != null && order.deliveryLatitude != null;
+    final hasCoords = _pickupLat != null && _deliveryLat != null;
+
+    // Still loading store coords / route
+    if (_isLoadingRoute && !hasCoords) {
+      return _buildLoadingCard();
+    }
 
     if (!hasCoords) {
       return _buildNoLocationCard();
@@ -201,27 +232,35 @@ class _OrderMapWidgetState extends State<OrderMapWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Map tile
-        _buildMapTile(order),
+        _buildMapTile(),
         SizedBox(height: 12.h),
-        // Address card
-        _buildAddressCard(order),
+        _buildAddressCard(),
         SizedBox(height: 12.h),
-        // Directions button
         _buildDirectionsButton(),
       ],
     );
   }
 
-  Widget _buildMapTile(OrderModel order) {
-    final pickupPoint = LatLng(order.pickupLatitude!, order.pickupLongitude!);
-    final deliveryPoint = LatLng(
-      order.deliveryLatitude!,
-      order.deliveryLongitude!,
+  Widget _buildLoadingCard() {
+    return Container(
+      width: double.infinity,
+      height: 120.h,
+      decoration: BoxDecoration(
+        color: AppColorsDark.cardBackground,
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: AppColorsDark.border),
+      ),
+      child: const Center(
+        child: CircularProgressIndicator(color: AppColorsDark.primary),
+      ),
     );
+  }
 
-    final centerLat = (order.pickupLatitude! + order.deliveryLatitude!) / 2;
-    final centerLng = (order.pickupLongitude! + order.deliveryLongitude!) / 2;
+  Widget _buildMapTile() {
+    final pickupPoint = LatLng(_pickupLat!, _pickupLng!);
+    final deliveryPoint = LatLng(_deliveryLat!, _deliveryLng!);
+    final centerLat = (_pickupLat! + _deliveryLat!) / 2;
+    final centerLng = (_pickupLng! + _deliveryLng!) / 2;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(16.r),
@@ -229,7 +268,6 @@ class _OrderMapWidgetState extends State<OrderMapWidget> {
         height: widget.mapHeight.h,
         child: Stack(
           children: [
-            // Map
             FlutterMap(
               mapController: _mapController,
               options: MapOptions(
@@ -237,14 +275,11 @@ class _OrderMapWidgetState extends State<OrderMapWidget> {
                 initialZoom: 13.0,
               ),
               children: [
-                // OpenStreetMap tiles
                 TileLayer(
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   userAgentPackageName: 'com.abw.app',
                   maxZoom: 19,
                 ),
-
-                // Route polyline
                 if (_routePoints.length >= 2)
                   PolylineLayer(
                     polylines: [
@@ -257,11 +292,8 @@ class _OrderMapWidgetState extends State<OrderMapWidget> {
                       ),
                     ],
                   ),
-
-                // Markers
                 MarkerLayer(
                   markers: [
-                    // 🟢 Pickup marker
                     Marker(
                       point: pickupPoint,
                       width: 44.w,
@@ -272,8 +304,6 @@ class _OrderMapWidgetState extends State<OrderMapWidget> {
                         color: AppColorsDark.success,
                       ),
                     ),
-
-                    // 🔴 Delivery marker
                     Marker(
                       point: deliveryPoint,
                       width: 44.w,
@@ -289,7 +319,7 @@ class _OrderMapWidgetState extends State<OrderMapWidget> {
               ],
             ),
 
-            // Loading overlay
+            // Loading route overlay (coords resolved, route still loading)
             if (_isLoadingRoute)
               Positioned(
                 top: 12.h,
@@ -329,7 +359,7 @@ class _OrderMapWidgetState extends State<OrderMapWidget> {
                 ),
               ),
 
-            // ETA + Distance chips (top-right overlay)
+            // ETA + Distance chips
             if (!_isLoadingRoute &&
                 (_etaMinutes != null || _routeDistanceKm != null))
               Positioned(
@@ -362,7 +392,7 @@ class _OrderMapWidgetState extends State<OrderMapWidget> {
                 ),
               ),
 
-            // Legend (bottom-left)
+            // Legend
             Positioned(
               bottom: 12.h,
               left: 12.w,
@@ -407,7 +437,6 @@ class _OrderMapWidgetState extends State<OrderMapWidget> {
           ),
           child: Icon(icon, color: Colors.white, size: 18.sp),
         ),
-        // Pin tip
         Container(width: 2.w, height: 8.h, color: color),
         Container(
           width: 6.w,
@@ -479,7 +508,8 @@ class _OrderMapWidgetState extends State<OrderMapWidget> {
     );
   }
 
-  Widget _buildAddressCard(OrderModel order) {
+  Widget _buildAddressCard() {
+    final order = widget.order;
     return Container(
       padding: EdgeInsets.all(14.w),
       decoration: BoxDecoration(
@@ -489,7 +519,6 @@ class _OrderMapWidgetState extends State<OrderMapWidget> {
       ),
       child: Column(
         children: [
-          // Pickup address row
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -519,7 +548,7 @@ class _OrderMapWidgetState extends State<OrderMapWidget> {
                       ),
                     ),
                     Text(
-                      order.storeName,
+                      order.storeName.isNotEmpty ? order.storeName : 'Store',
                       style: AppTextStyles.bodyMedium().copyWith(
                         color: AppColorsDark.textPrimary,
                         fontWeight: FontWeight.w600,
@@ -530,8 +559,6 @@ class _OrderMapWidgetState extends State<OrderMapWidget> {
               ),
             ],
           ),
-
-          // Dotted divider
           Padding(
             padding: EdgeInsets.only(left: 13.w),
             child: Column(
@@ -549,8 +576,6 @@ class _OrderMapWidgetState extends State<OrderMapWidget> {
               ),
             ),
           ),
-
-          // Delivery address row
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -658,8 +683,7 @@ class _OrderMapWidgetState extends State<OrderMapWidget> {
             textAlign: TextAlign.center,
           ),
           SizedBox(height: 16.h),
-          // Still show address even without coords
-          _buildAddressCard(widget.order),
+          _buildAddressCard(),
         ],
       ),
     );

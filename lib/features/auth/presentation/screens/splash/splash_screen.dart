@@ -179,8 +179,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             if (!hasLocation && mounted) {
               context.go('/customer/location-setup');
               return;
+            } else {
+              log('Location is already Present');
+              context.go('/customer/home');
             }
-
             break;
           case UserRole.rider:
             context.go('/rider/dashboard');
