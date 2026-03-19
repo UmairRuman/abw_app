@@ -310,20 +310,17 @@ class NotificationService {
     }
   }
 
-  /// ✅ FIXED: Send notification to admin (new order placed)
-  // ✅ UPDATED: Support for reassignment notifications
   static Future<void> sendNewOrderNotificationToAdmin({
     required String orderId,
     required String customerName,
     required double total,
     required String paymentMethod,
     String? paymentProofUrl,
-    bool isReassignment = false, // ✅ NEW parameter
-    String? previousRider, // ✅ NEW parameter
-    String? refusalReason, // ✅ NEW parameter
+    bool isReassignment = false,
+    String? previousRider,
+    String? refusalReason,
   }) async {
     try {
-      // Determine notification content based on type
       String title;
       String body;
 
@@ -331,34 +328,30 @@ class NotificationService {
         title = '🔄 Order Reassignment Needed';
         body =
             'Rider $previousRider refused order from $customerName. '
-            'Reason: $refusalReason. Please assign new rider.';
+            'Reason: $refusalReason. Please assign a new rider.';
       } else {
         title = '🔔 New Order!';
-        body = 'New order from $customerName - PKR ${total.toInt()}';
+        body = 'New order from $customerName — PKR ${total.toInt()}';
       }
 
       log(
-        '📤 Sending ${isReassignment ? "reassignment" : "new order"} notification to admins...',
+        '📤 Sending ${isReassignment ? "reassignment" : "new order"} '
+        'notification to admins...',
       );
 
-      // Query all admin users
-      final adminUsersSnapshot =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .where('role', isEqualTo: 'admin')
-              .get();
+      // ✅ FIX: Query the 'admins' collection — NOT 'users' with role filter
+      final adminSnapshot =
+          await FirebaseFirestore.instance.collection('admins').get();
 
-      if (adminUsersSnapshot.docs.isEmpty) {
-        log('⚠️ No admin users found');
+      if (adminSnapshot.docs.isEmpty) {
+        log('⚠️ No admin documents found in admins collection');
         return;
       }
 
-      log('   Found ${adminUsersSnapshot.docs.length} admin(s)');
+      log('   Found ${adminSnapshot.docs.length} admin(s)');
 
-      // Send notification to each admin
-      for (final adminDoc in adminUsersSnapshot.docs) {
-        final adminData = adminDoc.data();
-        final fcmToken = adminData['fcmToken'] as String?;
+      for (final adminDoc in adminSnapshot.docs) {
+        final fcmToken = adminDoc.data()['fcmToken'] as String?;
 
         if (fcmToken == null || fcmToken.isEmpty) {
           log('   ⚠️ Admin ${adminDoc.id} has no FCM token');
@@ -367,7 +360,6 @@ class NotificationService {
 
         log('   📤 Sending to admin: ${adminDoc.id}');
 
-        // Send notification
         await _sendFCMNotification(
           fcmToken: fcmToken,
           title: title,
@@ -387,7 +379,7 @@ class NotificationService {
         log('   ✅ Notification sent to admin ${adminDoc.id}');
       }
 
-      log('✅ Admin notifications sent successfully');
+      log('✅ All admin notifications sent');
     } catch (e) {
       log('❌ Error sending admin notification: $e');
     }

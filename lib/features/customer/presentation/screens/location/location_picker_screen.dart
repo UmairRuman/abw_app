@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -64,27 +65,55 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
   }
 
   Future<void> _getCurrentLocation() async {
-    setState(() => _isGettingLocation = true);
+    setState(() {
+      _isGettingLocation = true;
+      _currentLocation = null; // clear so map rebuilds with real initialCenter
+    });
+
     try {
-      final position = await LocationService.getCurrentLocation();
-      if (position != null) {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        _showSnack(
+          'Location permission denied. Enable it in device Settings.',
+          isError: true,
+        );
+        if (mounted) {
+          setState(() => _currentLocation = const LatLng(30.3753, 69.3451));
+        }
+        return;
+      }
+
+      final Position position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 15),
+        ),
+      );
+
+      if (mounted) {
         setState(() {
           _currentLocation = LatLng(position.latitude, position.longitude);
         });
-        _mapController.move(_currentLocation!, 15.0);
-        dev.log('✅ Location: ${position.latitude}, ${position.longitude}');
-      } else {
-        setState(() {
-          _currentLocation = const LatLng(31.5204, 74.3587); // Lahore default
-        });
+        try {
+          _mapController.move(_currentLocation!, 15.5);
+        } catch (_) {}
+        dev.log('GPS: ${position.latitude}, ${position.longitude}');
       }
     } catch (e) {
-      dev.log('❌ Error getting location: $e');
-      setState(() {
-        _currentLocation = const LatLng(31.5204, 74.3587);
-      });
+      dev.log('GPS error: $e');
+      if (mounted) {
+        _showSnack(
+          'Could not get location. Move the pin manually.',
+          isError: true,
+        );
+        setState(() => _currentLocation = const LatLng(30.3753, 69.3451));
+      }
     } finally {
-      setState(() => _isGettingLocation = false);
+      if (mounted) setState(() => _isGettingLocation = false);
     }
   }
 
@@ -95,14 +124,15 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
       body: Stack(
         children: [
           // ── Map ────────────────────────────────────────────────────────
+          // Map rendered only AFTER GPS resolves — initialCenter is the real fix
           if (_currentLocation != null)
             FlutterMap(
               mapController: _mapController,
               options: MapOptions(
                 initialCenter: _currentLocation!,
-                initialZoom: 15.0,
+                initialZoom: 15.5,
                 onPositionChanged: (position, hasGesture) {
-                  if (hasGesture) {
+                  if (hasGesture && mounted) {
                     setState(() => _currentLocation = position.center);
                   }
                 },
@@ -115,27 +145,50 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
               ],
             ),
 
-          // ── Fixed center pin ───────────────────────────────────────────
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.location_on,
-                  size: 48.sp,
-                  color: AppColorsDark.error,
-                ),
-                SizedBox(height: 40.h),
-              ],
+          // Pin only visible when map is shown
+          if (_currentLocation != null)
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.location_on,
+                    size: 48.sp,
+                    color: AppColorsDark.error,
+                  ),
+                  SizedBox(height: 40.h),
+                ],
+              ),
             ),
-          ),
 
-          // ── Loading overlay ────────────────────────────────────────────
-          if (_isGettingLocation)
+          // Full-screen loader — hides everything until GPS resolves
+          // This prevents Lahore ever flashing on screen
+          if (_isGettingLocation || _currentLocation == null)
             Container(
-              color: Colors.black54,
-              child: const Center(
-                child: CircularProgressIndicator(color: AppColorsDark.primary),
+              color: AppColorsDark.background,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(
+                      color: AppColorsDark.primary,
+                    ),
+                    SizedBox(height: 16.h),
+                    Text(
+                      'Getting your location...',
+                      style: AppTextStyles.bodyMedium().copyWith(
+                        color: AppColorsDark.textSecondary,
+                      ),
+                    ),
+                    SizedBox(height: 8.h),
+                    Text(
+                      'Please allow location access if prompted',
+                      style: AppTextStyles.bodySmall().copyWith(
+                        color: AppColorsDark.textTertiary,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
 

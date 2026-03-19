@@ -102,6 +102,10 @@ class _AdminOrderDetailsScreenState
                 _buildOrderStatusCard(order),
                 SizedBox(height: 16.h),
 
+                // ✅ ADD THIS:
+                _buildStoreInfo(order),
+                SizedBox(height: 16.h),
+
                 // ✅ Status update actions (was missing)
                 _buildStatusUpdateCard(order),
                 SizedBox(height: 16.h),
@@ -188,6 +192,107 @@ class _AdminOrderDetailsScreenState
       case OrderStatus.cancelled:
         return null; // No further action
     }
+  }
+
+  Widget _buildStoreInfo(OrderModel order) {
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: AppColorsDark.cardBackground,
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: AppColorsDark.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.store_mall_directory,
+                color: AppColorsDark.success,
+                size: 20.sp,
+              ),
+              SizedBox(width: 8.w),
+              Text(
+                'Restaurant / Store',
+                style: AppTextStyles.titleMedium().copyWith(
+                  color: AppColorsDark.textPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          const Divider(color: AppColorsDark.border),
+          SizedBox(height: 12.h),
+
+          // Store name (large, prominent)
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  order.storeName.isNotEmpty
+                      ? order.storeName
+                      : 'Store name unavailable',
+                  style: AppTextStyles.titleLarge().copyWith(
+                    color:
+                        order.storeName.isNotEmpty
+                            ? AppColorsDark.textPrimary
+                            : AppColorsDark.textTertiary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          SizedBox(height: 8.h),
+
+          // Store ID (small, for reference)
+          Row(
+            children: [
+              Icon(Icons.tag, size: 14.sp, color: AppColorsDark.textTertiary),
+              SizedBox(width: 4.w),
+              Text(
+                'ID: ${order.storeId}',
+                style: AppTextStyles.bodySmall().copyWith(
+                  color: AppColorsDark.textTertiary,
+                ),
+              ),
+            ],
+          ),
+
+          // Pickup reminder badge
+          SizedBox(height: 12.h),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+            decoration: BoxDecoration(
+              color: AppColorsDark.success.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8.r),
+              border: Border.all(color: AppColorsDark.success.withOpacity(0.3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.shopping_bag_outlined,
+                  color: AppColorsDark.success,
+                  size: 16.sp,
+                ),
+                SizedBox(width: 8.w),
+                Text(
+                  'Rider must pick up from this store',
+                  style: AppTextStyles.bodySmall().copyWith(
+                    color: AppColorsDark.success,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildStatusUpdateCard(OrderModel order) {
@@ -402,16 +507,20 @@ class _AdminOrderDetailsScreenState
           .doc(order.id)
           .update({
             'status': newStatus.name,
-            'updatedAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(), // ✅ OK at top level
             'statusHistory': FieldValue.arrayUnion([
               {
                 'status': newStatus.name,
-                'timestamp': Timestamp.now(),
+                'timestamp': Timestamp.now(), // ✅ Safe inside arrayUnion
                 'note': 'Status updated by admin',
                 'updatedBy': 'admin',
               },
             ]),
           });
+
+      await ref
+          .read(ordersProvider.notifier)
+          .updateOrderStatus(order.id, newStatus, null, 'admin');
 
       if (mounted) {
         await ref.read(ordersProvider.notifier).getOrderById(order.id);
@@ -922,13 +1031,14 @@ class _AdminOrderDetailsScreenState
   }
 
   void _showCancelOrderDialog(OrderModel order) {
+    // ✅ Create controller OUTSIDE dialog so we can dispose it properly
     final reasonController = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
-    showDialog(
+    showDialog<String?>(
       context: context,
       builder:
-          (context) => AlertDialog(
+          (dialogContext) => AlertDialog(
             backgroundColor: AppColorsDark.surface,
             icon: Icon(
               Icons.warning_amber_rounded,
@@ -1030,12 +1140,10 @@ class _AdminOrderDetailsScreenState
                           ),
                         ),
                         SizedBox(height: 8.h),
-                        _buildConsequenceItem(
-                          'Update order status to "Cancelled"',
-                        ),
-                        _buildConsequenceItem('Notify customer'),
+                        _buildConsequenceItem('Update status to "Cancelled"'),
+                        _buildConsequenceItem('Notify the customer'),
                         if (order.riderId != null)
-                          _buildConsequenceItem('Notify assigned rider'),
+                          _buildConsequenceItem('Notify the assigned rider'),
                         _buildConsequenceItem('Cannot be undone'),
                       ],
                     ),
@@ -1046,10 +1154,9 @@ class _AdminOrderDetailsScreenState
             actions: [
               TextButton(
                 onPressed: () {
-                  reasonController.dispose();
-                  Navigator.pop(context);
+                  Navigator.pop(dialogContext);
                 },
-                child: Text(
+                child: const Text(
                   'Keep Order',
                   style: TextStyle(color: AppColorsDark.textSecondary),
                 ),
@@ -1057,10 +1164,15 @@ class _AdminOrderDetailsScreenState
               ElevatedButton(
                 onPressed: () {
                   if (formKey.currentState!.validate()) {
+                    // ✅ Capture reason BEFORE closing dialog
                     final reason = reasonController.text.trim();
-                    reasonController.dispose();
-                    Navigator.pop(context);
-                    _handleCancelOrder(order.id, reason);
+
+                    // ✅ Close dialog first, THEN do async work
+                    Navigator.pop(dialogContext);
+                    // Small delay to let the dialog fully close before setState
+                    Future.microtask(
+                      () => _handleCancelOrder(order.id, reason),
+                    );
                   }
                 },
                 style: ElevatedButton.styleFrom(
@@ -1070,7 +1182,65 @@ class _AdminOrderDetailsScreenState
               ),
             ],
           ),
-    );
+    ).then((_) {
+      // ✅ Dispose AFTER dialog is fully removed from widget tree
+      reasonController.dispose();
+    });
+  }
+
+  Future<void> _handleCancelOrder(String orderId, String reason) async {
+    if (!mounted) return;
+    setState(() => _isProcessing = true);
+
+    bool success = false;
+
+    try {
+      success = await ref
+          .read(ordersProvider.notifier)
+          .cancelOrder(orderId, reason);
+    } catch (e) {
+      success = false;
+    }
+
+    // ✅ KEY FIX: Do NOT call getOrderById() here.
+    // getOrderById() sets state → OrdersLoading which tears down the entire
+    // _buildOrderDetails widget tree (scroll view, controllers, etc.) while
+    // the screen is still mounted → ChangeNotifier disposed exception.
+    //
+    // After cancellation the order is done — just pop back to the orders list.
+    // The orders list stream will automatically reflect the cancelled status.
+
+    if (!mounted) return;
+
+    setState(() => _isProcessing = false);
+
+    if (success) {
+      // Show snackbar on the PREVIOUS screen (orders list) by using
+      // the root scaffold messenger so it survives the pop.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 12.w),
+              const Text('Order cancelled successfully'),
+            ],
+          ),
+          backgroundColor: AppColorsDark.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      // ✅ Pop back — the orders list stream updates automatically
+      Navigator.of(context).pop();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to cancel order. Please try again.'),
+          backgroundColor: AppColorsDark.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   Widget _buildConsequenceItem(String text) {
@@ -1096,52 +1266,6 @@ class _AdminOrderDetailsScreenState
         ],
       ),
     );
-  }
-
-  Future<void> _handleCancelOrder(String orderId, String reason) async {
-    setState(() => _isProcessing = true);
-    try {
-      final success = await ref
-          .read(ordersProvider.notifier)
-          .cancelOrder(orderId, reason);
-
-      if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 12.w),
-                const Text('Order cancelled successfully'),
-              ],
-            ),
-            backgroundColor: AppColorsDark.success,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        await ref.read(ordersProvider.notifier).getOrderById(orderId);
-      } else {
-        throw Exception('Failed to cancel order');
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white),
-                SizedBox(width: 12.w),
-                Expanded(child: Text('Error: ${e.toString()}')),
-              ],
-            ),
-            backgroundColor: AppColorsDark.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isProcessing = false);
-    }
   }
 
   Widget _buildCancellationInfo(OrderModel order) {

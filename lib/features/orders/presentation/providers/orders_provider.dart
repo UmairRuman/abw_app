@@ -73,41 +73,65 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
 
       final checkout = checkoutState.checkout;
 
-      // Calculate estimated delivery time
+      // ✅ FIX 1: Fetch real store name from Firestore using storeId
+      String resolvedStoreName = checkout.storeName;
+      if (resolvedStoreName.isEmpty && checkout.storeId.isNotEmpty) {
+        try {
+          final storeDoc =
+              await _firestore.collection('stores').doc(checkout.storeId).get();
+          resolvedStoreName =
+              storeDoc.data()?['name'] as String? ?? 'Unknown Store';
+        } catch (_) {
+          resolvedStoreName = 'Unknown Store';
+        }
+      }
+
+      // ✅ FIX 2: Fetch userPhone from Firestore if empty
+      String resolvedPhone = userPhone;
+      if (resolvedPhone.isEmpty) {
+        try {
+          final userDoc =
+              await _firestore.collection('users').doc(userId).get();
+          resolvedPhone = userDoc.data()?['phone'] as String? ?? '';
+        } catch (_) {}
+      }
+
+      // ✅ FIX 3: Also patch storeName on each cart item (they also come in empty)
+      final patchedItems =
+          checkout.items.map((item) {
+            if (item.storeName.isEmpty) {
+              return item.copyWith(storeName: resolvedStoreName);
+            }
+            return item;
+          }).toList();
+
+      final orderId = 'ORD${DateTime.now().millisecondsSinceEpoch}';
       final estimatedDeliveryTime =
           ref.read(checkoutProvider.notifier).calculateEstimatedDeliveryTime();
 
-      // Create order ID
-      final orderId = 'ORD${DateTime.now().millisecondsSinceEpoch}';
-
-      // Initial status update
       final initialStatus = OrderStatusUpdateModel(
         status: OrderStatus.pending,
         timestamp: DateTime.now(),
         note: 'Order placed',
       );
 
-      // Create order
       final order = OrderModel(
         id: orderId,
         userId: userId,
         userName: userName,
-        userPhone: userPhone,
+        userPhone: resolvedPhone, // ✅ resolved phone
         storeId: checkout.storeId,
-        storeName: checkout.storeName,
-        items: checkout.items,
+        storeName: resolvedStoreName, // ✅ resolved store name
+        items: patchedItems, // ✅ items with store name
         deliveryAddress: checkout.deliveryAddress,
-        deliveryTimeSlot: 'ASAP', // Placeholder
+        deliveryTimeSlot: 'ASAP',
         specialInstructions: checkout.specialInstructions,
         subtotal: checkout.subtotal,
         deliveryFee: checkout.deliveryFee,
         discount: 0,
         total: checkout.total,
         paymentMethod: paymentMethod,
-        paymentStatus:
-            paymentMethod == PaymentMethod.cod
-                ? PaymentStatus.pending
-                : PaymentStatus.pending, // Will be verified by admin
+        paymentStatus: PaymentStatus.pending,
         paymentProofUrl: paymentProofUrl,
         paymentTransactionId: null,
         status: OrderStatus.pending,
@@ -119,19 +143,26 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
         statusHistory: [initialStatus],
       );
 
-      // Save to Firestore
       final success = await _collection.createOrder(order);
 
       if (success) {
-        // Clear cart
         await ref.read(cartProvider.notifier).clearCart(userId);
+
+        // ✅ FIX 4: Notify admins now that order is placed
+        NotificationService.sendNewOrderNotificationToAdmin(
+          orderId: orderId,
+          customerName: userName,
+          total: checkout.total,
+          paymentMethod: paymentMethod.name,
+          paymentProofUrl: paymentProofUrl,
+        ).catchError((e) => log('Admin notification error: $e'));
 
         return orderId;
       }
 
       return null;
     } catch (e) {
-      print('Error placing order: $e');
+      log('Error placing order: $e');
       return null;
     }
   }
@@ -184,43 +215,42 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
       final orderData = orderDoc.data()!;
       final customerId = orderData['userId'] as String;
       final riderId = orderData['riderId'] as String?;
-      final customerName = orderData['userName'] as String;
+      final customerName = orderData['userName'] as String? ?? '';
 
-      // Cancel the order
+      // ✅ Use Timestamp.now() — NOT FieldValue.serverTimestamp() inside arrayUnion
+      final now = Timestamp.now();
+
       await _firestore.collection('orders').doc(orderId).update({
         'status': 'cancelled',
         'cancellationReason': reason,
-        'cancelledAt': FieldValue.serverTimestamp(),
+        'cancelledAt': FieldValue.serverTimestamp(), // ✅ OK at top level
         'cancelledBy': 'admin',
+        'updatedAt': FieldValue.serverTimestamp(), // ✅ OK at top level
         'statusHistory': FieldValue.arrayUnion([
           {
             'status': 'cancelled',
-            'timestamp': FieldValue.serverTimestamp(),
+            'timestamp': now, // ✅ Timestamp.now() — safe inside arrayUnion
             'note': 'Order cancelled by admin: $reason',
             'updatedBy': 'admin',
           },
         ]),
       });
 
-      // ✅ FIX: If a rider was assigned, remove this order from their active list
-      // and restore their status to available if no other orders remain.
+      // Unassign rider if one was set
       if (riderId != null) {
         await _firestore.collection('users').doc(riderId).update({
           'currentOrderIds': FieldValue.arrayRemove([orderId]),
-          // Also clear legacy field if it matches
           'currentOrderId': null,
           'updatedAt': FieldValue.serverTimestamp(),
         });
 
-        // Check if rider has other active orders
+        // Check if rider has other active orders; if not, set available
         final riderDoc =
             await _firestore.collection('users').doc(riderId).get();
-        final remainingOrders = List<String>.from(
-          List<String>.from(
-            (riderDoc.data()?['currentOrderIds'] as List<dynamic>? ?? []),
-          ),
+        final remaining = List<String>.from(
+          riderDoc.data()?['currentOrderIds'] as List<dynamic>? ?? [],
         );
-        if (remainingOrders.isEmpty) {
+        if (remaining.isEmpty) {
           await _firestore.collection('users').doc(riderId).update({
             'status': 'available',
           });
@@ -249,7 +279,7 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
         );
       }
 
-      log('✅ Order cancelled and rider notified/updated');
+      log('✅ Order cancelled successfully');
       return true;
     } catch (e) {
       log('❌ Error cancelling order: $e');
@@ -281,16 +311,17 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
 
       // ✅ FIXED: Unassign rider and set back to "confirmed" (not "ready")
       await _firestore.collection('orders').doc(orderId).update({
-        'status': 'confirmed', // ✅ CHANGED from 'ready' to 'confirmed'
+        'status': 'confirmed',
         'riderId': null,
         'riderName': null,
         'riderPhone': null,
-        'riderRefusalReason': reason, // ✅ NEW FIELD
-        'riderRefusedAt': FieldValue.serverTimestamp(), // ✅ NEW FIELD
+        'riderRefusalReason': reason,
+        'riderRefusedAt': FieldValue.serverTimestamp(), // ✅ OK at top level
+        'updatedAt': FieldValue.serverTimestamp(),
         'statusHistory': FieldValue.arrayUnion([
           {
             'status': 'confirmed',
-            'timestamp': FieldValue.serverTimestamp(),
+            'timestamp': Timestamp.now(), // ✅ Safe inside arrayUnion
             'note': 'Rider refused delivery: $reason. Order reassigned.',
             'updatedBy': 'rider',
           },
@@ -300,12 +331,12 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
       log('✅ Order unassigned and set back to confirmed');
 
       // Notify customer
-      await NotificationService.sendNotificationToUser(
-        userId: customerId,
-        title: '🔄 Delivery Reassignment',
-        body: 'We\'re finding a new rider for your order.',
-        data: {'type': 'rider_refused', 'orderId': orderId},
-      );
+      // await NotificationService.sendNotificationToUser(
+      //   userId: customerId,
+      //   title: '🔄 Delivery Reassignment',
+      //   body: 'We\'re finding a new rider for your order.',
+      //   data: {'type': 'rider_refused', 'orderId': orderId},
+      // );
 
       // Notify admins about reassignment
       await NotificationService.sendNewOrderNotificationToAdmin(

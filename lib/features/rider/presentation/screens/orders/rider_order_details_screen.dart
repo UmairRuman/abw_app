@@ -32,6 +32,7 @@ class RiderOrderDetailsScreen extends ConsumerStatefulWidget {
 
 class _RiderOrderDetailsScreenState
     extends ConsumerState<RiderOrderDetailsScreen> {
+  bool _isRefusing = false;
   bool _isUpdatingStatus = false;
   bool _isCashingIn = false;
 
@@ -496,6 +497,54 @@ class _RiderOrderDetailsScreenState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (order.status == OrderStatus.confirmed ||
+                order.status == OrderStatus.preparing ||
+                order.status == OrderStatus.outForDelivery) ...[
+              Padding(
+                padding: EdgeInsets.only(bottom: 10.h),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed:
+                        _isRefusing
+                            ? null
+                            : () => _showRefuseOrderDialog(order),
+                    icon:
+                        _isRefusing
+                            ? SizedBox(
+                              width: 18.w,
+                              height: 18.w,
+                              child: const CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColorsDark.error,
+                              ),
+                            )
+                            : Icon(
+                              Icons.cancel_outlined,
+                              size: 20.sp,
+                              color: AppColorsDark.error,
+                            ),
+                    label: Text(
+                      _isRefusing ? 'Processing...' : 'Refuse / Return Order',
+                      style: AppTextStyles.button().copyWith(
+                        color: AppColorsDark.error,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 14.h),
+                      side: const BorderSide(
+                        color: AppColorsDark.error,
+                        width: 1.5,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+
             // Cash check-in (shown after delivery for COD)
             if (order.status == OrderStatus.delivered &&
                 order.paymentMethod == PaymentMethod.cod &&
@@ -585,6 +634,212 @@ class _RiderOrderDetailsScreenState
         ),
       ),
     );
+  }
+
+  void _showRefuseOrderDialog(OrderModel order) {
+    final reasonController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final reasons = [
+      'Too far from my location',
+      'Order too heavy / large',
+      'Vehicle breakdown',
+      'Customer not reachable',
+      'Safety concern',
+      'Other',
+    ];
+    String selectedReason = reasons.first;
+    bool useCustomReason = false;
+
+    showDialog(
+      context: context,
+      builder:
+          (ctx) => StatefulBuilder(
+            builder:
+                (ctx, setDialogState) => AlertDialog(
+                  backgroundColor: AppColorsDark.surface,
+                  icon: Icon(
+                    Icons.warning_amber_rounded,
+                    color: AppColorsDark.error,
+                    size: 40.sp,
+                  ),
+                  title: Text(
+                    'Refuse This Order?',
+                    style: AppTextStyles.titleLarge().copyWith(
+                      color: AppColorsDark.error,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  content: Form(
+                    key: formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'The order will be returned to admin for reassignment. '
+                          'Please provide a reason.',
+                          style: AppTextStyles.bodySmall().copyWith(
+                            color: AppColorsDark.textSecondary,
+                          ),
+                        ),
+                        SizedBox(height: 14.h),
+
+                        // Quick reason chips
+                        Wrap(
+                          spacing: 8.w,
+                          runSpacing: 6.h,
+                          children:
+                              reasons.map((r) {
+                                final isSelected =
+                                    !useCustomReason && selectedReason == r;
+                                return GestureDetector(
+                                  onTap:
+                                      () => setDialogState(() {
+                                        selectedReason = r;
+                                        useCustomReason = false;
+                                        if (r == 'Other')
+                                          useCustomReason = true;
+                                      }),
+                                  child: Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 10.w,
+                                      vertical: 6.h,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          isSelected
+                                              ? AppColorsDark.error.withOpacity(
+                                                0.15,
+                                              )
+                                              : AppColorsDark.surfaceVariant,
+                                      borderRadius: BorderRadius.circular(20.r),
+                                      border: Border.all(
+                                        color:
+                                            isSelected
+                                                ? AppColorsDark.error
+                                                : AppColorsDark.border,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      r,
+                                      style: AppTextStyles.bodySmall().copyWith(
+                                        color:
+                                            isSelected
+                                                ? AppColorsDark.error
+                                                : AppColorsDark.textPrimary,
+                                        fontWeight:
+                                            isSelected
+                                                ? FontWeight.w600
+                                                : FontWeight.normal,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                        ),
+
+                        // Custom reason text field (shown for "Other")
+                        if (useCustomReason) ...[
+                          SizedBox(height: 12.h),
+                          TextFormField(
+                            controller: reasonController,
+                            maxLines: 2,
+                            autofocus: true,
+                            style: AppTextStyles.bodyMedium().copyWith(
+                              color: AppColorsDark.textPrimary,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: 'Describe your reason...',
+                              filled: true,
+                              fillColor: AppColorsDark.surfaceVariant,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10.r),
+                                borderSide: const BorderSide(
+                                  color: AppColorsDark.border,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10.r),
+                                borderSide: const BorderSide(
+                                  color: AppColorsDark.error,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                            validator:
+                                (v) =>
+                                    (v == null || v.trim().isEmpty)
+                                        ? 'Please enter a reason'
+                                        : null,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Cancel'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        if (useCustomReason) {
+                          if (!formKey.currentState!.validate()) return;
+                          selectedReason = reasonController.text.trim();
+                        }
+                        Navigator.pop(ctx);
+                        _refuseOrder(order, selectedReason);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColorsDark.error,
+                      ),
+                      child: const Text('Refuse Order'),
+                    ),
+                  ],
+                ),
+          ),
+    );
+  }
+
+  Future<void> _refuseOrder(OrderModel order, String reason) async {
+    setState(() => _isRefusing = true);
+    try {
+      final success = await ref
+          .read(ordersProvider.notifier)
+          .refuseOrderByRider(order.id, reason);
+
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Order returned to admin for reassignment.'),
+              backgroundColor: AppColorsDark.warning,
+            ),
+          );
+          // Pop back to rider dashboard — order is no longer theirs
+          Navigator.of(context).pop();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to refuse order. Please try again.'),
+              backgroundColor: AppColorsDark.error,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: AppColorsDark.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isRefusing = false);
+    }
   }
 
   Widget _buildStatusActionButton({
