@@ -122,39 +122,48 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (userDoc.exists && userDoc.data() != null) {
         final data = {'id': uid, ...userDoc.data()!};
 
-        // Add isPhoneVerified default if missing
-        if (!data.containsKey('isPhoneVerified')) {
-          data['isPhoneVerified'] = false;
+        // ✅ FIX: If no role field, this is an FCM-only stub written by
+        // NotificationService for an admin. Skip it and fall through to
+        // admins collection check below.
+        if (!data.containsKey('role') ||
+            (data['role'] as String?)?.isEmpty == true) {
+          log('⚠️ users doc has no role for $uid — checking admins collection');
+          // intentional fall-through — do NOT return here
+        } else {
+          // Role field exists — handle normally
+          if (!data.containsKey('isPhoneVerified')) {
+            data['isPhoneVerified'] = false;
+          }
+
+          final roleStr = data['role'] as String;
+          final role = UserRole.fromString(roleStr);
+
+          log('✅ User found on startup: ${firebaseUser.email} (${role.name})');
+
+          switch (role) {
+            case UserRole.customer:
+              final customer = CustomerModel.fromJson(data);
+              state = Authenticated(customer);
+              _saveFCMTokenInBackground(uid, 'customer');
+
+            case UserRole.rider:
+              final rider = RiderModel.fromJson(data);
+              log('   isApproved: ${rider.isApproved}');
+              if (!rider.isApproved) {
+                state = RiderPendingApproval(rider);
+              } else {
+                state = Authenticated(rider);
+              }
+              _saveFCMTokenInBackground(uid, 'rider');
+
+            case UserRole.admin:
+              // Admin role found in users collection — handle it
+              final admin = AdminModel.fromJson(data);
+              state = Authenticated(admin);
+              _saveFCMTokenInBackground(uid, 'admin');
+          }
+          return; // ✅ Only return when role was found and handled
         }
-
-        final roleStr = data['role'] as String? ?? 'customer';
-        final role = UserRole.fromString(roleStr);
-
-        log('✅ User found on startup: ${firebaseUser.email} (${role.name})');
-
-        switch (role) {
-          case UserRole.customer:
-            final customer = CustomerModel.fromJson(data);
-            state = Authenticated(customer);
-            _saveFCMTokenInBackground(uid, 'customer');
-
-          case UserRole.rider:
-            final rider = RiderModel.fromJson(data);
-            log('   isApproved: ${rider.isApproved}');
-            if (!rider.isApproved) {
-              state = RiderPendingApproval(rider);
-            } else {
-              state = Authenticated(rider);
-            }
-            _saveFCMTokenInBackground(uid, 'rider');
-
-          case UserRole.admin:
-            // Admin accidentally stored in 'users'? Unlikely but handle it.
-            final admin = AdminModel.fromJson(data);
-            state = Authenticated(admin);
-            _saveFCMTokenInBackground(uid, 'admin');
-        }
-        return;
       }
 
       // ── Step 2: Try 'admins' collection ───────────────────────────────────
