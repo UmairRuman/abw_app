@@ -1,4 +1,10 @@
 // lib/features/admin/presentation/screens/orders/admin_order_details_screen.dart
+// COMPLETE REPLACEMENT
+//
+// FIXES:
+//  1. ✅ Cancel dispose bug — reasonController is now a STATE FIELD disposed in dispose()
+//  2. ✅ Unverify payment button — reverts payment to COD
+//  3. ✅ Rider payment display — shows correct status based on paymentStatus field
 
 import 'package:abw_app/features/admin/presentation/screens/orders/widgets/assign_rider_dialog.dart';
 import 'package:flutter/material.dart';
@@ -15,7 +21,6 @@ import '../../../../cart/data/models/cart_item_model.dart';
 
 class AdminOrderDetailsScreen extends ConsumerStatefulWidget {
   final String orderId;
-
   const AdminOrderDetailsScreen({required this.orderId, super.key});
 
   @override
@@ -27,12 +32,25 @@ class _AdminOrderDetailsScreenState
     extends ConsumerState<AdminOrderDetailsScreen> {
   bool _isProcessing = false;
 
+  // ✅ FIX: Controller is a STATE FIELD — Flutter manages its lifecycle.
+  // Disposing it in a dialog's .then() fires during the close animation
+  // while TextFormField still holds a listener → ChangeNotifier disposed crash.
+  final TextEditingController _cancelReasonController = TextEditingController();
+  final GlobalKey<FormState> _cancelFormKey = GlobalKey<FormState>();
+
   @override
   void initState() {
     super.initState();
-    Future.microtask(() {
-      ref.read(ordersProvider.notifier).getOrderById(widget.orderId);
-    });
+    Future.microtask(
+      () => ref.read(ordersProvider.notifier).getOrderById(widget.orderId),
+    );
+  }
+
+  @override
+  void dispose() {
+    // ✅ Disposed here — guaranteed safe, after widget is fully removed
+    _cancelReasonController.dispose();
+    super.dispose();
   }
 
   @override
@@ -86,9 +104,9 @@ class _AdminOrderDetailsScreenState
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────────
   // MAIN LAYOUT
-  // ─────────────────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────────
 
   Widget _buildOrderDetails(OrderModel order) {
     return Column(
@@ -101,47 +119,32 @@ class _AdminOrderDetailsScreenState
               children: [
                 _buildOrderStatusCard(order),
                 SizedBox(height: 16.h),
-
-                // ✅ ADD THIS:
                 _buildStoreInfo(order),
                 SizedBox(height: 16.h),
-
-                // ✅ Status update actions (was missing)
                 _buildStatusUpdateCard(order),
                 SizedBox(height: 16.h),
-
                 _buildCustomerInfo(order),
                 SizedBox(height: 16.h),
-
                 if (order.riderId != null) ...[
                   _buildRiderInfo(order),
                   SizedBox(height: 16.h),
                 ],
-
                 _buildDeliveryAddress(order),
                 SizedBox(height: 16.h),
-
                 _buildOrderItems(order),
                 SizedBox(height: 16.h),
-
                 if (order.specialInstructions != null &&
-                    order.specialInstructions!.isNotEmpty)
+                    order.specialInstructions!.isNotEmpty) ...[
                   _buildSpecialInstructions(order.specialInstructions!),
-
-                if (order.specialInstructions != null &&
-                    order.specialInstructions!.isNotEmpty)
                   SizedBox(height: 16.h),
-
+                ],
                 _buildPaymentInfo(order),
                 SizedBox(height: 16.h),
-
                 _buildPriceBreakdown(order),
                 SizedBox(height: 16.h),
-
                 if (order.status == OrderStatus.cancelled &&
                     order.cancellationReason != null)
                   _buildCancellationInfo(order),
-
                 if (order.riderRefusalReason != null)
                   _buildRiderRefusalInfo(order),
               ],
@@ -153,10 +156,10 @@ class _AdminOrderDetailsScreenState
     );
   }
 
-  // ── STEP 2: ADD these two methods ────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────────
+  // STATUS PROGRESSION
+  // ───────────────────────────────────────────────────────────────────────────
 
-  /// Returns the next logical status and button label for a given order status.
-  /// Returns null when no further progression is possible from admin side.
   ({OrderStatus next, String label, Color color, IconData icon})?
   _getNextStatusAction(OrderStatus current) {
     switch (current) {
@@ -190,9 +193,13 @@ class _AdminOrderDetailsScreenState
         );
       case OrderStatus.delivered:
       case OrderStatus.cancelled:
-        return null; // No further action
+        return null;
     }
   }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // STORE INFO CARD
+  // ───────────────────────────────────────────────────────────────────────────
 
   Widget _buildStoreInfo(OrderModel order) {
     return Container(
@@ -225,44 +232,31 @@ class _AdminOrderDetailsScreenState
           SizedBox(height: 12.h),
           const Divider(color: AppColorsDark.border),
           SizedBox(height: 12.h),
-
-          // Store name (large, prominent)
-          Row(
-            children: [
-              Expanded(
-                child: Text(
+          Text(
+            order.storeName.isNotEmpty
+                ? order.storeName
+                : 'Store name unavailable',
+            style: AppTextStyles.titleLarge().copyWith(
+              color:
                   order.storeName.isNotEmpty
-                      ? order.storeName
-                      : 'Store name unavailable',
-                  style: AppTextStyles.titleLarge().copyWith(
-                    color:
-                        order.storeName.isNotEmpty
-                            ? AppColorsDark.textPrimary
-                            : AppColorsDark.textTertiary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
+                      ? AppColorsDark.textPrimary
+                      : AppColorsDark.textTertiary,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-
-          SizedBox(height: 8.h),
-
-          // Store ID (small, for reference)
+          SizedBox(height: 6.h),
           Row(
             children: [
-              Icon(Icons.tag, size: 14.sp, color: AppColorsDark.textTertiary),
+              Icon(Icons.tag, size: 13.sp, color: AppColorsDark.textTertiary),
               SizedBox(width: 4.w),
               Text(
-                'ID: ${order.storeId}',
+                order.storeId,
                 style: AppTextStyles.bodySmall().copyWith(
                   color: AppColorsDark.textTertiary,
                 ),
               ),
             ],
           ),
-
-          // Pickup reminder badge
           SizedBox(height: 12.h),
           Container(
             padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
@@ -295,15 +289,14 @@ class _AdminOrderDetailsScreenState
     );
   }
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // STATUS UPDATE CARD
+  // ───────────────────────────────────────────────────────────────────────────
+
   Widget _buildStatusUpdateCard(OrderModel order) {
     final action = _getNextStatusAction(order.status);
-
-    // No actions for delivered / cancelled
     if (action == null) return const SizedBox.shrink();
 
-    // Show assign rider button when:
-    // - order is confirmed, preparing, or out for delivery
-    // - no rider is assigned yet
     final canAssignRider =
         order.riderId == null &&
         (order.status == OrderStatus.confirmed ||
@@ -320,7 +313,6 @@ class _AdminOrderDetailsScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header ────────────────────────────────────────────────────────
           Row(
             children: [
               Icon(Icons.update, color: AppColorsDark.primary, size: 20.sp),
@@ -337,8 +329,6 @@ class _AdminOrderDetailsScreenState
           SizedBox(height: 12.h),
           const Divider(color: AppColorsDark.border),
           SizedBox(height: 12.h),
-
-          // ── Current → Next status indicator ───────────────────────────────
           Row(
             children: [
               Text(
@@ -347,19 +337,9 @@ class _AdminOrderDetailsScreenState
                   color: AppColorsDark.textSecondary,
                 ),
               ),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
-                decoration: BoxDecoration(
-                  color: _getStatusColor(order.status).withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(6.r),
-                ),
-                child: Text(
-                  _getStatusText(order.status),
-                  style: AppTextStyles.labelSmall().copyWith(
-                    color: _getStatusColor(order.status),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+              _statusChip(
+                _getStatusText(order.status),
+                _getStatusColor(order.status),
               ),
               SizedBox(width: 8.w),
               Icon(
@@ -368,26 +348,10 @@ class _AdminOrderDetailsScreenState
                 color: AppColorsDark.textTertiary,
               ),
               SizedBox(width: 8.w),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
-                decoration: BoxDecoration(
-                  color: action.color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(6.r),
-                ),
-                child: Text(
-                  _getStatusText(action.next),
-                  style: AppTextStyles.labelSmall().copyWith(
-                    color: action.color,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
+              _statusChip(_getStatusText(action.next), action.color),
             ],
           ),
-
           SizedBox(height: 12.h),
-
-          // ── Advance status button ──────────────────────────────────────────
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -419,79 +383,71 @@ class _AdminOrderDetailsScreenState
               ),
             ),
           ),
-
-          // ── Assign Rider button (shown when no rider assigned yet) ─────────
           if (canAssignRider) ...[
             SizedBox(height: 10.h),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed:
-                    () => showDialog(
-                      context: context,
-                      builder: (_) => AssignRiderDialog(order: order),
-                    ).then((_) {
-                      // Refresh order after dialog closes in case rider was assigned
-                      ref.read(ordersProvider.notifier).getOrderById(order.id);
-                    }),
-                icon: Icon(Icons.delivery_dining, size: 20.sp),
-                label: Text(
-                  'Assign Rider',
-                  style: AppTextStyles.button().copyWith(
-                    fontSize: 15.sp,
-                    color: AppColorsDark.primary,
-                  ),
-                ),
-                style: OutlinedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(vertical: 14.h),
-                  side: const BorderSide(
-                    color: AppColorsDark.primary,
-                    width: 2,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12.r),
-                  ),
-                ),
-              ),
-            ),
+            _riderButton(order, isChange: false),
           ],
-
-          // ── Change Rider button (shown when rider already assigned) ────────
           if (order.riderId != null &&
               order.status != OrderStatus.delivered) ...[
             SizedBox(height: 10.h),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed:
-                    () => showDialog(
-                      context: context,
-                      builder: (_) => AssignRiderDialog(order: order),
-                    ).then((_) {
-                      ref.read(ordersProvider.notifier).getOrderById(order.id);
-                    }),
-                icon: Icon(Icons.swap_horiz, size: 20.sp),
-                label: Text(
-                  'Change Rider',
-                  style: AppTextStyles.button().copyWith(
-                    fontSize: 15.sp,
-                    color: AppColorsDark.warning,
-                  ),
-                ),
-                style: OutlinedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(vertical: 14.h),
-                  side: const BorderSide(
-                    color: AppColorsDark.warning,
-                    width: 2,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12.r),
-                  ),
-                ),
-              ),
-            ),
+            _riderButton(order, isChange: true),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _statusChip(String text, Color color) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(6.r),
+      ),
+      child: Text(
+        text,
+        style: AppTextStyles.labelSmall().copyWith(
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _riderButton(OrderModel order, {required bool isChange}) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed:
+            () => showDialog(
+              context: context,
+              builder: (_) => AssignRiderDialog(order: order),
+            ).then((_) {
+              if (mounted) {
+                ref.read(ordersProvider.notifier).getOrderById(order.id);
+              }
+            }),
+        icon: Icon(
+          isChange ? Icons.swap_horiz : Icons.delivery_dining,
+          size: 20.sp,
+        ),
+        label: Text(
+          isChange ? 'Change Rider' : 'Assign Rider',
+          style: AppTextStyles.button().copyWith(
+            fontSize: 15.sp,
+            color: isChange ? AppColorsDark.warning : AppColorsDark.primary,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          padding: EdgeInsets.symmetric(vertical: 14.h),
+          side: BorderSide(
+            color: isChange ? AppColorsDark.warning : AppColorsDark.primary,
+            width: 2,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12.r),
+          ),
+        ),
       ),
     );
   }
@@ -500,24 +456,9 @@ class _AdminOrderDetailsScreenState
     OrderModel order,
     OrderStatus newStatus,
   ) async {
+    if (!mounted) return;
     setState(() => _isProcessing = true);
     try {
-      await FirebaseFirestore.instance
-          .collection('orders')
-          .doc(order.id)
-          .update({
-            'status': newStatus.name,
-            'updatedAt': FieldValue.serverTimestamp(), // ✅ OK at top level
-            'statusHistory': FieldValue.arrayUnion([
-              {
-                'status': newStatus.name,
-                'timestamp': Timestamp.now(), // ✅ Safe inside arrayUnion
-                'note': 'Status updated by admin',
-                'updatedBy': 'admin',
-              },
-            ]),
-          });
-
       await ref
           .read(ordersProvider.notifier)
           .updateOrderStatus(order.id, newStatus, null, 'admin');
@@ -526,14 +467,8 @@ class _AdminOrderDetailsScreenState
         await ref.read(ordersProvider.notifier).getOrderById(order.id);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 8.w),
-                Text(
-                  'Order updated to ${_getStatusText(newStatus).toLowerCase()}',
-                ),
-              ],
+            content: Text(
+              'Order updated to ${_getStatusText(newStatus).toLowerCase()}',
             ),
             backgroundColor: AppColorsDark.success,
             behavior: SnackBarBehavior.floating,
@@ -544,7 +479,7 @@ class _AdminOrderDetailsScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to update status: ${e.toString()}'),
+            content: Text('Failed: ${e.toString()}'),
             backgroundColor: AppColorsDark.error,
             behavior: SnackBarBehavior.floating,
           ),
@@ -555,158 +490,9 @@ class _AdminOrderDetailsScreenState
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // ORDER ITEMS — with variant, addons, per-item instructions
-  // ─────────────────────────────────────────────────────────────────────────
-
-  Widget _buildOrderItems(OrderModel order) {
-    return Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: AppColorsDark.cardBackground,
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: AppColorsDark.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Order Items (${order.items.length})',
-            style: AppTextStyles.titleMedium().copyWith(
-              color: AppColorsDark.textPrimary,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          SizedBox(height: 16.h),
-          ...order.items.map((item) => _buildOrderItemRow(item)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOrderItemRow(CartItemModel item) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: 14.h),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Name + qty
-                Text(
-                  '${item.quantity}x ${item.productName}',
-                  style: AppTextStyles.bodyMedium().copyWith(
-                    color: AppColorsDark.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-
-                // ✅ Variant
-                if (item.selectedVariant != null) ...[
-                  SizedBox(height: 3.h),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.straighten,
-                        size: 12.sp,
-                        color: AppColorsDark.primary,
-                      ),
-                      SizedBox(width: 4.w),
-                      Text(
-                        'Size: ${item.selectedVariant!.name}',
-                        style: AppTextStyles.bodySmall().copyWith(
-                          color: AppColorsDark.primary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-
-                // ✅ Addons
-                if (item.selectedAddons.isNotEmpty) ...[
-                  SizedBox(height: 3.h),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.add_circle_outline,
-                        size: 12.sp,
-                        color: AppColorsDark.success,
-                      ),
-                      SizedBox(width: 4.w),
-                      Expanded(
-                        child: Text(
-                          item.selectedAddons.map((a) => a.name).join(', '),
-                          style: AppTextStyles.bodySmall().copyWith(
-                            color: AppColorsDark.success,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-
-                // ✅ Per-item special instructions
-                if (item.specialInstructions != null &&
-                    item.specialInstructions!.isNotEmpty) ...[
-                  SizedBox(height: 5.h),
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 8.w,
-                      vertical: 5.h,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColorsDark.warning.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(6.r),
-                      border: Border.all(
-                        color: AppColorsDark.warning.withOpacity(0.3),
-                      ),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          Icons.note_alt_outlined,
-                          size: 12.sp,
-                          color: AppColorsDark.warning,
-                        ),
-                        SizedBox(width: 4.w),
-                        Expanded(
-                          child: Text(
-                            item.specialInstructions!,
-                            style: AppTextStyles.bodySmall().copyWith(
-                              color: AppColorsDark.warning,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-
-          // ✅ Price: discountedPrice × quantity (effective variant price)
-          Text(
-            'PKR ${(item.discountedPrice * item.quantity).toInt()}',
-            style: AppTextStyles.bodyMedium().copyWith(
-              color: AppColorsDark.primary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // PAYMENT INFO — method + status + proof screenshot
-  // ─────────────────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────────
+  // PAYMENT INFO — with Verify + Unverify buttons
+  // ───────────────────────────────────────────────────────────────────────────
 
   Widget _buildPaymentInfo(OrderModel order) {
     return Container(
@@ -719,7 +505,6 @@ class _AdminOrderDetailsScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Row(
             children: [
               Icon(Icons.payment, color: AppColorsDark.primary, size: 20.sp),
@@ -736,12 +521,8 @@ class _AdminOrderDetailsScreenState
           SizedBox(height: 12.h),
           const Divider(color: AppColorsDark.border),
           SizedBox(height: 12.h),
-
-          // Method
           _buildInfoRow('Method', _getPaymentMethodName(order.paymentMethod)),
           SizedBox(height: 8.h),
-
-          // Status badge
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -755,13 +536,12 @@ class _AdminOrderDetailsScreenState
             ],
           ),
 
-          // ✅ PROOF IMAGE — this was the missing block
+          // ── Proof image + verify / unverify buttons ──────────────────────
           if (order.paymentProofUrl != null &&
               order.paymentProofUrl!.isNotEmpty) ...[
             SizedBox(height: 16.h),
             const Divider(color: AppColorsDark.border),
             SizedBox(height: 12.h),
-
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -772,26 +552,52 @@ class _AdminOrderDetailsScreenState
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                if (order.paymentStatus == PaymentStatus.pending)
-                  ElevatedButton.icon(
-                    onPressed:
-                        _isProcessing
-                            ? null
-                            : () => _handleVerifyPayment(order),
-                    icon: Icon(Icons.verified, size: 16.sp),
-                    label: const Text('Verify'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColorsDark.success,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 12.w,
-                        vertical: 8.h,
+                Row(
+                  children: [
+                    // ✅ VERIFY button (shown when pending)
+                    if (order.paymentStatus == PaymentStatus.pending)
+                      ElevatedButton.icon(
+                        onPressed:
+                            _isProcessing
+                                ? null
+                                : () => _handleVerifyPayment(order),
+                        icon: Icon(Icons.verified, size: 14.sp),
+                        label: const Text('Verify'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColorsDark.success,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 12.w,
+                            vertical: 8.h,
+                          ),
+                          textStyle: AppTextStyles.labelSmall(),
+                        ),
                       ),
-                    ),
-                  ),
+
+                    // ✅ UNVERIFY button (shown when already verified)
+                    // Reverts payment to COD so rider knows to collect cash
+                    if (order.paymentStatus == PaymentStatus.completed) ...[
+                      ElevatedButton.icon(
+                        onPressed:
+                            _isProcessing
+                                ? null
+                                : () => _handleUnverifyPayment(order),
+                        icon: Icon(Icons.cancel_outlined, size: 14.sp),
+                        label: const Text('Unverify'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColorsDark.error,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 12.w,
+                            vertical: 8.h,
+                          ),
+                          textStyle: AppTextStyles.labelSmall(),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ],
             ),
             SizedBox(height: 12.h),
-
             GestureDetector(
               onTap: () => _showFullScreenImage(order.paymentProofUrl!),
               child: ClipRRect(
@@ -801,74 +607,43 @@ class _AdminOrderDetailsScreenState
                   width: double.infinity,
                   height: 250.h,
                   fit: BoxFit.cover,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
+                  loadingBuilder: (context, child, progress) {
+                    if (progress == null) return child;
                     return Container(
                       height: 250.h,
                       color: AppColorsDark.surfaceContainer,
-                      child: Center(
+                      child: const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColorsDark.primary,
+                        ),
+                      ),
+                    );
+                  },
+                  errorBuilder:
+                      (_, __, ___) => Container(
+                        height: 100.h,
+                        decoration: BoxDecoration(
+                          color: AppColorsDark.surfaceContainer,
+                          borderRadius: BorderRadius.circular(12.r),
+                        ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            CircularProgressIndicator(
-                              color: AppColorsDark.primary,
-                              value:
-                                  loadingProgress.expectedTotalBytes != null
-                                      ? loadingProgress.cumulativeBytesLoaded /
-                                          loadingProgress.expectedTotalBytes!
-                                      : null,
+                            Icon(
+                              Icons.broken_image_outlined,
+                              color: AppColorsDark.error,
+                              size: 32.sp,
                             ),
                             SizedBox(height: 8.h),
                             Text(
-                              'Loading payment proof...',
+                              'Failed to load image',
                               style: AppTextStyles.bodySmall().copyWith(
-                                color: AppColorsDark.textSecondary,
+                                color: AppColorsDark.error,
                               ),
                             ),
                           ],
                         ),
                       ),
-                    );
-                  },
-                  errorBuilder: (_, error, stackTrace) {
-                    debugPrint('Payment proof load error: $error');
-                    return Container(
-                      height: 100.h,
-                      decoration: BoxDecoration(
-                        color: AppColorsDark.surfaceContainer,
-                        borderRadius: BorderRadius.circular(12.r),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.broken_image_outlined,
-                            color: AppColorsDark.error,
-                            size: 32.sp,
-                          ),
-                          SizedBox(height: 8.h),
-                          Text(
-                            'Failed to load image',
-                            style: AppTextStyles.bodySmall().copyWith(
-                              color: AppColorsDark.error,
-                            ),
-                          ),
-                          SizedBox(height: 4.h),
-                          // Shows the actual error in debug so you can diagnose
-                          Text(
-                            error.toString(),
-                            style: AppTextStyles.bodySmall().copyWith(
-                              color: AppColorsDark.textTertiary,
-                              fontSize: 10.sp,
-                            ),
-                            textAlign: TextAlign.center,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    );
-                  },
                 ),
               ),
             ),
@@ -884,6 +659,129 @@ class _AdminOrderDetailsScreenState
         ],
       ),
     );
+  }
+
+  // ✅ Verify payment
+  Future<void> _handleVerifyPayment(OrderModel order) async {
+    if (!mounted) return;
+    setState(() => _isProcessing = true);
+    try {
+      await FirebaseFirestore.instance
+          .collection('orders')
+          .doc(order.id)
+          .update({'paymentStatus': 'completed'});
+
+      if (mounted) {
+        await ref.read(ordersProvider.notifier).getOrderById(order.id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Payment verified successfully'),
+            backgroundColor: AppColorsDark.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed: ${e.toString()}'),
+            backgroundColor: AppColorsDark.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  // ✅ NEW: Unverify payment — marks as pending AND switches to COD
+  // so the rider knows to collect cash instead of assuming it's paid.
+  Future<void> _handleUnverifyPayment(OrderModel order) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            backgroundColor: AppColorsDark.surface,
+            icon: Icon(
+              Icons.warning_amber_rounded,
+              color: AppColorsDark.warning,
+              size: 40.sp,
+            ),
+            title: Text(
+              'Unverify Payment?',
+              style: AppTextStyles.titleMedium().copyWith(
+                color: AppColorsDark.warning,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: Text(
+              'This will mark the payment as unverified and convert the order '
+              'to Cash on Delivery. The rider will be asked to collect cash '
+              'from the customer.',
+              style: AppTextStyles.bodyMedium().copyWith(
+                color: AppColorsDark.textSecondary,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColorsDark.warning,
+                ),
+                child: const Text('Unverify & Set to COD'),
+              ),
+            ],
+          ),
+    );
+
+    if (confirm != true || !mounted) return;
+    setState(() => _isProcessing = true);
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('orders')
+          .doc(order.id)
+          .update({
+            // ✅ Revert payment status to pending
+            'paymentStatus': 'pending',
+            // ✅ Switch payment method to COD so rider collects cash
+            'paymentMethod': 'cod',
+            'updatedAt': FieldValue.serverTimestamp(),
+            'statusHistory': FieldValue.arrayUnion([
+              {
+                'status': order.status.name,
+                'timestamp': Timestamp.now(),
+                'note': 'Payment unverified by admin — converted to COD',
+                'updatedBy': 'admin',
+              },
+            ]),
+          });
+
+      if (mounted) {
+        await ref.read(ordersProvider.notifier).getOrderById(order.id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Payment unverified — order converted to COD'),
+            backgroundColor: AppColorsDark.warning,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed: ${e.toString()}'),
+            backgroundColor: AppColorsDark.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
   }
 
   Widget _buildPaymentStatusBadge(PaymentStatus status) {
@@ -942,47 +840,15 @@ class _AdminOrderDetailsScreenState
     );
   }
 
-  Future<void> _handleVerifyPayment(OrderModel order) async {
-    setState(() => _isProcessing = true);
-    try {
-      await FirebaseFirestore.instance
-          .collection('orders')
-          .doc(order.id)
-          .update({'paymentStatus': 'completed'});
+  // ───────────────────────────────────────────────────────────────────────────
+  // CANCEL ORDER — dialog + handler
+  // ───────────────────────────────────────────────────────────────────────────
 
-      if (mounted) {
-        await ref.read(ordersProvider.notifier).getOrderById(order.id);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Payment verified successfully'),
-            backgroundColor: AppColorsDark.success,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to verify: ${e.toString()}'),
-            backgroundColor: AppColorsDark.error,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isProcessing = false);
-    }
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // REMAINING WIDGETS (unchanged from your version)
-  // ─────────────────────────────────────────────────────────────────────────
-
-  bool _canCancelOrder(OrderStatus status) {
-    return status == OrderStatus.pending ||
-        status == OrderStatus.confirmed ||
-        status == OrderStatus.preparing ||
-        status == OrderStatus.outForDelivery;
-  }
+  bool _canCancelOrder(OrderStatus status) =>
+      status == OrderStatus.pending ||
+      status == OrderStatus.confirmed ||
+      status == OrderStatus.preparing ||
+      status == OrderStatus.outForDelivery;
 
   Widget _buildActionButtons(OrderModel order) {
     return Container(
@@ -1031,11 +897,10 @@ class _AdminOrderDetailsScreenState
   }
 
   void _showCancelOrderDialog(OrderModel order) {
-    // ✅ Create controller OUTSIDE dialog so we can dispose it properly
-    final reasonController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
+    // ✅ Clear previous text so the field is fresh
+    _cancelReasonController.clear();
 
-    showDialog<String?>(
+    showDialog(
       context: context,
       builder:
           (dialogContext) => AlertDialog(
@@ -1053,7 +918,7 @@ class _AdminOrderDetailsScreenState
               ),
             ),
             content: Form(
-              key: formKey,
+              key: _cancelFormKey,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1073,15 +938,16 @@ class _AdminOrderDetailsScreenState
                     ),
                   ),
                   SizedBox(height: 8.h),
+                  // ✅ Uses state-field controller — no lifecycle issue
                   TextFormField(
-                    controller: reasonController,
+                    controller: _cancelReasonController,
                     maxLines: 3,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
                         return 'Please provide a reason';
                       }
-                      if (value.trim().length < 10) {
-                        return 'Reason must be at least 10 characters';
+                      if (v.trim().length < 10) {
+                        return 'At least 10 characters required';
                       }
                       return null;
                     },
@@ -1153,23 +1019,19 @@ class _AdminOrderDetailsScreenState
             ),
             actions: [
               TextButton(
-                onPressed: () {
-                  Navigator.pop(dialogContext);
-                },
-                child: const Text(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text(
                   'Keep Order',
                   style: TextStyle(color: AppColorsDark.textSecondary),
                 ),
               ),
               ElevatedButton(
                 onPressed: () {
-                  if (formKey.currentState!.validate()) {
-                    // ✅ Capture reason BEFORE closing dialog
-                    final reason = reasonController.text.trim();
-
-                    // ✅ Close dialog first, THEN do async work
+                  if (_cancelFormKey.currentState!.validate()) {
+                    // ✅ Capture text before closing
+                    final reason = _cancelReasonController.text.trim();
                     Navigator.pop(dialogContext);
-                    // Small delay to let the dialog fully close before setState
+                    // ✅ microtask ensures dialog is fully off the tree before setState
                     Future.microtask(
                       () => _handleCancelOrder(order.id, reason),
                     );
@@ -1182,10 +1044,7 @@ class _AdminOrderDetailsScreenState
               ),
             ],
           ),
-    ).then((_) {
-      // ✅ Dispose AFTER dialog is fully removed from widget tree
-      reasonController.dispose();
-    });
+    );
   }
 
   Future<void> _handleCancelOrder(String orderId, String reason) async {
@@ -1193,30 +1052,22 @@ class _AdminOrderDetailsScreenState
     setState(() => _isProcessing = true);
 
     bool success = false;
-
     try {
       success = await ref
           .read(ordersProvider.notifier)
           .cancelOrder(orderId, reason);
-    } catch (e) {
+    } catch (_) {
       success = false;
     }
 
-    // ✅ KEY FIX: Do NOT call getOrderById() here.
-    // getOrderById() sets state → OrdersLoading which tears down the entire
-    // _buildOrderDetails widget tree (scroll view, controllers, etc.) while
-    // the screen is still mounted → ChangeNotifier disposed exception.
-    //
-    // After cancellation the order is done — just pop back to the orders list.
-    // The orders list stream will automatically reflect the cancelled status.
+    // ✅ NEVER call getOrderById() after cancel — it sets OrdersLoading
+    // which tears down the scroll view → disposed ScrollController crash.
+    // Just pop. The orders list stream updates automatically.
 
     if (!mounted) return;
-
     setState(() => _isProcessing = false);
 
     if (success) {
-      // Show snackbar on the PREVIOUS screen (orders list) by using
-      // the root scaffold messenger so it survives the pop.
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -1230,12 +1081,11 @@ class _AdminOrderDetailsScreenState
           behavior: SnackBarBehavior.floating,
         ),
       );
-      // ✅ Pop back — the orders list stream updates automatically
       Navigator.of(context).pop();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Failed to cancel order. Please try again.'),
+          content: Text('Failed to cancel. Please try again.'),
           backgroundColor: AppColorsDark.error,
           behavior: SnackBarBehavior.floating,
         ),
@@ -1243,155 +1093,141 @@ class _AdminOrderDetailsScreenState
     }
   }
 
-  Widget _buildConsequenceItem(String text) {
+  // ───────────────────────────────────────────────────────────────────────────
+  // REMAINING WIDGETS
+  // ───────────────────────────────────────────────────────────────────────────
+
+  Widget _buildOrderItems(OrderModel order) {
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: AppColorsDark.cardBackground,
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: AppColorsDark.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Order Items (${order.items.length})',
+            style: AppTextStyles.titleMedium().copyWith(
+              color: AppColorsDark.textPrimary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: 16.h),
+          ...order.items.map((item) => _buildOrderItemRow(item)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOrderItemRow(CartItemModel item) {
     return Padding(
-      padding: EdgeInsets.only(bottom: 4.h),
+      padding: EdgeInsets.only(bottom: 14.h),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.check_circle_outline,
-            size: 16.sp,
-            color: AppColorsDark.warning,
-          ),
-          SizedBox(width: 8.w),
           Expanded(
-            child: Text(
-              text,
-              style: AppTextStyles.bodySmall().copyWith(
-                color: AppColorsDark.warning,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCancellationInfo(OrderModel order) {
-    if (order.status != OrderStatus.cancelled ||
-        order.cancellationReason == null) {
-      return const SizedBox.shrink();
-    }
-    return Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: AppColorsDark.error.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppColorsDark.error.withOpacity(0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.cancel, color: AppColorsDark.error, size: 20.sp),
-              SizedBox(width: 8.w),
-              Text(
-                'Order Cancelled',
-                style: AppTextStyles.titleSmall().copyWith(
-                  color: AppColorsDark.error,
-                  fontWeight: FontWeight.w600,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${item.quantity}x ${item.productName}',
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          SizedBox(height: 12.h),
-          const Divider(color: AppColorsDark.error),
-          SizedBox(height: 12.h),
-          if (order.cancelledBy != null) ...[
-            Text(
-              'Cancelled by: ${order.cancelledBy!.toUpperCase()}',
-              style: AppTextStyles.labelSmall().copyWith(
-                color: AppColorsDark.error,
-                fontWeight: FontWeight.w600,
-              ),
+                if (item.selectedVariant != null) ...[
+                  SizedBox(height: 3.h),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.straighten,
+                        size: 12.sp,
+                        color: AppColorsDark.primary,
+                      ),
+                      SizedBox(width: 4.w),
+                      Text(
+                        'Size: ${item.selectedVariant!.name}',
+                        style: AppTextStyles.bodySmall().copyWith(
+                          color: AppColorsDark.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                if (item.selectedAddons.isNotEmpty) ...[
+                  SizedBox(height: 3.h),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.add_circle_outline,
+                        size: 12.sp,
+                        color: AppColorsDark.success,
+                      ),
+                      SizedBox(width: 4.w),
+                      Expanded(
+                        child: Text(
+                          item.selectedAddons.map((a) => a.name).join(', '),
+                          style: AppTextStyles.bodySmall().copyWith(
+                            color: AppColorsDark.success,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                if (item.specialInstructions != null &&
+                    item.specialInstructions!.isNotEmpty) ...[
+                  SizedBox(height: 5.h),
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 8.w,
+                      vertical: 5.h,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColorsDark.warning.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6.r),
+                      border: Border.all(
+                        color: AppColorsDark.warning.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.note_alt_outlined,
+                          size: 12.sp,
+                          color: AppColorsDark.warning,
+                        ),
+                        SizedBox(width: 4.w),
+                        Expanded(
+                          child: Text(
+                            item.specialInstructions!,
+                            style: AppTextStyles.bodySmall().copyWith(
+                              color: AppColorsDark.warning,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
             ),
-            SizedBox(height: 8.h),
-          ],
+          ),
           Text(
-            'Reason:',
-            style: AppTextStyles.labelSmall().copyWith(
-              color: AppColorsDark.error,
+            'PKR ${(item.discountedPrice * item.quantity).toInt()}',
+            style: AppTextStyles.bodyMedium().copyWith(
+              color: AppColorsDark.primary,
               fontWeight: FontWeight.w600,
             ),
           ),
-          SizedBox(height: 4.h),
-          Text(
-            order.cancellationReason!,
-            style: AppTextStyles.bodySmall().copyWith(
-              color: AppColorsDark.error,
-            ),
-          ),
-          if (order.cancelledAt != null) ...[
-            SizedBox(height: 8.h),
-            Text(
-              'Cancelled at: ${DateFormat('MMM d, yyyy • h:mm a').format(order.cancelledAt!)}',
-              style: AppTextStyles.bodySmall().copyWith(
-                color: AppColorsDark.textTertiary,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRiderRefusalInfo(OrderModel order) {
-    if (order.riderRefusalReason == null) return const SizedBox.shrink();
-    return Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: AppColorsDark.warning.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppColorsDark.warning.withOpacity(0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.warning_amber,
-                color: AppColorsDark.warning,
-                size: 20.sp,
-              ),
-              SizedBox(width: 8.w),
-              Text(
-                'Rider Refusal History',
-                style: AppTextStyles.titleSmall().copyWith(
-                  color: AppColorsDark.warning,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 12.h),
-          const Divider(color: AppColorsDark.warning),
-          SizedBox(height: 12.h),
-          Text(
-            'Previous rider refused this order:',
-            style: AppTextStyles.labelSmall().copyWith(
-              color: AppColorsDark.warning,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          SizedBox(height: 4.h),
-          Text(
-            order.riderRefusalReason!,
-            style: AppTextStyles.bodySmall().copyWith(
-              color: AppColorsDark.warning,
-            ),
-          ),
-          if (order.riderRefusedAt != null) ...[
-            SizedBox(height: 8.h),
-            Text(
-              'Refused at: ${DateFormat('MMM d, yyyy • h:mm a').format(order.riderRefusedAt!)}',
-              style: AppTextStyles.bodySmall().copyWith(
-                color: AppColorsDark.textTertiary,
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -1484,7 +1320,10 @@ class _AdminOrderDetailsScreenState
           SizedBox(height: 12.h),
           _buildInfoRow('Name', order.userName),
           SizedBox(height: 8.h),
-          _buildInfoRow('Phone', order.userPhone),
+          _buildInfoRow(
+            'Phone',
+            order.userPhone.isNotEmpty ? order.userPhone : 'Not provided',
+          ),
         ],
       ),
     );
@@ -1561,7 +1400,8 @@ class _AdminOrderDetailsScreenState
           const Divider(color: AppColorsDark.border),
           SizedBox(height: 12.h),
           Text(
-            '${order.deliveryAddress.addressLine1}, ${order.deliveryAddress.area}, ${order.deliveryAddress.city}',
+            '${order.deliveryAddress.addressLine1}, '
+            '${order.deliveryAddress.area}, ${order.deliveryAddress.city}',
             style: AppTextStyles.bodyMedium().copyWith(
               color: AppColorsDark.textPrimary,
             ),
@@ -1655,6 +1495,159 @@ class _AdminOrderDetailsScreenState
     );
   }
 
+  Widget _buildCancellationInfo(OrderModel order) {
+    if (order.status != OrderStatus.cancelled ||
+        order.cancellationReason == null)
+      return const SizedBox.shrink();
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: AppColorsDark.error.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: AppColorsDark.error.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.cancel, color: AppColorsDark.error, size: 20.sp),
+              SizedBox(width: 8.w),
+              Text(
+                'Order Cancelled',
+                style: AppTextStyles.titleSmall().copyWith(
+                  color: AppColorsDark.error,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          Divider(color: AppColorsDark.error),
+          SizedBox(height: 12.h),
+          if (order.cancelledBy != null) ...[
+            Text(
+              'Cancelled by: ${order.cancelledBy!.toUpperCase()}',
+              style: AppTextStyles.labelSmall().copyWith(
+                color: AppColorsDark.error,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(height: 8.h),
+          ],
+          Text(
+            'Reason:',
+            style: AppTextStyles.labelSmall().copyWith(
+              color: AppColorsDark.error,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          SizedBox(height: 4.h),
+          Text(
+            order.cancellationReason!,
+            style: AppTextStyles.bodySmall().copyWith(
+              color: AppColorsDark.error,
+            ),
+          ),
+          if (order.cancelledAt != null) ...[
+            SizedBox(height: 8.h),
+            Text(
+              'Cancelled at: ${DateFormat('MMM d, yyyy • h:mm a').format(order.cancelledAt!)}',
+              style: AppTextStyles.bodySmall().copyWith(
+                color: AppColorsDark.textTertiary,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRiderRefusalInfo(OrderModel order) {
+    if (order.riderRefusalReason == null) return const SizedBox.shrink();
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: AppColorsDark.warning.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: AppColorsDark.warning.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.warning_amber,
+                color: AppColorsDark.warning,
+                size: 20.sp,
+              ),
+              SizedBox(width: 8.w),
+              Text(
+                'Rider Refusal History',
+                style: AppTextStyles.titleSmall().copyWith(
+                  color: AppColorsDark.warning,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12.h),
+          Divider(color: AppColorsDark.warning),
+          SizedBox(height: 12.h),
+          Text(
+            'Previous rider refused this order:',
+            style: AppTextStyles.labelSmall().copyWith(
+              color: AppColorsDark.warning,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          SizedBox(height: 4.h),
+          Text(
+            order.riderRefusalReason!,
+            style: AppTextStyles.bodySmall().copyWith(
+              color: AppColorsDark.warning,
+            ),
+          ),
+          if (order.riderRefusedAt != null) ...[
+            SizedBox(height: 8.h),
+            Text(
+              'Refused at: ${DateFormat('MMM d, yyyy • h:mm a').format(order.riderRefusedAt!)}',
+              style: AppTextStyles.bodySmall().copyWith(
+                color: AppColorsDark.textTertiary,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConsequenceItem(String text) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 4.h),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.check_circle_outline,
+            size: 16.sp,
+            color: AppColorsDark.warning,
+          ),
+          SizedBox(width: 8.w),
+          Expanded(
+            child: Text(
+              text,
+              style: AppTextStyles.bodySmall().copyWith(
+                color: AppColorsDark.warning,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildInfoRow(String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1739,9 +1732,9 @@ class _AdminOrderDetailsScreenState
   }
 
   LinearGradient _getStatusGradient(OrderStatus status) {
-    final color = _getStatusColor(status);
+    final c = _getStatusColor(status);
     return LinearGradient(
-      colors: [color, color.withOpacity(0.7)],
+      colors: [c, c.withOpacity(0.7)],
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
     );

@@ -101,6 +101,12 @@ class _RiderOrderDetailsScreenState
                       SizedBox(height: 16.h),
                       _buildPaymentInfo(order),
                       // ✅ SPECIAL INSTRUCTIONS deliberately NOT shown to rider
+                      // ✅ Special instructions — shown to rider
+                      if (order.specialInstructions != null &&
+                          order.specialInstructions!.isNotEmpty) ...[
+                        SizedBox(height: 16.h),
+                        _buildSpecialInstructions(order.specialInstructions!),
+                      ],
                     ],
                   ),
                 ),
@@ -115,25 +121,67 @@ class _RiderOrderDetailsScreenState
 
   // ── Status Stepper ────────────────────────────────────────────────────────
 
+  Widget _buildSpecialInstructions(String instructions) {
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: AppColorsDark.info.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16.r),
+        border: Border.all(color: AppColorsDark.info.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.note_alt_outlined,
+                color: AppColorsDark.info,
+                size: 20.sp,
+              ),
+              SizedBox(width: 8.w),
+              Text(
+                'Special Instructions',
+                style: AppTextStyles.titleSmall().copyWith(
+                  color: AppColorsDark.info,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 10.h),
+          const Divider(color: AppColorsDark.border),
+          SizedBox(height: 10.h),
+          Text(
+            instructions,
+            style: AppTextStyles.bodyMedium().copyWith(
+              color: AppColorsDark.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Shows the rider where the order currently is in the lifecycle.
   Widget _buildStatusStepper(OrderModel order) {
     final steps = [
-      _StatusStep(
+      const _StatusStep(
         status: OrderStatus.confirmed,
         label: 'Confirmed',
         icon: Icons.check_circle_outline,
       ),
-      _StatusStep(
+      const _StatusStep(
         status: OrderStatus.preparing,
         label: 'Preparing',
         icon: Icons.restaurant,
       ),
-      _StatusStep(
+      const _StatusStep(
         status: OrderStatus.outForDelivery,
         label: 'Out for Delivery',
         icon: Icons.delivery_dining,
       ),
-      _StatusStep(
+      const _StatusStep(
         status: OrderStatus.delivered,
         label: 'Delivered',
         icon: Icons.task_alt,
@@ -419,56 +467,175 @@ class _RiderOrderDetailsScreenState
 
   Widget _buildPaymentInfo(OrderModel order) {
     final isCOD = order.paymentMethod == PaymentMethod.cod;
+    final isVerified = order.paymentStatus == PaymentStatus.completed;
+
+    // ── COD: always collect cash ──────────────────────────────────────────────
+    if (isCOD) {
+      return Container(
+        padding: EdgeInsets.all(16.w),
+        decoration: BoxDecoration(
+          color: AppColorsDark.warning.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16.r),
+          border: Border.all(color: AppColorsDark.warning.withOpacity(0.3)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.money, color: AppColorsDark.warning, size: 24.sp),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Collect Cash on Delivery',
+                    style: AppTextStyles.titleSmall().copyWith(
+                      color: AppColorsDark.textPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'Collect PKR ${order.total.toInt()} from customer',
+                    style: AppTextStyles.bodySmall().copyWith(
+                      color: AppColorsDark.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              'PKR ${order.total.toInt()}',
+              style: AppTextStyles.titleLarge().copyWith(
+                color: AppColorsDark.warning,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // ── Online payment verified ───────────────────────────────────────────────
+    if (isVerified) {
+      return Container(
+        padding: EdgeInsets.all(16.w),
+        decoration: BoxDecoration(
+          color: AppColorsDark.success.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16.r),
+          border: Border.all(color: AppColorsDark.success.withOpacity(0.3)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.check_circle, color: AppColorsDark.success, size: 24.sp),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Already Paid',
+                    style: AppTextStyles.titleSmall().copyWith(
+                      color: AppColorsDark.textPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'Payment verified by admin',
+                    style: AppTextStyles.bodySmall().copyWith(
+                      color: AppColorsDark.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              'PKR ${order.total.toInt()}',
+              style: AppTextStyles.titleLarge().copyWith(
+                color: AppColorsDark.success,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // ✅ FIX: Online payment NOT yet verified by admin ─────────────────────────
+    // Show a clear warning so rider knows payment is unconfirmed.
+    // Admin may later unverify → convert to COD, so rider should be cautious.
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
-        color:
-            isCOD
-                ? AppColorsDark.warning.withOpacity(0.1)
-                : AppColorsDark.success.withOpacity(0.1),
+        color: AppColorsDark.error.withOpacity(0.08),
         borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(
-          color:
-              isCOD
-                  ? AppColorsDark.warning.withOpacity(0.3)
-                  : AppColorsDark.success.withOpacity(0.3),
-        ),
+        border: Border.all(color: AppColorsDark.error.withOpacity(0.3)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            isCOD ? Icons.money : Icons.check_circle,
-            color: isCOD ? AppColorsDark.warning : AppColorsDark.success,
-            size: 24.sp,
-          ),
-          SizedBox(width: 12.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isCOD ? 'Collect Cash' : 'Already Paid',
-                  style: AppTextStyles.titleSmall().copyWith(
-                    color: AppColorsDark.textPrimary,
-                    fontWeight: FontWeight.bold,
-                  ),
+          Row(
+            children: [
+              Icon(
+                Icons.warning_amber_rounded,
+                color: AppColorsDark.error,
+                size: 24.sp,
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Payment Not Yet Verified',
+                      style: AppTextStyles.titleSmall().copyWith(
+                        color: AppColorsDark.error,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      'Admin has not verified the payment yet',
+                      style: AppTextStyles.bodySmall().copyWith(
+                        color: AppColorsDark.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
-                Text(
-                  isCOD
-                      ? 'Collect PKR ${order.total.toInt()} from customer'
-                      : 'Payment completed online',
-                  style: AppTextStyles.bodySmall().copyWith(
-                    color: AppColorsDark.textSecondary,
+              ),
+              Text(
+                'PKR ${order.total.toInt()}',
+                style: AppTextStyles.titleLarge().copyWith(
+                  color: AppColorsDark.error,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 10.h),
+          Container(
+            padding: EdgeInsets.all(10.w),
+            decoration: BoxDecoration(
+              color: AppColorsDark.warning.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8.r),
+              border: Border.all(color: AppColorsDark.warning.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: AppColorsDark.warning,
+                  size: 16.sp,
+                ),
+                SizedBox(width: 8.w),
+                Expanded(
+                  child: Text(
+                    'If admin marks payment as unverified, this order '
+                    'will convert to COD. Be ready to collect cash.',
+                    style: AppTextStyles.bodySmall().copyWith(
+                      color: AppColorsDark.warning,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ],
-            ),
-          ),
-          Text(
-            'PKR ${order.total.toInt()}',
-            style: AppTextStyles.titleLarge().copyWith(
-              color: isCOD ? AppColorsDark.warning : AppColorsDark.success,
-              fontWeight: FontWeight.bold,
             ),
           ),
         ],
