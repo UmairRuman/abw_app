@@ -1,5 +1,4 @@
 // lib/features/stores/data/models/store_model.dart
-// UPDATED WITH COMMISSION FIELD FOR MILESTONE 3
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -11,53 +10,42 @@ class StoreModel {
   final String categoryName;
   final String type;
 
-  // Owner info
   final String ownerId;
   final String ownerName;
   final String ownerEmail;
   final String ownerPhone;
 
-  // Images
   final List<String> images;
   final String logoUrl;
   final String bannerUrl;
 
-  // Location
   final String address;
   final String city;
   final String area;
   final double latitude;
   final double longitude;
 
-  // Ratings & Stats
   final double rating;
   final int totalReviews;
   final int totalOrders;
 
-  // Delivery info
   final int deliveryTime;
   final double deliveryFee;
   final double minimumOrder;
-
-  // ✅ NEW: Commission per order
   final double commission;
 
-  // Status flags
   final bool isActive;
   final bool isApproved;
   final bool isFeatured;
-  final bool isOpen;
+  final bool isOpen; // stored flag — used as manual override / fallback
 
-  // Operating hours
   final String openingTime;
   final String closingTime;
   final List<String> workingDays;
 
-  // Additional info
   final List<String> cuisines;
   final List<String> tags;
 
-  // Timestamps
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? approvedAt;
@@ -91,7 +79,7 @@ class StoreModel {
     required this.workingDays,
     required this.createdAt,
     required this.updatedAt,
-    this.commission = 0.0, // ✅ Default 0 PKR commission
+    this.commission = 0.0,
     this.rating = 0.0,
     this.totalReviews = 0,
     this.totalOrders = 0,
@@ -105,6 +93,84 @@ class StoreModel {
     this.approvedBy,
     this.rejectionReason,
   });
+
+  // ── ✅ FIX: Computed open/closed status ───────────────────────────────────
+  //
+  // Previously the UI read `store.isOpen` which is a static boolean saved in
+  // Firestore — it never changed based on actual time, so stores always
+  // appeared open (defaulted to true). This getter computes the real status
+  // from openingTime, closingTime and workingDays at call time.
+  //
+  // Falls back to the stored `isOpen` boolean only when time strings are
+  // missing or unparseable (e.g. legacy stores with no hours configured).
+
+  bool get isCurrentlyOpen {
+    // If store is inactive, it's always closed regardless of hours
+    if (!isActive) return false;
+
+    // If no hours configured, fall back to stored boolean
+    if (openingTime.isEmpty || closingTime.isEmpty) return isOpen;
+
+    final now = DateTime.now();
+
+    // Check working days
+    if (workingDays.isNotEmpty) {
+      const dayNames = [
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+        'Sunday',
+      ];
+      final todayName = dayNames[now.weekday - 1]; // weekday: 1=Mon … 7=Sun
+      if (!workingDays.contains(todayName)) return false;
+    }
+
+    // Parse time strings — supports "8:00 AM", "8:00 PM", "08:00", "20:00"
+    final openMinutes = _parseTimeToMinutes(openingTime);
+    final closeMinutes = _parseTimeToMinutes(closingTime);
+
+    // If parsing fails, fall back to stored boolean
+    if (openMinutes == null || closeMinutes == null) return isOpen;
+
+    final nowMinutes = now.hour * 60 + now.minute;
+
+    // Handle overnight hours (e.g. 10 PM to 2 AM)
+    if (closeMinutes < openMinutes) {
+      return nowMinutes >= openMinutes || nowMinutes < closeMinutes;
+    }
+
+    return nowMinutes >= openMinutes && nowMinutes < closeMinutes;
+  }
+
+  /// Parses "8:00 AM", "8:00 PM", "08:00", "20:00" → total minutes since midnight.
+  /// Returns null if the string cannot be parsed.
+  int? _parseTimeToMinutes(String timeStr) {
+    try {
+      final trimmed = timeStr.trim().toUpperCase();
+      final isPM = trimmed.endsWith('PM');
+      final isAM = trimmed.endsWith('AM');
+
+      // Strip AM/PM suffix
+      final cleaned = trimmed.replaceAll('AM', '').replaceAll('PM', '').trim();
+      final parts = cleaned.split(':');
+      if (parts.length < 2) return null;
+
+      int hour = int.parse(parts[0].trim());
+      final minute = int.parse(parts[1].trim());
+
+      if (isPM && hour != 12) hour += 12;
+      if (isAM && hour == 12) hour = 0; // midnight edge case
+
+      return hour * 60 + minute;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // ── Serialisation ─────────────────────────────────────────────────────────
 
   Map<String, dynamic> toJson() {
     return {
@@ -132,7 +198,7 @@ class StoreModel {
       'deliveryTime': deliveryTime,
       'deliveryFee': deliveryFee,
       'minimumOrder': minimumOrder,
-      'commission': commission, // ✅
+      'commission': commission,
       'isActive': isActive,
       'isApproved': isApproved,
       'isFeatured': isFeatured,
@@ -176,14 +242,17 @@ class StoreModel {
       deliveryTime: json['deliveryTime'] as int,
       deliveryFee: (json['deliveryFee'] as num).toDouble(),
       minimumOrder: (json['minimumOrder'] as num).toDouble(),
-      commission: (json['commission'] as num?)?.toDouble() ?? 0.0, // ✅
+      commission: (json['commission'] as num?)?.toDouble() ?? 0.0,
       isActive: json['isActive'] as bool? ?? true,
       isApproved: json['isApproved'] as bool? ?? false,
       isFeatured: json['isFeatured'] as bool? ?? false,
       isOpen: json['isOpen'] as bool? ?? true,
-      openingTime: json['openingTime'] as String,
-      closingTime: json['closingTime'] as String,
-      workingDays: List<String>.from(json['workingDays'] as List),
+      openingTime: json['openingTime'] as String? ?? '',
+      closingTime: json['closingTime'] as String? ?? '',
+      workingDays:
+          json['workingDays'] != null
+              ? List<String>.from(json['workingDays'] as List)
+              : [],
       cuisines:
           json['cuisines'] != null
               ? List<String>.from(json['cuisines'] as List)
@@ -266,7 +335,7 @@ class StoreModel {
       deliveryTime: deliveryTime ?? this.deliveryTime,
       deliveryFee: deliveryFee ?? this.deliveryFee,
       minimumOrder: minimumOrder ?? this.minimumOrder,
-      commission: commission ?? this.commission, // ✅
+      commission: commission ?? this.commission,
       isActive: isActive ?? this.isActive,
       isApproved: isApproved ?? this.isApproved,
       isFeatured: isFeatured ?? this.isFeatured,
@@ -317,7 +386,6 @@ class StoreModel {
   }
 
   @override
-  String toString() {
-    return 'StoreModel(id: $id, name: $name, isApproved: $isApproved, isActive: $isActive, commission: $commission)';
-  }
+  String toString() =>
+      'StoreModel(id: $id, name: $name, isCurrentlyOpen: $isCurrentlyOpen)';
 }

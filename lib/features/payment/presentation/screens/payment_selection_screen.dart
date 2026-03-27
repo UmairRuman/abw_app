@@ -1,6 +1,5 @@
 // lib/features/payment/presentation/screens/payment_selection_screen.dart
 
-import 'package:abw_app/core/routes/app_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -9,10 +8,8 @@ import '../../../../core/theme/colors/app_colors_dark.dart';
 import '../../../../core/theme/text_styles/app_text_styles.dart';
 import '../../../checkout/presentation/providers/checkout_provider.dart';
 import '../../../orders/domain/entities/order_entity.dart';
-import 'cod_confirmation_screen.dart';
-import 'jazzcash_payment_screen.dart';
-import 'easypaisa_payment_screen.dart';
-import 'bank_transfer_payment_screen.dart';
+import '../../../payment/presentation/providers/payment_settings_provider.dart';
+import '../../../payment/data/models/payment_settings_model.dart';
 
 class PaymentSelectionScreen extends ConsumerStatefulWidget {
   const PaymentSelectionScreen({super.key});
@@ -27,6 +24,15 @@ class _PaymentSelectionScreenState
   PaymentMethod? _selectedMethod;
 
   @override
+  void initState() {
+    super.initState();
+    // Load payment settings when screen opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(paymentSettingsProvider.notifier).loadSettings();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final checkoutState = ref.watch(checkoutProvider);
 
@@ -38,6 +44,22 @@ class _PaymentSelectionScreenState
     }
 
     final checkout = checkoutState.checkout;
+
+    // ✅ FIX: Watch real-time payment settings from Firestore
+    final settingsAsync = ref.watch(paymentSettingsStreamProvider);
+    final settings = settingsAsync.when(
+      data: (s) => s,
+      loading: () => PaymentSettingsModel.defaultSettings(),
+      error: (_, __) => PaymentSettingsModel.defaultSettings(),
+    );
+
+    // If selected method was disabled by admin, deselect it
+    if (_selectedMethod != null &&
+        !_isMethodEnabled(_selectedMethod!, settings)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _selectedMethod = null);
+      });
+    }
 
     return Scaffold(
       backgroundColor: AppColorsDark.background,
@@ -58,11 +80,9 @@ class _PaymentSelectionScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Total Amount Display
                   _buildTotalAmountCard(checkout.total),
                   SizedBox(height: 24.h),
 
-                  // Payment Methods Section
                   Text(
                     'Select Payment Method',
                     style: AppTextStyles.titleMedium().copyWith(
@@ -72,57 +92,114 @@ class _PaymentSelectionScreenState
                   ),
                   SizedBox(height: 16.h),
 
-                  // Cash on Delivery
-                  _buildPaymentMethodTile(
-                    method: PaymentMethod.cod,
-                    icon: Icons.money,
-                    title: 'Cash on Delivery',
-                    subtitle: 'Pay when you receive your order',
-                    color: AppColorsDark.success,
-                  ),
+                  // ✅ FIX: Only show enabled methods
+                  if (settings.isCodEnabled) ...[
+                    _buildPaymentMethodTile(
+                      method: PaymentMethod.cod,
+                      icon: Icons.money,
+                      title: 'Cash on Delivery',
+                      subtitle: 'Pay when you receive your order',
+                      color: AppColorsDark.success,
+                    ),
+                    SizedBox(height: 12.h),
+                  ],
 
-                  SizedBox(height: 12.h),
+                  if (settings.isJazzcashEnabled) ...[
+                    _buildPaymentMethodTile(
+                      method: PaymentMethod.jazzcash,
+                      icon: Icons.account_balance_wallet,
+                      title: 'JazzCash',
+                      subtitle:
+                          settings.jazzcashNumber.isNotEmpty
+                              ? 'Send to: ${settings.jazzcashNumber}'
+                              : 'Pay via JazzCash mobile wallet',
+                      color: const Color(0xFFFF6B00),
+                    ),
+                    SizedBox(height: 12.h),
+                  ],
 
-                  // JazzCash
-                  _buildPaymentMethodTile(
-                    method: PaymentMethod.jazzcash,
-                    icon: Icons.account_balance_wallet,
-                    title: 'JazzCash',
-                    subtitle: 'Pay via JazzCash mobile wallet',
-                    color: const Color(0xFFFF6B00),
-                  ),
+                  if (settings.isEasypaisaEnabled) ...[
+                    _buildPaymentMethodTile(
+                      method: PaymentMethod.easypaisa,
+                      icon: Icons.payment,
+                      title: 'EasyPaisa',
+                      subtitle:
+                          settings.easypaisaNumber.isNotEmpty
+                              ? 'Send to: ${settings.easypaisaNumber}'
+                              : 'Pay via EasyPaisa mobile wallet',
+                      color: const Color(0xFF00A651),
+                    ),
+                    SizedBox(height: 12.h),
+                  ],
 
-                  SizedBox(height: 12.h),
+                  if (settings.isBankTransferEnabled) ...[
+                    _buildPaymentMethodTile(
+                      method: PaymentMethod.bankTransfer,
+                      icon: Icons.account_balance,
+                      title: 'Bank Transfer',
+                      subtitle:
+                          settings.bankName.isNotEmpty
+                              ? settings.bankName
+                              : 'Transfer to our bank account',
+                      color: AppColorsDark.info,
+                    ),
+                    SizedBox(height: 12.h),
+                  ],
 
-                  // EasyPaisa
-                  _buildPaymentMethodTile(
-                    method: PaymentMethod.easypaisa,
-                    icon: Icons.payment,
-                    title: 'EasyPaisa',
-                    subtitle: 'Pay via EasyPaisa mobile wallet',
-                    color: const Color(0xFF00A651),
-                  ),
-
-                  SizedBox(height: 12.h),
-
-                  // Bank Transfer
-                  _buildPaymentMethodTile(
-                    method: PaymentMethod.bankTransfer,
-                    icon: Icons.account_balance,
-                    title: 'Bank Transfer',
-                    subtitle: 'Transfer to our bank account',
-                    color: AppColorsDark.info,
-                  ),
+                  // Show message if no methods enabled
+                  if (!settings.isCodEnabled &&
+                      !settings.isJazzcashEnabled &&
+                      !settings.isEasypaisaEnabled &&
+                      !settings.isBankTransferEnabled)
+                    Container(
+                      padding: EdgeInsets.all(20.w),
+                      decoration: BoxDecoration(
+                        color: AppColorsDark.warning.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12.r),
+                        border: Border.all(
+                          color: AppColorsDark.warning.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.warning_amber,
+                            color: AppColorsDark.warning,
+                            size: 24.sp,
+                          ),
+                          SizedBox(width: 12.w),
+                          Expanded(
+                            child: Text(
+                              'No payment methods are currently available. Please contact support.',
+                              style: AppTextStyles.bodyMedium().copyWith(
+                                color: AppColorsDark.warning,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
           ),
-
-          // Bottom Button
-          _buildBottomBar(),
+          _buildBottomBar(settings),
         ],
       ),
     );
+  }
+
+  bool _isMethodEnabled(PaymentMethod method, PaymentSettingsModel settings) {
+    switch (method) {
+      case PaymentMethod.cod:
+        return settings.isCodEnabled;
+      case PaymentMethod.jazzcash:
+        return settings.isJazzcashEnabled;
+      case PaymentMethod.easypaisa:
+        return settings.isEasypaisaEnabled;
+      case PaymentMethod.bankTransfer:
+        return settings.isBankTransferEnabled;
+    }
   }
 
   Widget _buildTotalAmountCard(double total) {
@@ -212,7 +289,6 @@ class _PaymentSelectionScreenState
         ),
         child: Row(
           children: [
-            // Icon
             Container(
               padding: EdgeInsets.all(12.w),
               decoration: BoxDecoration(
@@ -222,8 +298,6 @@ class _PaymentSelectionScreenState
               child: Icon(icon, color: color, size: 24.sp),
             ),
             SizedBox(width: 16.w),
-
-            // Text
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -245,8 +319,6 @@ class _PaymentSelectionScreenState
                 ],
               ),
             ),
-
-            // Radio
             Container(
               width: 24.w,
               height: 24.w,
@@ -273,7 +345,7 @@ class _PaymentSelectionScreenState
     );
   }
 
-  Widget _buildBottomBar() {
+  Widget _buildBottomBar(PaymentSettingsModel settings) {
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: const BoxDecoration(
@@ -288,7 +360,10 @@ class _PaymentSelectionScreenState
       ),
       child: SafeArea(
         child: ElevatedButton(
-          onPressed: _selectedMethod != null ? _proceedWithPayment : null,
+          onPressed:
+              _selectedMethod != null
+                  ? () => _proceedWithPayment(settings)
+                  : null,
           style: ElevatedButton.styleFrom(
             minimumSize: Size(double.infinity, 56.h),
             disabledBackgroundColor: AppColorsDark.surfaceVariant,
@@ -302,22 +377,29 @@ class _PaymentSelectionScreenState
     );
   }
 
-  void _proceedWithPayment() {
+  void _proceedWithPayment(PaymentSettingsModel settings) {
     if (_selectedMethod == null) return;
 
     switch (_selectedMethod!) {
       case PaymentMethod.cod:
-        // ✅ USE GoRouter
         context.push('/customer/payment/cod');
         break;
       case PaymentMethod.jazzcash:
-        context.push('/customer/payment/jazzcash');
+        // ✅ Pass jazzcash number via extra so screen can display it
+        context.push(
+          '/customer/payment/jazzcash',
+          extra: settings.jazzcashNumber,
+        );
         break;
       case PaymentMethod.easypaisa:
-        context.push('/customer/payment/easypaisa');
+        context.push(
+          '/customer/payment/easypaisa',
+          extra: settings.easypaisaNumber,
+        );
         break;
       case PaymentMethod.bankTransfer:
-        context.push('/customer/payment/bank');
+        // ✅ Pass bank details so BankTransferPaymentScreen shows correct info
+        context.push('/customer/payment/bank', extra: settings);
         break;
     }
   }

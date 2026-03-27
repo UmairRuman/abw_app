@@ -664,86 +664,61 @@ class _RiderOrderDetailsScreenState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (order.status == OrderStatus.confirmed ||
-                order.status == OrderStatus.preparing ||
-                order.status == OrderStatus.outForDelivery) ...[
-              Padding(
-                padding: EdgeInsets.only(bottom: 10.h),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed:
-                        _isRefusing
-                            ? null
-                            : () => _showRefuseOrderDialog(order),
-                    icon:
-                        _isRefusing
-                            ? SizedBox(
-                              width: 18.w,
-                              height: 18.w,
-                              child: const CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColorsDark.error,
-                              ),
-                            )
-                            : Icon(
-                              Icons.cancel_outlined,
-                              size: 20.sp,
-                              color: AppColorsDark.error,
-                            ),
-                    label: Text(
-                      _isRefusing ? 'Processing...' : 'Refuse / Return Order',
-                      style: AppTextStyles.button().copyWith(
-                        color: AppColorsDark.error,
-                      ),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 14.h),
-                      side: const BorderSide(
-                        color: AppColorsDark.error,
-                        width: 1.5,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.r),
-                      ),
-                    ),
-                  ),
-                ),
+            // ── Cancelled ────────────────────────────────────────────────────
+            if (order.status == OrderStatus.cancelled)
+              _buildInfoBanner(
+                'This order was cancelled by admin',
+                AppColorsDark.error,
+                Icons.cancel,
               ),
-            ],
 
-            // Cash check-in (shown after delivery for COD)
+            // ── Delivered (non-COD) ──────────────────────────────────────────
+            if (order.status == OrderStatus.delivered &&
+                order.paymentMethod != PaymentMethod.cod)
+              _buildInfoBanner(
+                'Order Delivered Successfully',
+                AppColorsDark.success,
+                Icons.check_circle,
+              ),
+
+            // ── Cash check-in (COD, delivered, not yet checked in) ───────────
             if (order.status == OrderStatus.delivered &&
                 order.paymentMethod == PaymentMethod.cod &&
                 !(order.cashCheckedIn ?? false))
               _buildCashCheckInButton(order),
 
+            // ── Cash checked-in badge ────────────────────────────────────────
             if (order.status == OrderStatus.delivered &&
                 order.paymentMethod == PaymentMethod.cod &&
                 (order.cashCheckedIn ?? false))
               _buildCashCheckedInBadge(order),
 
-            // Status action buttons
-            if (order.status == OrderStatus.confirmed ||
-                order.status == OrderStatus.preparing)
+            // ── Active order: status progression buttons ─────────────────────
+            if (order.status == OrderStatus.confirmed) ...[
               _buildStatusActionButton(
                 order: order,
-                label:
-                    order.status == OrderStatus.confirmed
-                        ? 'Mark as Preparing'
-                        : 'Mark as Out for Delivery',
-                nextStatus:
-                    order.status == OrderStatus.confirmed
-                        ? OrderStatus.preparing
-                        : OrderStatus.outForDelivery,
-                icon:
-                    order.status == OrderStatus.confirmed
-                        ? Icons.restaurant
-                        : Icons.delivery_dining,
+                label: 'Mark as Preparing',
+                nextStatus: OrderStatus.preparing,
+                icon: Icons.restaurant,
                 color: AppColorsDark.warning,
               ),
+              SizedBox(height: 10.h),
+              _buildRefuseButton(order),
+            ],
 
-            if (order.status == OrderStatus.outForDelivery)
+            if (order.status == OrderStatus.preparing) ...[
+              _buildStatusActionButton(
+                order: order,
+                label: 'Mark as Out for Delivery',
+                nextStatus: OrderStatus.outForDelivery,
+                icon: Icons.delivery_dining,
+                color: AppColorsDark.info,
+              ),
+              SizedBox(height: 10.h),
+              _buildRefuseButton(order),
+            ],
+
+            if (order.status == OrderStatus.outForDelivery) ...[
               _buildStatusActionButton(
                 order: order,
                 label: 'Mark as Delivered',
@@ -751,53 +726,111 @@ class _RiderOrderDetailsScreenState
                 icon: Icons.task_alt,
                 color: AppColorsDark.primary,
               ),
+              SizedBox(height: 10.h),
+              _buildRefuseButton(order),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 
-            if (order.status == OrderStatus.delivered &&
-                order.paymentMethod != PaymentMethod.cod)
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(12.w),
-                decoration: BoxDecoration(
-                  color: AppColorsDark.success.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12.r),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.check_circle,
-                      color: AppColorsDark.success,
-                      size: 20.sp,
-                    ),
-                    SizedBox(width: 8.w),
-                    Text(
-                      'Order Delivered Successfully',
-                      style: AppTextStyles.bodyMedium().copyWith(
-                        color: AppColorsDark.success,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-            if (order.status == OrderStatus.cancelled)
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(12.w),
-                decoration: BoxDecoration(
-                  color: AppColorsDark.error.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12.r),
-                ),
-                child: Text(
-                  'This order was cancelled by admin',
-                  style: AppTextStyles.bodyMedium().copyWith(
+  // ── Extracted refuse button so it doesn't repeat ──────────────────────────
+  Widget _buildRefuseButton(OrderModel order) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: _isRefusing ? null : () => _showRefuseOrderDialog(order),
+        icon:
+            _isRefusing
+                ? SizedBox(
+                  width: 18.w,
+                  height: 18.w,
+                  child: const CircularProgressIndicator(
+                    strokeWidth: 2,
                     color: AppColorsDark.error,
                   ),
-                  textAlign: TextAlign.center,
+                )
+                : Icon(
+                  Icons.cancel_outlined,
+                  size: 20.sp,
+                  color: AppColorsDark.error,
                 ),
-              ),
-          ],
+        label: Text(
+          _isRefusing ? 'Processing...' : 'Refuse / Return Order',
+          style: AppTextStyles.button().copyWith(color: AppColorsDark.error),
+        ),
+        style: OutlinedButton.styleFrom(
+          padding: EdgeInsets.symmetric(vertical: 14.h),
+          side: const BorderSide(color: AppColorsDark.error, width: 1.5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12.r),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Generic info banner (delivered / cancelled) ───────────────────────────
+  // ── Generic info banner (delivered / cancelled) ───────────────────────────
+  Widget _buildInfoBanner(String message, Color color, IconData icon) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(12.w),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12.r),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: color, size: 20.sp),
+          SizedBox(width: 8.w),
+          Text(
+            message,
+            style: AppTextStyles.bodyMedium().copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusActionButton({
+    required OrderModel order,
+    required String label,
+    required OrderStatus nextStatus,
+    required IconData icon,
+    required Color color,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed:
+            _isUpdatingStatus ? null : () => _updateStatus(order, nextStatus),
+        icon:
+            _isUpdatingStatus
+                ? SizedBox(
+                  width: 20.w,
+                  height: 20.h,
+                  child: const CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColorsDark.white,
+                  ),
+                )
+                : Icon(icon, size: 20.sp),
+        label: Text(
+          _isUpdatingStatus ? 'Updating...' : label,
+          style: AppTextStyles.button(),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          padding: EdgeInsets.symmetric(vertical: 16.h),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12.r),
+          ),
         ),
       ),
     );
@@ -1007,41 +1040,6 @@ class _RiderOrderDetailsScreenState
     } finally {
       if (mounted) setState(() => _isRefusing = false);
     }
-  }
-
-  Widget _buildStatusActionButton({
-    required OrderModel order,
-    required String label,
-    required OrderStatus nextStatus,
-    required IconData icon,
-    required Color color,
-  }) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed:
-            _isUpdatingStatus ? null : () => _updateStatus(order, nextStatus),
-        icon:
-            _isUpdatingStatus
-                ? SizedBox(
-                  width: 20.w,
-                  height: 20.h,
-                  child: const CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppColorsDark.white,
-                  ),
-                )
-                : Icon(icon, size: 20.sp),
-        label: Text(
-          _isUpdatingStatus ? 'Updating...' : label,
-          style: AppTextStyles.button(),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          padding: EdgeInsets.symmetric(vertical: 16.h),
-        ),
-      ),
-    );
   }
 
   Widget _buildCashCheckInButton(OrderModel order) {

@@ -478,65 +478,74 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
     try {
       log('🚚 Assigning rider $riderName to order $orderId');
 
-      // Get order details
       final orderDoc = await _firestore.collection('orders').doc(orderId).get();
-
       if (!orderDoc.exists) {
         log('❌ Order not found');
         return false;
       }
 
       final orderData = orderDoc.data()!;
-      final storeName = orderData['storeName'] as String;
-      final userName = orderData['userName'] as String;
+      final storeName = orderData['storeName'] as String? ?? '';
+      final userName = orderData['userName'] as String? ?? '';
       final deliveryAddress =
-          orderData['deliveryAddress'] as Map<String, dynamic>;
-      final deliveryFee = orderData['deliveryFee'] as double;
+          orderData['deliveryAddress'] as Map<String, dynamic>? ?? {};
+      final deliveryFee = (orderData['deliveryFee'] as num?)?.toDouble() ?? 0.0;
+      final specialInstructions = orderData['specialInstructions'] as String?;
+      final paymentMethod = orderData['paymentMethod'] as String?;
+      final paymentProofUrl = orderData['paymentProofUrl'] as String?;
 
-      // Get rider phone
+      // ✅ FIX: Keep the CURRENT order status — do NOT jump to outForDelivery.
+      // The rider must progress through: confirmed → preparing → outForDelivery → delivered
+      // Whatever status the order is at when assigned, keep it.
+      final currentStatus = orderData['status'] as String? ?? 'confirmed';
+
+      // Get rider phone from riders collection
       final riderDoc = await _firestore.collection('riders').doc(riderId).get();
-
       final riderPhone = riderDoc.data()?['phone'] as String? ?? '';
 
-      // Update order with rider info
+      // Update order — assign rider info but KEEP current status
       await _firestore.collection('orders').doc(orderId).update({
         'riderId': riderId,
         'riderName': riderName,
         'riderPhone': riderPhone,
-        'status': OrderStatus.outForDelivery.name,
+        // ✅ Do NOT change 'status' here — rider progresses it themselves
         'updatedAt': FieldValue.serverTimestamp(),
         'statusHistory': FieldValue.arrayUnion([
           {
-            'status': OrderStatus.outForDelivery.name,
+            'status': currentStatus,
             'timestamp': Timestamp.now(),
-            'note': 'Assigned to $riderName',
+            'note': 'Rider $riderName assigned',
+            'updatedBy': 'admin',
           },
         ]),
       });
 
-      // Update rider with current order
+      // Update rider document
       await _firestore.collection('riders').doc(riderId).update({
         'currentOrderId': orderId,
         'status': 'busy',
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      final specialInstructions = orderData['specialInstructions'] as String?;
 
-      // ✅ SEND NOTIFICATION TO RIDER
+      // Send notification to rider
       final addressString =
-          '${deliveryAddress['addressLine1']}, ${deliveryAddress['area']}, ${deliveryAddress['city']}';
+          '${deliveryAddress['addressLine1'] ?? ''}, '
+          '${deliveryAddress['area'] ?? ''}, '
+          '${deliveryAddress['city'] ?? ''}';
 
       await NotificationService.sendOrderAssignedNotificationToRider(
         riderId: riderId,
         orderId: orderId,
         customerName: userName,
         storeName: storeName,
-        specialInstructions: specialInstructions, // ✅ NEW
+        specialInstructions: specialInstructions,
         deliveryAddress: addressString,
         deliveryFee: deliveryFee,
+        paymentMethod: paymentMethod,
+        paymentProofUrl: paymentProofUrl,
       );
 
-      log('✅ Rider assigned and notified');
+      log('✅ Rider assigned — order stays at status: $currentStatus');
       return true;
     } catch (e) {
       log('❌ Error assigning rider: $e');

@@ -15,9 +15,15 @@ import '../../../orders/presentation/providers/orders_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/presentation/providers/auth_state.dart';
 import '../../../orders/domain/entities/order_entity.dart';
+import '../../../payment/data/models/payment_settings_model.dart';
+import '../../../payment/presentation/providers/payment_settings_provider.dart';
 
 class BankTransferPaymentScreen extends ConsumerStatefulWidget {
-  const BankTransferPaymentScreen({super.key});
+  /// Settings passed from PaymentSelectionScreen via GoRouter extra.
+  /// If null, the screen loads them directly from the provider.
+  final PaymentSettingsModel? settings;
+
+  const BankTransferPaymentScreen({super.key, this.settings});
 
   @override
   ConsumerState<BankTransferPaymentScreen> createState() =>
@@ -30,9 +36,16 @@ class _BankTransferPaymentScreenState
   bool _isUploading = false;
   bool _isPlacingOrder = false;
 
-  final String _accountTitle = 'ABW Services';
-  final String _accountNumber = '03072740036';
-  final String _bankName = 'HBL / Meezan Bank / Any Bank';
+  @override
+  void initState() {
+    super.initState();
+    // Load settings if not passed in
+    if (widget.settings == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(paymentSettingsProvider.notifier).loadSettings();
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +59,19 @@ class _BankTransferPaymentScreenState
     }
 
     final checkout = checkoutState.checkout;
+
+    // ✅ FIX: Use passed settings or watch from provider — never hardcoded
+    PaymentSettingsModel settings;
+    if (widget.settings != null) {
+      settings = widget.settings!;
+    } else {
+      final settingsAsync = ref.watch(paymentSettingsStreamProvider);
+      settings = settingsAsync.when(
+        data: (s) => s,
+        loading: () => PaymentSettingsModel.defaultSettings(),
+        error: (_, __) => PaymentSettingsModel.defaultSettings(),
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppColorsDark.background,
@@ -66,7 +92,6 @@ class _BankTransferPaymentScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Bank Icon
                   Center(
                     child: Container(
                       padding: EdgeInsets.all(24.w),
@@ -126,7 +151,7 @@ class _BankTransferPaymentScreenState
 
                   SizedBox(height: 24.h),
 
-                  // Bank Details
+                  // ✅ Bank Details — from Firestore, not hardcoded
                   Text(
                     'Bank Account Details',
                     style: AppTextStyles.titleMedium().copyWith(
@@ -148,22 +173,24 @@ class _BankTransferPaymentScreenState
                     ),
                     child: Column(
                       children: [
-                        _buildBankDetailRow('Account Title', _accountTitle),
+                        _buildBankDetailRow(
+                          'Account Title',
+                          settings.bankAccountTitle,
+                        ),
                         Divider(color: AppColorsDark.border, height: 24.h),
                         _buildBankDetailRow(
                           'Account Number',
-                          _accountNumber,
+                          settings.bankAccountNumber,
                           copyable: true,
                         ),
                         Divider(color: AppColorsDark.border, height: 24.h),
-                        _buildBankDetailRow('Bank', _bankName),
+                        _buildBankDetailRow('Bank', settings.bankName),
                       ],
                     ),
                   ),
 
                   SizedBox(height: 24.h),
 
-                  // Payment Instructions
                   Text(
                     'Payment Instructions',
                     style: AppTextStyles.titleMedium().copyWith(
@@ -179,18 +206,14 @@ class _BankTransferPaymentScreenState
                     description:
                         'Transfer the exact amount to the above bank account via online banking, ATM, or bank branch.',
                   ),
-
                   SizedBox(height: 12.h),
-
                   _buildInstructionCard(
                     step: '2',
                     title: 'Take Screenshot',
                     description:
                         'After successful transfer, take a screenshot of the transaction receipt.',
                   ),
-
                   SizedBox(height: 12.h),
-
                   _buildInstructionCard(
                     step: '3',
                     title: 'Upload Receipt',
@@ -199,13 +222,9 @@ class _BankTransferPaymentScreenState
                   ),
 
                   SizedBox(height: 24.h),
-
-                  // Upload Screenshot Section
                   _buildUploadSection(),
-
                   SizedBox(height: 24.h),
 
-                  // Warning Notice
                   Container(
                     padding: EdgeInsets.all(16.w),
                     decoration: BoxDecoration(
@@ -226,7 +245,7 @@ class _BankTransferPaymentScreenState
                         SizedBox(width: 12.w),
                         Expanded(
                           child: Text(
-                            'Important: Your order will NOT be processed until you upload a valid bank transfer receipt. Orders without payment proof will be automatically cancelled.',
+                            'Important: Your order will NOT be processed until you upload a valid bank transfer receipt.',
                             style: AppTextStyles.bodySmall().copyWith(
                               color: AppColorsDark.error,
                               fontWeight: FontWeight.w500,
@@ -240,8 +259,6 @@ class _BankTransferPaymentScreenState
               ),
             ),
           ),
-
-          // Bottom Button
           _buildBottomBar(),
         ],
       ),
@@ -267,7 +284,7 @@ class _BankTransferPaymentScreenState
             ),
             SizedBox(height: 4.h),
             Text(
-              value,
+              value.isNotEmpty ? value : '—',
               style: AppTextStyles.titleMedium().copyWith(
                 color: AppColorsDark.info,
                 fontWeight: FontWeight.bold,
@@ -275,7 +292,7 @@ class _BankTransferPaymentScreenState
             ),
           ],
         ),
-        if (copyable)
+        if (copyable && value.isNotEmpty)
           IconButton(
             onPressed: () {
               Clipboard.setData(ClipboardData(text: value));
@@ -363,7 +380,6 @@ class _BankTransferPaymentScreenState
             ),
           ),
           SizedBox(height: 16.h),
-
           if (_paymentScreenshot == null)
             InkWell(
               onTap: _pickImage,
@@ -424,52 +440,16 @@ class _BankTransferPaymentScreenState
                   right: 8.w,
                   child: Row(
                     children: [
-                      InkWell(
-                        onTap: _pickImage,
-                        child: Container(
-                          padding: EdgeInsets.all(8.w),
-                          decoration: const BoxDecoration(
-                            color: AppColorsDark.info,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black26,
-                                blurRadius: 4,
-                                offset: Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Icon(
-                            Icons.edit,
-                            color: AppColorsDark.white,
-                            size: 20.sp,
-                          ),
-                        ),
+                      _buildImageActionButton(
+                        Icons.edit,
+                        AppColorsDark.info,
+                        _pickImage,
                       ),
                       SizedBox(width: 8.w),
-                      InkWell(
-                        onTap: () {
-                          setState(() => _paymentScreenshot = null);
-                        },
-                        child: Container(
-                          padding: EdgeInsets.all(8.w),
-                          decoration: const BoxDecoration(
-                            color: AppColorsDark.error,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black26,
-                                blurRadius: 4,
-                                offset: Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Icon(
-                            Icons.close,
-                            color: AppColorsDark.white,
-                            size: 20.sp,
-                          ),
-                        ),
+                      _buildImageActionButton(
+                        Icons.close,
+                        AppColorsDark.error,
+                        () => setState(() => _paymentScreenshot = null),
                       ),
                     ],
                   ),
@@ -481,9 +461,33 @@ class _BankTransferPaymentScreenState
     );
   }
 
+  Widget _buildImageActionButton(
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.all(8.w),
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Icon(icon, color: AppColorsDark.white, size: 20.sp),
+      ),
+    );
+  }
+
   Widget _buildBottomBar() {
     final canPlaceOrder = _paymentScreenshot != null && !_isPlacingOrder;
-
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: const BoxDecoration(
@@ -541,56 +545,51 @@ class _BankTransferPaymentScreenState
       source: ImageSource.gallery,
       imageQuality: 80,
     );
-
     if (pickedFile != null) {
-      setState(() {
-        _paymentScreenshot = File(pickedFile.path);
-      });
+      setState(() => _paymentScreenshot = File(pickedFile.path));
     }
   }
 
   Future<void> _placeOrder() async {
     if (_paymentScreenshot == null) return;
-
     setState(() => _isUploading = true);
 
     try {
-      // Upload receipt
       final imageUrls = await ref
           .read(imageUploadProvider.notifier)
           .uploadPaymentProof([_paymentScreenshot!]);
 
-      if (imageUrls.isEmpty) {
+      if (imageUrls.isEmpty)
         throw Exception('Failed to upload payment receipt');
-      }
 
       final paymentProofUrl = imageUrls.first;
-
       setState(() {
         _isUploading = false;
         _isPlacingOrder = true;
       });
 
-      // Place order
       final authState = ref.read(authProvider);
-      if (authState is! Authenticated) {
+      if (authState is! Authenticated)
         throw Exception('User not authenticated');
-      }
 
-      final orderId = await ref
-          .read(ordersProvider.notifier)
-          .placeOrder(
-            userId: authState.user.id,
-            userName: authState.user.name,
-            userPhone: authState.user.phone,
-            paymentMethod: PaymentMethod.bankTransfer,
-            paymentProofUrl: paymentProofUrl,
-          );
+      final notifier = ref.read(ordersProvider.notifier);
+      final checkoutNotifier = ref.read(checkoutProvider.notifier);
+      final checkoutState = ref.read(checkoutProvider);
+      if (checkoutState is! CheckoutLoaded)
+        throw Exception('Checkout not ready');
+
+      final orderId = await notifier.placeOrder(
+        userId: authState.user.id,
+        userName: authState.user.name,
+        userPhone: authState.user.phone,
+        paymentMethod: PaymentMethod.bankTransfer,
+        paymentProofUrl: paymentProofUrl,
+      );
 
       if (orderId != null && mounted) {
         context.goToOrderConfirmation(orderId);
         Future.delayed(const Duration(milliseconds: 100), () {
-          ref.read(checkoutProvider.notifier).reset();
+          checkoutNotifier.reset();
         });
       } else {
         throw Exception('Failed to place order');
