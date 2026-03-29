@@ -231,6 +231,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       if (!userDoc.exists) return false;
 
       final phone = userDoc.data()?['phone'] as String?;
+      log('User phone number: $phone');
       if (phone == null || phone.isEmpty) return false;
 
       // Step 2: Check blocked_numbers collection
@@ -241,7 +242,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               .where('isActive', isEqualTo: true)
               .limit(1)
               .get();
-
+      log("Blocked query : ${blockedQuery.docs.isNotEmpty}");
+      log(
+        "Blocked query result count: ${blockedQuery.docs.first.data().toString()}",
+      );
       return blockedQuery.docs.isNotEmpty;
     } catch (e) {
       // If the check fails (e.g. offline), do NOT block — fail open

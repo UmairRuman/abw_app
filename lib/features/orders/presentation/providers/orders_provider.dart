@@ -494,21 +494,19 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
       final paymentMethod = orderData['paymentMethod'] as String?;
       final paymentProofUrl = orderData['paymentProofUrl'] as String?;
 
-      // ✅ FIX: Keep the CURRENT order status — do NOT jump to outForDelivery.
-      // The rider must progress through: confirmed → preparing → outForDelivery → delivered
-      // Whatever status the order is at when assigned, keep it.
-      final currentStatus = orderData['status'] as String? ?? 'confirmed';
+      // ✅ FIX: Read current status — do NOT override it
+      final currentStatus =
+          orderData['status'] as String? ?? OrderStatus.confirmed.name;
 
-      // Get rider phone from riders collection
+      // Get rider phone
       final riderDoc = await _firestore.collection('riders').doc(riderId).get();
       final riderPhone = riderDoc.data()?['phone'] as String? ?? '';
 
-      // Update order — assign rider info but KEEP current status
+      // ✅ Only update rider fields — DO NOT touch 'status'
       await _firestore.collection('orders').doc(orderId).update({
         'riderId': riderId,
         'riderName': riderName,
         'riderPhone': riderPhone,
-        // ✅ Do NOT change 'status' here — rider progresses it themselves
         'updatedAt': FieldValue.serverTimestamp(),
         'statusHistory': FieldValue.arrayUnion([
           {
@@ -527,7 +525,7 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Send notification to rider
+      // Notify rider
       final addressString =
           '${deliveryAddress['addressLine1'] ?? ''}, '
           '${deliveryAddress['area'] ?? ''}, '
@@ -545,7 +543,7 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
         paymentProofUrl: paymentProofUrl,
       );
 
-      log('✅ Rider assigned — order stays at status: $currentStatus');
+      log('✅ Rider assigned — status unchanged: $currentStatus');
       return true;
     } catch (e) {
       log('❌ Error assigning rider: $e');

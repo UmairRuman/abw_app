@@ -101,10 +101,18 @@ class OrdersCollection {
   /// Cancelled orders are excluded both by status query AND client-side filter
   /// (double safety, in case cancelledBy field update races with status update).
   Stream<List<OrderModel>> getRiderOrders(String riderId) {
+    // ✅ Return ALL active statuses — rider needs to see and progress all of them
     return _firestore
         .collection(_collectionPath)
         .where('riderId', isEqualTo: riderId)
-        .where('status', isEqualTo: OrderStatus.outForDelivery.name)
+        .where(
+          'status',
+          whereIn: [
+            OrderStatus.confirmed.name,
+            OrderStatus.preparing.name,
+            OrderStatus.outForDelivery.name,
+          ],
+        )
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map(
@@ -113,7 +121,6 @@ class OrdersCollection {
                   .map(
                     (doc) => OrderModel.fromJson({'id': doc.id, ...doc.data()}),
                   )
-                  // ✅ Double-safety: exclude anything admin has cancelled
                   .where((order) => order.cancelledBy == null)
                   .toList(),
         );

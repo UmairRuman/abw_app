@@ -6,6 +6,8 @@
 //  2. ✅ Unverify payment button — reverts payment to COD
 //  3. ✅ Rider payment display — shows correct status based on paymentStatus field
 
+import 'dart:async';
+
 import 'package:abw_app/features/admin/presentation/screens/orders/widgets/assign_rider_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,26 +39,38 @@ class _AdminOrderDetailsScreenState
   // while TextFormField still holds a listener → ChangeNotifier disposed crash.
   final TextEditingController _cancelReasonController = TextEditingController();
   final GlobalKey<FormState> _cancelFormKey = GlobalKey<FormState>();
+  StreamSubscription<DocumentSnapshot>? _orderStream;
+  OrderModel? _streamOrder;
 
   @override
   void initState() {
     super.initState();
-    Future.microtask(
-      () => ref.read(ordersProvider.notifier).getOrderById(widget.orderId),
-    );
+    // ✅ Use a real-time stream so admin sees rider status updates instantly
+    _orderStream = FirebaseFirestore.instance
+        .collection('orders')
+        .doc(widget.orderId)
+        .snapshots()
+        .listen((snapshot) {
+          if (!mounted) return;
+          if (snapshot.exists && snapshot.data() != null) {
+            final order = OrderModel.fromJson({
+              'id': snapshot.id,
+              ...snapshot.data()!,
+            });
+            setState(() => _streamOrder = order);
+          }
+        });
   }
 
   @override
   void dispose() {
-    // ✅ Disposed here — guaranteed safe, after widget is fully removed
+    _orderStream?.cancel();
     _cancelReasonController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final ordersState = ref.watch(ordersProvider);
-
     return Scaffold(
       backgroundColor: AppColorsDark.background,
       appBar: AppBar(
@@ -71,8 +85,8 @@ class _AdminOrderDetailsScreenState
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
             onSelected: (value) {
-              if (value == 'cancel' && ordersState is OrderSingleLoaded) {
-                _showCancelOrderDialog(ordersState.order);
+              if (value == 'cancel' && _streamOrder != null) {
+                _showCancelOrderDialog(_streamOrder!);
               }
             },
             itemBuilder:
@@ -92,15 +106,11 @@ class _AdminOrderDetailsScreenState
         ],
       ),
       body:
-          ordersState is OrdersLoading
+          _streamOrder == null
               ? const Center(
                 child: CircularProgressIndicator(color: AppColorsDark.primary),
               )
-              : ordersState is OrderSingleLoaded
-              ? _buildOrderDetails(ordersState.order)
-              : ordersState is OrdersError
-              ? _buildErrorState(ordersState.message)
-              : const Center(child: Text('Unable to load order')),
+              : _buildOrderDetails(_streamOrder!),
     );
   }
 
@@ -422,11 +432,7 @@ class _AdminOrderDetailsScreenState
             () => showDialog(
               context: context,
               builder: (_) => AssignRiderDialog(order: order),
-            ).then((_) {
-              if (mounted) {
-                ref.read(ordersProvider.notifier).getOrderById(order.id);
-              }
-            }),
+            ),
         icon: Icon(
           isChange ? Icons.swap_horiz : Icons.delivery_dining,
           size: 20.sp,
@@ -464,7 +470,6 @@ class _AdminOrderDetailsScreenState
           .updateOrderStatus(order.id, newStatus, null, 'admin');
 
       if (mounted) {
-        await ref.read(ordersProvider.notifier).getOrderById(order.id);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -474,6 +479,7 @@ class _AdminOrderDetailsScreenState
             behavior: SnackBarBehavior.floating,
           ),
         );
+        // ✅ No getOrderById() needed — stream auto-updates _streamOrder
       }
     } catch (e) {
       if (mounted) {
@@ -672,7 +678,6 @@ class _AdminOrderDetailsScreenState
           .update({'paymentStatus': 'completed'});
 
       if (mounted) {
-        await ref.read(ordersProvider.notifier).getOrderById(order.id);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Payment verified successfully'),
@@ -762,7 +767,6 @@ class _AdminOrderDetailsScreenState
           });
 
       if (mounted) {
-        await ref.read(ordersProvider.notifier).getOrderById(order.id);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Payment unverified — order converted to COD'),

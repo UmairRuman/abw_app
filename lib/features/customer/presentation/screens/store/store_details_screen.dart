@@ -507,13 +507,13 @@ Order now on ABW app!
               padding: EdgeInsets.all(12.w),
               decoration: BoxDecoration(
                 color:
-                    store.isOpen
+                    store.isCurrentlyOpen
                         ? AppColorsDark.success.withOpacity(0.1)
                         : AppColorsDark.error.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8.r),
                 border: Border.all(
                   color:
-                      store.isOpen
+                      store.isCurrentlyOpen
                           ? AppColorsDark.success.withOpacity(0.3)
                           : AppColorsDark.error.withOpacity(0.3),
                 ),
@@ -525,19 +525,21 @@ Order now on ABW app!
                   Row(
                     children: [
                       Icon(
-                        store.isOpen ? Icons.check_circle : Icons.schedule,
+                        store.isCurrentlyOpen
+                            ? Icons.check_circle
+                            : Icons.schedule,
                         color:
-                            store.isOpen
+                            store.isCurrentlyOpen
                                 ? AppColorsDark.success
                                 : AppColorsDark.error,
                         size: 20.sp,
                       ),
                       SizedBox(width: 8.w),
                       Text(
-                        store.isOpen ? 'Open Now' : 'Closed',
+                        store.isCurrentlyOpen ? 'Open Now' : 'Closed',
                         style: AppTextStyles.bodyMedium().copyWith(
                           color:
-                              store.isOpen
+                              store.isCurrentlyOpen
                                   ? AppColorsDark.success
                                   : AppColorsDark.error,
                           fontWeight: FontWeight.w600,
