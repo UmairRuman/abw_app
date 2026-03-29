@@ -79,19 +79,29 @@ class BlockedNumbersNotifier extends Notifier<BlockedNumbersState> {
   }
 
   /// Unblock a phone number
-  Future<bool> unblockNumber(String blockId) async {
+  Future<bool> unblockNumber({required String phoneNumber}) async {
     try {
-      final success = await _collection.unblockNumber(blockId);
+      // Find the active blocked_numbers document for this phone
+      final query =
+          await FirebaseFirestore.instance
+              .collection('blocked_numbers')
+              .where('phoneNumber', isEqualTo: phoneNumber)
+              .where('isActive', isEqualTo: true)
+              .get();
 
-      if (success) {
-        await loadBlockedNumbers(); // Refresh list
-        return true;
+      if (query.docs.isEmpty) return false;
+
+      // Mark as inactive (keep for audit trail)
+      final batch = FirebaseFirestore.instance.batch();
+      for (final doc in query.docs) {
+        batch.update(doc.reference, {
+          'isActive': false,
+          'unblockedAt': FieldValue.serverTimestamp(),
+        });
       }
-
-      return false;
+      await batch.commit();
+      return true;
     } catch (e) {
-      state = BlockedNumbersError(error: e.toString());
-      log('Error unblocking number: ${e.toString()}');
       return false;
     }
   }

@@ -34,7 +34,7 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
   final ScrollController _scrollController = ScrollController();
   bool _isAppBarExpanded = true;
 
-  final List<String> _filterOptions = ['All', 'Vegetarian', 'Popular', 'New'];
+  List<String> _filterOptions = ['All'];
   String _selectedFilter = 'All';
 
   @override
@@ -46,14 +46,18 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
   }
 
   Future<void> _loadData() async {
-    await Future.delayed(
-      const Duration(milliseconds: 200),
-    ); // Ensure context is available
+    await Future.delayed(const Duration(milliseconds: 200));
     await Future.wait([
       ref.read(storesProvider.notifier).getStore(widget.storeId),
       ref.read(productsProvider.notifier).getProductsByStore(widget.storeId),
       _loadCart(),
     ]);
+
+    // ✅ Build dynamic filters after products loaded
+    final productsState = ref.read(productsProvider);
+    if (productsState is ProductsLoaded) {
+      _buildFiltersFromProducts(productsState.products);
+    }
   }
 
   Future<void> _loadCart() async {
@@ -635,14 +639,30 @@ Order now on ABW app!
     );
   }
 
+  void _buildFiltersFromProducts(List<ProductModel> products) {
+    // Collect all tags from all products, deduplicated, sorted
+    final tagSet = <String>{};
+    for (final product in products) {
+      tagSet.addAll(product.tags);
+    }
+    final sortedTags = tagSet.toList()..sort();
+
+    setState(() {
+      _filterOptions = ['All', ...sortedTags];
+      // Reset selection if current filter no longer exists
+      if (!_filterOptions.contains(_selectedFilter)) {
+        _selectedFilter = 'All';
+      }
+    });
+  }
+
   Widget _buildProductsList(ProductsLoaded state) {
     var products = state.products;
 
     // Apply filters
-    if (_selectedFilter == 'Vegetarian') {
-      products = products.where((p) => p.isVegetarian).toList();
-    } else if (_selectedFilter == 'Popular') {
-      products = products.where((p) => p.isPopular).toList();
+    if (_selectedFilter != 'All') {
+      products =
+          products.where((p) => p.tags.contains(_selectedFilter)).toList();
     }
     // TODO: Add 'New' filter based on createdAt
 

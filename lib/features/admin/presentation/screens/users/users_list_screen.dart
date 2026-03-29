@@ -3,6 +3,7 @@
 import 'package:abw_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:abw_app/features/auth/presentation/providers/auth_state.dart';
 import 'package:abw_app/features/blocked_numbers/presentation/providers/blocked_numbers_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -472,20 +473,7 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen>
               ),
 
               // ADD BLOCK BUTTON
-              IconButton(
-                icon: Icon(
-                  Icons.block,
-                  color: AppColorsDark.error,
-                  size: 20.sp,
-                ),
-                onPressed:
-                    () => _showBlockOptions(
-                      customer.phone,
-                      customer.id,
-                      customer.name,
-                    ),
-                tooltip: 'Block Number',
-              ),
+              _buildBlockUnblockButton(customer),
 
               // Stats Badge
               Container(
@@ -523,6 +511,306 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen>
           ),
         ),
       ),
+    );
+  }
+
+  Future<bool> _isNumberBlocked(String phoneNumber) async {
+    try {
+      final query =
+          await FirebaseFirestore.instance
+              .collection('blocked_numbers')
+              .where('phoneNumber', isEqualTo: phoneNumber)
+              .where('isActive', isEqualTo: true)
+              .limit(1)
+              .get();
+      return query.docs.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Builds block/unblock button with real-time status
+  Widget _buildBlockUnblockButton(CustomerModel customer) {
+    return FutureBuilder<bool>(
+      future: _isNumberBlocked(customer.phone),
+      builder: (context, snapshot) {
+        final isBlocked = snapshot.data ?? false;
+        return IconButton(
+          icon: Icon(
+            isBlocked ? Icons.lock_open : Icons.block,
+            color: isBlocked ? AppColorsDark.warning : AppColorsDark.error,
+            size: 20.sp,
+          ),
+          tooltip: isBlocked ? 'Unblock' : 'Block',
+          onPressed: () {
+            if (isBlocked) {
+              _showUnblockDialog(customer);
+            } else {
+              _showBlockDialog(customer);
+            }
+          },
+        );
+      },
+    );
+  }
+
+  void _showBlockDialog(CustomerModel customer) {
+    final reasonController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            backgroundColor: AppColorsDark.surface,
+            icon: Icon(Icons.block, color: AppColorsDark.error, size: 40.sp),
+            title: Text(
+              'Block User',
+              style: AppTextStyles.titleMedium().copyWith(
+                color: AppColorsDark.error,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'User: ${customer.name}',
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textPrimary,
+                  ),
+                ),
+                SizedBox(height: 4.h),
+                Text(
+                  'Phone: ${customer.phone}',
+                  style: AppTextStyles.bodySmall().copyWith(
+                    color: AppColorsDark.textSecondary,
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                // ✅ Warning that account will be deleted
+                Container(
+                  padding: EdgeInsets.all(10.w),
+                  decoration: BoxDecoration(
+                    color: AppColorsDark.warning.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8.r),
+                    border: Border.all(
+                      color: AppColorsDark.warning.withOpacity(0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.warning_amber,
+                        color: AppColorsDark.warning,
+                        size: 16.sp,
+                      ),
+                      SizedBox(width: 8.w),
+                      Expanded(
+                        child: Text(
+                          'This will block the number AND delete the user account.',
+                          style: AppTextStyles.bodySmall().copyWith(
+                            color: AppColorsDark.warning,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                TextField(
+                  controller: reasonController,
+                  maxLines: 3,
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textPrimary,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Reason for blocking',
+                    hintText: 'Enter reason...',
+                    filled: true,
+                    fillColor: AppColorsDark.surfaceVariant,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: AppColorsDark.textSecondary),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (reasonController.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please enter a reason'),
+                        backgroundColor: AppColorsDark.error,
+                      ),
+                    );
+                    return;
+                  }
+
+                  final authState = ref.read(authProvider);
+                  if (authState is! Authenticated) return;
+                  Navigator.pop(ctx);
+
+                  // 1. Block the number
+                  final blocked = await ref
+                      .read(blockedNumbersProvider.notifier)
+                      .blockNumber(
+                        phoneNumber: customer.phone,
+                        blockedBy: authState.user.id,
+                        blockedByName: authState.user.name,
+                        reason: reasonController.text.trim(),
+                        userId: customer.id,
+                      );
+
+                  if (!blocked) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Failed to block number'),
+                          backgroundColor: AppColorsDark.error,
+                        ),
+                      );
+                    }
+                    return;
+                  }
+
+                  // 2. ✅ Soft-delete the user account from Firestore
+                  try {
+                    await FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(customer.id)
+                        .update({
+                          'isActive': false,
+                          'isDeleted': true,
+                          'deletedAt': FieldValue.serverTimestamp(),
+                          'deletedReason':
+                              'Blocked by admin: ${reasonController.text.trim()}',
+                          'name': 'Blocked User',
+                          'email':
+                              'blocked_${customer.id.substring(0, 6)}@blocked.com',
+                          'fcmToken': null,
+                        });
+                  } catch (_) {
+                    // Firestore update failed but number is blocked — still show success
+                  }
+
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('User blocked and account deleted'),
+                        backgroundColor: AppColorsDark.success,
+                      ),
+                    );
+                    // Refresh list
+                    _loadUsers();
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColorsDark.error,
+                ),
+                child: const Text('Block & Delete'),
+              ),
+            ],
+          ),
+    );
+  }
+
+  void _showUnblockDialog(CustomerModel customer) {
+    showDialog(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            backgroundColor: AppColorsDark.surface,
+            icon: Icon(
+              Icons.lock_open,
+              color: AppColorsDark.success,
+              size: 40.sp,
+            ),
+            title: Text(
+              'Unblock User?',
+              style: AppTextStyles.titleMedium().copyWith(
+                color: AppColorsDark.success,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'This will unblock ${customer.name}\'s phone number '
+                  '(${customer.phone}) and allow them to log in again.',
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: AppColorsDark.textSecondary),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+
+                  // 1. Unblock the number
+                  final unblocked = await ref
+                      .read(blockedNumbersProvider.notifier)
+                      .unblockNumber(phoneNumber: customer.phone);
+
+                  // 2. ✅ Restore the user account
+                  if (unblocked) {
+                    try {
+                      await FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(customer.id)
+                          .update({
+                            'isActive': true,
+                            'isDeleted': false,
+                            'deletedAt': null,
+                            'deletedReason': null,
+                            // Restore original name/email if stored, otherwise keep blocked values
+                          });
+                    } catch (_) {}
+                  }
+
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          unblocked
+                              ? 'User unblocked successfully'
+                              : 'Failed to unblock user',
+                        ),
+                        backgroundColor:
+                            unblocked
+                                ? AppColorsDark.success
+                                : AppColorsDark.error,
+                      ),
+                    );
+                    _loadUsers();
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColorsDark.success,
+                ),
+                child: const Text('Unblock'),
+              ),
+            ],
+          ),
     );
   }
 

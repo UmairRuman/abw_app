@@ -31,15 +31,68 @@ class AuthRemoteDataSource {
   // AUTHENTICATION OPERATIONS
   // ============================================================
 
+  Future<void> _checkIfBlocked(String uid) async {
+    try {
+      final userDoc = await _firestore.collection('users').doc(uid).get();
+
+      if (!userDoc.exists) return;
+
+      final data = userDoc.data()!;
+
+      // Check isActive flag first (fast path)
+      final isActive = data['isActive'] as bool? ?? true;
+      if (!isActive) {
+        await _firebaseAuth.signOut();
+        throw AuthException(
+          message: 'Your account has been blocked. Please contact support.',
+          code: 'user-blocked',
+        );
+      }
+
+      // Check blocked_numbers collection
+      final phone = data['phone'] as String?;
+      if (phone != null && phone.isNotEmpty) {
+        final blockedQuery =
+            await _firestore
+                .collection('blocked_numbers')
+                .where('phoneNumber', isEqualTo: phone)
+                .where('isActive', isEqualTo: true)
+                .limit(1)
+                .get();
+
+        if (blockedQuery.docs.isNotEmpty) {
+          await _firebaseAuth.signOut();
+          throw AuthException(
+            message: 'Your account has been blocked. Please contact support.',
+            code: 'user-blocked',
+          );
+        }
+      }
+    } on AuthException {
+      rethrow; // Let block exceptions bubble up
+    } catch (_) {
+      // On any other error, fail open — don't block legitimate users
+    }
+  }
+
   /// Login with email and password
   Future<UserCredential> loginWithEmail(String email, String password) async {
     try {
-      return await _firebaseAuth.signInWithEmailAndPassword(
+      final credential = await _firebaseAuth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
+
+      // ✅ Block check — throws AuthException if user is blocked
+      if (credential.user != null) {
+        await _checkIfBlocked(credential.user!.uid);
+      }
+
+      return credential;
     } on FirebaseAuthException catch (e) {
       throw AuthException(message: _getAuthErrorMessage(e.code), code: e.code);
+    } on AuthException {
+      rethrow; // ✅ Let block exception bubble up to the login screen
     } catch (e) {
       throw AuthException(message: e.toString());
     }
@@ -52,21 +105,27 @@ class AuthRemoteDataSource {
         serverClientId:
             '295760269875-85dik9jd027e93fqd48hu7pm3jlba0ch.apps.googleusercontent.com',
       );
-      // Trigger Google Sign-In flow
+
       final GoogleSignInAccount googleUser = await _googleSignIn.authenticate();
-
-      // Obtain auth details
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
-
-      // Create credential
       final credential = GoogleAuthProvider.credential(
         idToken: googleAuth.idToken,
       );
 
-      // Sign in to Firebase
-      return await _firebaseAuth.signInWithCredential(credential);
+      final userCredential = await _firebaseAuth.signInWithCredential(
+        credential,
+      );
+
+      // ✅ Block check — throws AuthException if user is blocked
+      if (userCredential.user != null) {
+        await _checkIfBlocked(userCredential.user!.uid);
+      }
+
+      return userCredential;
     } on FirebaseAuthException catch (e) {
       throw AuthException(message: _getAuthErrorMessage(e.code), code: e.code);
+    } on AuthException {
+      rethrow; // ✅ Let block exception bubble up to the login screen
     } catch (e) {
       throw AuthException(message: e.toString());
     }
@@ -481,6 +540,8 @@ class AuthRemoteDataSource {
 
   String _getAuthErrorMessage(String code) {
     switch (code) {
+      case 'user-blocked': // ✅ ADD THIS CASE
+        return 'Your account has been blocked. Please contact support.';
       case 'user-not-found':
         return 'No account found with this email';
       case 'wrong-password':
