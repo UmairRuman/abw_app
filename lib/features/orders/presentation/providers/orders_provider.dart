@@ -383,12 +383,12 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
       // Update order status
       await _firestore.collection('orders').doc(orderId).update({
         'status': newStatus.name,
-        'updatedAt': FieldValue.serverTimestamp(),
-        'updatedBy': updatedBy, // Track who updated it
+        'updatedAt': FieldValue.serverTimestamp(), // ✅ OK at top level
+        'updatedBy': updatedBy,
         'statusHistory': FieldValue.arrayUnion([
           {
             'status': newStatus.name,
-            'timestamp': Timestamp.now(),
+            'timestamp': Timestamp.now(), // ✅ Safe in arrayUnion
             'note': note ?? 'Status updated to ${newStatus.name}',
             'updatedBy': updatedBy,
           },

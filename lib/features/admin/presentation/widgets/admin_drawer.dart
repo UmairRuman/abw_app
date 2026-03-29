@@ -96,6 +96,17 @@ class AdminDrawer extends ConsumerWidget {
                     },
                   ),
 
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.delivery_dining_rounded,
+                    title: 'Riders',
+                    badge: _buildRidersBadge(ref),
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.push('/admin/riders-list'); // ← already wired
+                    },
+                  ),
+
                   _buildDivider(),
                   _buildSectionHeader('USERS'),
 
@@ -106,16 +117,6 @@ class AdminDrawer extends ConsumerWidget {
                     onTap: () {
                       Navigator.pop(context);
                       context.push('/admin/users');
-                    },
-                  ),
-                  _buildDrawerItem(
-                    context,
-                    icon: Icons.delivery_dining_rounded,
-                    title: 'Riders',
-                    badge: _buildRidersBadge(ref),
-                    onTap: () {
-                      Navigator.pop(context);
-                      context.push('/admin/riders');
                     },
                   ),
 

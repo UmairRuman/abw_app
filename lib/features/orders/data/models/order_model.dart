@@ -67,9 +67,6 @@ class OrderModel extends OrderEntity {
             )
             .toList();
 
-    // ✅ FIX: For orders created before the checkout_provider coordinate fix,
-    // the top-level deliveryLatitude/deliveryLongitude fields were never written.
-    // Fall back to the coordinates already stored inside the deliveryAddress map.
     final deliveryLat =
         (json['deliveryLatitude'] as num?)?.toDouble() ??
         (address.latitude != 0.0 ? address.latitude : null);
@@ -80,18 +77,18 @@ class OrderModel extends OrderEntity {
     return OrderModel(
       id: json['id'] as String,
       userId: json['userId'] as String,
-      userName: json['userName'] as String,
-      userPhone: json['userPhone'] as String,
+      userName: json['userName'] as String? ?? '',
+      userPhone: json['userPhone'] as String? ?? '',
       storeId: json['storeId'] as String,
-      storeName: json['storeName'] as String,
+      storeName: json['storeName'] as String? ?? '',
       items: items,
       deliveryAddress: address,
-      deliveryTimeSlot: json['deliveryTimeSlot'] as String,
+      deliveryTimeSlot: json['deliveryTimeSlot'] as String? ?? 'ASAP',
       specialInstructions: json['specialInstructions'] as String?,
-      subtotal: (json['subtotal'] as num).toDouble(),
-      deliveryFee: (json['deliveryFee'] as num).toDouble(),
-      discount: (json['discount'] as num?)?.toDouble() ?? 0,
-      total: (json['total'] as num).toDouble(),
+      subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0.0,
+      deliveryFee: (json['deliveryFee'] as num?)?.toDouble() ?? 0.0,
+      discount: (json['discount'] as num?)?.toDouble() ?? 0.0,
+      total: (json['total'] as num?)?.toDouble() ?? 0.0,
       paymentMethod: PaymentMethod.values.firstWhere(
         (e) => e.name == json['paymentMethod'],
         orElse: () => PaymentMethod.cod,
@@ -109,39 +106,39 @@ class OrderModel extends OrderEntity {
       riderId: json['riderId'] as String?,
       riderName: json['riderName'] as String?,
       riderPhone: json['riderPhone'] as String?,
-      // ✅ pickupLatitude stays as-is — null means widget will fetch from store
       pickupLatitude: (json['pickupLatitude'] as num?)?.toDouble(),
       pickupLongitude: (json['pickupLongitude'] as num?)?.toDouble(),
-      // ✅ Use resolved fallback values
       deliveryLatitude: deliveryLat,
       deliveryLongitude: deliveryLng,
       distance: (json['distance'] as num?)?.toDouble(),
       storeCommission: (json['storeCommission'] as num?)?.toDouble(),
       cancellationReason: json['cancellationReason'] as String?,
-      cancelledAt:
-          json['cancelledAt'] != null
-              ? (json['cancelledAt'] as Timestamp).toDate()
-              : null,
       cancelledBy: json['cancelledBy'] as String?,
       riderRefusalReason: json['riderRefusalReason'] as String?,
-      riderRefusedAt:
-          json['riderRefusedAt'] != null
-              ? (json['riderRefusedAt'] as Timestamp).toDate()
-              : null,
-      estimatedDeliveryTime:
-          json['estimatedDeliveryTime'] != null
-              ? (json['estimatedDeliveryTime'] as Timestamp).toDate()
-              : null,
-      createdAt: (json['createdAt'] as Timestamp).toDate(),
-      updatedAt: (json['updatedAt'] as Timestamp).toDate(),
+
+      // ✅ ALL Timestamp fields use _parseTimestamp — safe for null pending-writes
+      cancelledAt: _parseTimestamp(json['cancelledAt']),
+      riderRefusedAt: _parseTimestamp(json['riderRefusedAt']),
+      estimatedDeliveryTime: _parseTimestamp(json['estimatedDeliveryTime']),
+      createdAt: _parseTimestamp(json['createdAt']) ?? DateTime.now(),
+      updatedAt: _parseTimestamp(json['updatedAt']) ?? DateTime.now(),
+      cashCheckedInAt: _parseTimestamp(json['cashCheckedInAt']),
+
       statusHistory: statusHistory,
       cashCheckedIn: json['cashCheckedIn'] as bool?,
-      cashCheckedInAt:
-          json['cashCheckedInAt'] != null
-              ? (json['cashCheckedInAt'] as Timestamp).toDate()
-              : null,
       cashCheckedInAmount: (json['cashCheckedInAmount'] as num?)?.toDouble(),
     );
+  }
+
+  /// ✅ Null-safe Timestamp parser.
+  /// Returns null for nullable fields; call ?? DateTime.now() for required ones.
+  static DateTime? _parseTimestamp(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is String) return DateTime.tryParse(value);
+    if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+    return null;
   }
 
   Map<String, dynamic> toJson() {
@@ -296,20 +293,38 @@ class OrderStatusUpdateModel extends OrderStatusUpdate {
 
   factory OrderStatusUpdateModel.fromJson(Map<String, dynamic> json) {
     return OrderStatusUpdateModel(
-      status: OrderStatus.values.firstWhere(
-        (e) => e.name == json['status'],
-        orElse: () => OrderStatus.pending,
-      ),
-      timestamp: (json['timestamp'] as Timestamp).toDate(),
+      status: _parseStatus(json['status'] as String? ?? 'pending'),
+      // ✅ Safe: handles null, Timestamp, DateTime, String, int
+      timestamp: _parseTimestamp(json['timestamp']),
       note: json['note'] as String?,
       updatedBy: json['updatedBy'] as String?,
+    );
+  }
+
+  static DateTime _parseTimestamp(dynamic value) {
+    if (value == null) return DateTime.now(); // null → now
+    if (value is Timestamp) return value.toDate(); // Firestore Timestamp
+    if (value is DateTime) return value; // already DateTime
+    if (value is String) {
+      return DateTime.tryParse(value) ?? DateTime.now(); // ISO string
+    }
+    if (value is int) {
+      return DateTime.fromMillisecondsSinceEpoch(value); // epoch ms
+    }
+    return DateTime.now(); // fallback
+  }
+
+  static OrderStatus _parseStatus(String value) {
+    return OrderStatus.values.firstWhere(
+      (e) => e.name == value,
+      orElse: () => OrderStatus.pending,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'status': status.name,
-      'timestamp': Timestamp.fromDate(timestamp),
+      'timestamp': Timestamp.fromDate(timestamp), // ✅ Safe inside arrayUnion
       'note': note,
       'updatedBy': updatedBy,
     };

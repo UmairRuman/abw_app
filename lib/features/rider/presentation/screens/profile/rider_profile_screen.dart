@@ -85,71 +85,11 @@ class RiderProfileScreen extends ConsumerWidget {
                         ),
                       ),
                       SizedBox(height: 12.h),
-                      // Status Badge
-                      // Container(
-                      //   padding: EdgeInsets.symmetric(
-                      //     horizontal: 16.w,
-                      //     vertical: 8.h,
-                      //   ),
-                      //   decoration: BoxDecoration(
-                      //     color: _getStatusColor(rider.status).withOpacity(0.2),
-                      //     borderRadius: BorderRadius.circular(20.r),
-                      //     border: Border.all(
-                      //       color: _getStatusColor(
-                      //         rider.status,
-                      //       ).withOpacity(0.5),
-                      //     ),
-                      //   ),
-                      //   child: Row(
-                      //     mainAxisSize: MainAxisSize.min,
-                      //     children: [
-                      //       Container(
-                      //         width: 8.w,
-                      //         height: 8.w,
-                      //         decoration: BoxDecoration(
-                      //           color: _getStatusColor(rider.status),
-                      //           shape: BoxShape.circle,
-                      //         ),
-                      //       ),
-                      //       SizedBox(width: 8.w),
-                      //       Text(
-                      //         rider.status.name.toUpperCase(),
-                      //         style: AppTextStyles.labelMedium().copyWith(
-                      //           color: AppColorsDark.white,
-                      //           fontWeight: FontWeight.bold,
-                      //         ),
-                      //       ),
-                      //     ],
-                      //   ),
-                      // ),
                     ],
                   ),
                 ),
 
                 SizedBox(height: 20.h),
-
-                // Stats
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildStatTile(
-                        label: 'Total Deliveries',
-                        value: rider.totalDeliveries.toString(),
-                        icon: Icons.delivery_dining,
-                        color: AppColorsDark.primary,
-                      ),
-                    ),
-                    SizedBox(width: 12.w),
-                    Expanded(
-                      child: _buildStatTile(
-                        label: 'Total Earnings',
-                        value: 'PKR ${rider.totalEarnings.toInt()}',
-                        icon: Icons.monetization_on,
-                        color: AppColorsDark.success,
-                      ),
-                    ),
-                  ],
-                ),
 
                 SizedBox(height: 20.h),
 

@@ -122,7 +122,7 @@ class _RiderHomeContent extends ConsumerWidget {
             child: Padding(
               padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 8.h),
               child: Text(
-                'Assigned Orders',
+                'My Orders',
                 style: AppTextStyles.titleMedium().copyWith(
                   color: AppColorsDark.textPrimary,
                   fontWeight: FontWeight.bold,
@@ -135,15 +135,17 @@ class _RiderHomeContent extends ConsumerWidget {
           // + extra client-side filter below
           assignedOrdersStream.when(
             data: (orders) {
-              // Exclude already-active and any stale cancelled orders
               final pending =
                   orders
                       .where(
                         (o) =>
                             !rider.currentOrderIds.contains(o.id) &&
-                            o.status == OrderStatus.outForDelivery &&
-                            o.cancelledBy == null,
-                      ) // ✅ double-safety
+                            o.cancelledBy == null &&
+                            // ✅ Show all active statuses — stream already
+                            // filters to confirmed/preparing/outForDelivery
+                            o.status != OrderStatus.cancelled &&
+                            o.status != OrderStatus.delivered,
+                      )
                       .toList();
 
               if (pending.isEmpty) {
