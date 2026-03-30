@@ -5,6 +5,7 @@ import 'package:abw_app/features/orders/presentation/screens/customer/order_deta
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../../core/theme/colors/app_colors_dark.dart';
 import '../../../../../core/theme/text_styles/app_text_styles.dart';
 import '../../../../auth/presentation/providers/auth_provider.dart';
@@ -144,7 +145,7 @@ class ActiveOrdersScreen extends ConsumerWidget {
           SizedBox(height: 32.h),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
+              context.go('/customer/home');
             },
             child: const Text('Start Shopping'),
           ),

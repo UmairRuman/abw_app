@@ -167,11 +167,7 @@ class _AllStoresScreenState extends ConsumerState<AllStoresScreen> {
             color: AppColorsDark.textPrimary,
           ),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          color: AppColorsDark.textPrimary,
-          onPressed: () => context.pop(),
-        ),
+
         actions: [
           // Sort button
           PopupMenuButton<String>(

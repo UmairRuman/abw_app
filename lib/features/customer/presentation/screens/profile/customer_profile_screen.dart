@@ -69,23 +69,6 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
 
   Widget _buildAppBar(BuildContext context) {
     return SliverAppBar(
-      leading: IconButton(
-        icon: Container(
-          padding: EdgeInsets.all(8.w),
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.5),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            Icons.arrow_back,
-            color: AppColorsDark.white,
-            size: 20.sp,
-          ),
-        ),
-        onPressed: () {
-          context.pop();
-        },
-      ),
       floating: true,
       backgroundColor: AppColorsDark.surface,
       title: Text(

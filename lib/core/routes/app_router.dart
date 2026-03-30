@@ -14,6 +14,8 @@ import 'package:abw_app/features/auth/presentation/screens/phone_verification/ph
 import 'package:abw_app/features/auth/presentation/screens/phone_verification/phone_verification_screen.dart';
 import 'package:abw_app/features/auth/presentation/screens/signup/admin_signup_screen.dart';
 import 'package:abw_app/features/customer/presentation/screens/contact/customer_contact_screen.dart';
+import 'package:abw_app/features/customer/presentation/screens/customer_scaffold.dart';
+import 'package:abw_app/features/customer/presentation/screens/home/all_products_screen.dart';
 import 'package:abw_app/features/customer/presentation/screens/location/location_picker_screen.dart';
 import 'package:abw_app/features/customer/presentation/screens/profile/customer_edit_profile_screen.dart';
 import 'package:abw_app/features/rider/presentation/screens/main/rider_main_screen.dart';
@@ -114,7 +116,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/customer/home',
         name: 'customer-home',
-        builder: (context, state) => const CustomerHomeScreen(),
+        builder: (context, state) => const CustomerScaffold(),
       ),
       GoRoute(
         path: '/customer/store/:id',
@@ -133,6 +135,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/customer/cart',
         name: 'cart',
         builder: (context, state) => const CartScreen(),
+      ),
+
+      GoRoute(
+        path: '/customer/all-products',
+        name: 'all-products',
+        builder: (context, state) => const AllProductsScreen(),
       ),
       GoRoute(
         path: '/customer/profile',

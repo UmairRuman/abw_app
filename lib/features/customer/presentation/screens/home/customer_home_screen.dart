@@ -1,14 +1,9 @@
 // lib/features/customer/presentation/screens/home/customer_home_screen.dart
 
-// COMPLETE REPLACEMENT:
-
+import 'dart:async';
 import 'package:abw_app/core/routes/app_router.dart';
 import 'package:abw_app/features/addresses/presentation/providers/addresses_provider.dart';
-import 'package:abw_app/features/customer/presentation/screens/contact/customer_contact_screen.dart';
-import 'package:abw_app/features/customer/presentation/screens/home/all_products_screen.dart';
-import 'package:abw_app/features/customer/presentation/screens/home/all_stores_screen.dart';
-import 'package:abw_app/features/settings/data/models/contact_settings_model.dart';
-import 'package:abw_app/features/settings/presentation/providers/contact_settings_provider.dart';
+import 'package:abw_app/features/banners/presentation/providers/banners_provider.dart';
 import 'package:abw_app/features/stores/data/models/store_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,7 +17,6 @@ import '../../../../categories/presentation/providers/categories_provider.dart';
 import '../../../../stores/presentation/providers/stores_provider.dart';
 import '../../../../products/presentation/providers/products_provider.dart';
 import '../../../../cart/presentation/providers/cart_provider.dart';
-
 import '../../../../products/data/models/product_model.dart';
 
 class CustomerHomeScreen extends ConsumerStatefulWidget {
@@ -32,11 +26,14 @@ class CustomerHomeScreen extends ConsumerStatefulWidget {
   ConsumerState<CustomerHomeScreen> createState() => _CustomerHomeScreenState();
 }
 
-class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
-    with RouteAware {
-  String _selectedCategoryId =
-      ''; // Will be set to first category (food) in initState
+class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
+  String _selectedCategoryId = '';
   bool _isInitialized = false;
+
+  // Banner auto-scroll
+  final PageController _bannerController = PageController();
+  Timer? _bannerTimer;
+  int _bannerPage = 0;
 
   @override
   void initState() {
@@ -45,35 +42,35 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // ✅ Subscribe to route changes
-    final route = ModalRoute.of(context);
-    if (route is PageRoute) {
-      routeObserver.subscribe(this, route);
-    }
-  }
-
-  @override
   void dispose() {
-    routeObserver.unsubscribe(this); // ✅ Unsubscribe
+    _bannerTimer?.cancel();
+    _bannerController.dispose();
     super.dispose();
   }
 
-  // ✅ Called when returning to this screen
-  @override
-  void didPopNext() {
-    // Refresh data when coming back from another screen
-    _loadData();
+  void _startBannerTimer(int bannerCount) {
+    _bannerTimer?.cancel();
+    if (bannerCount <= 1) return;
+    _bannerTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!mounted) return;
+      _bannerPage = (_bannerPage + 1) % bannerCount;
+      if (_bannerController.hasClients) {
+        _bannerController.animateToPage(
+          _bannerPage,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
   }
 
   Future<void> _loadData() async {
     await Future.delayed(const Duration(milliseconds: 300));
-
     await ref.read(categoriesProvider.notifier).getActiveCategories();
-    final authState = ref.read(authProvider);
 
+    final authState = ref.read(authProvider);
     final categoriesState = ref.read(categoriesProvider);
+
     if (categoriesState is CategoriesLoaded &&
         categoriesState.categories.isNotEmpty) {
       setState(() {
@@ -82,11 +79,8 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
       });
     }
 
-    // ✅ NEW: load top 10 products from featured stores + stores + cart in parallel
     await Future.wait([
-      ref.read(productsProvider.notifier).getTopProductsFromFeaturedStores(),
       ref.read(storesProvider.notifier).getAllStores(),
-      ref.read(contactSettingsProvider.notifier).load(), // ✅ ADD THIS
       _loadCart(),
       if (authState is Authenticated)
         ref
@@ -103,10 +97,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
   }
 
   void _onCategoryChanged(String categoryId) {
-    setState(() {
-      _selectedCategoryId = categoryId;
-    });
-    // Reload products for selected category
+    setState(() => _selectedCategoryId = categoryId);
     if (categoryId.isEmpty) {
       ref.read(productsProvider.notifier).getFeaturedProducts();
     } else {
@@ -118,8 +109,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
   Widget build(BuildContext context) {
     final categoriesState = ref.watch(categoriesProvider);
     final storesState = ref.watch(storesProvider);
-    final productsState = ref.watch(productsProvider);
     final cartState = ref.watch(cartProvider);
+    final bannersAsync = ref.watch(activeBannersStreamProvider);
+    final featuredProductsAsync = ref.watch(featuredProductsStreamProvider);
 
     return Scaffold(
       backgroundColor: AppColorsDark.background,
@@ -130,54 +122,58 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
           backgroundColor: AppColorsDark.surface,
           child: CustomScrollView(
             slivers: [
-              // App Bar
+              // ── App Bar (address + search) ──────────────────────────────
               _buildSliverAppBar(cartState),
 
-              // Search Bar
+              // ── Search Bar ──────────────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.all(16.w),
+                  padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 0),
                   child: _buildSearchBar(),
                 ),
               ),
 
-              // Category Filter Chips (Horizontal)
+              // ── Category Chips ──────────────────────────────────────────
               if (categoriesState is CategoriesLoaded && _isInitialized)
-                SliverToBoxAdapter(child: _buildCategoryChips(categoriesState)),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.only(top: 12.h),
+                    child: _buildCategoryChips(categoriesState),
+                  ),
+                ),
 
-              // Featured Products Section
+              // ── Banner Carousel ─────────────────────────────────────────
+              SliverToBoxAdapter(
+                child: bannersAsync.when(
+                  data: (banners) {
+                    if (banners.isEmpty) return const SizedBox.shrink();
+                    // Start/restart auto-scroll timer when banners load
+                    WidgetsBinding.instance.addPostFrameCallback(
+                      (_) => _startBannerTimer(banners.length),
+                    );
+                    return _buildBannerCarousel(banners);
+                  },
+                  loading: () => _buildBannerSkeleton(),
+                  error: (_, __) => const SizedBox.shrink(),
+                ),
+              ),
+
+              // ── Featured Products ───────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 8.h),
+                  padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 8.h),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        _selectedCategoryId.isEmpty
-                            ? 'Featured Products'
-                            : 'Products',
+                        'Featured Items',
                         style: AppTextStyles.titleLarge().copyWith(
                           color: AppColorsDark.textPrimary,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       TextButton(
-                        // ✅ FIXED: now opens AllProductsScreen with current category
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder:
-                                  (_) => AllProductsScreen(
-                                    initialCategoryId: _selectedCategoryId,
-                                    initialCategoryName:
-                                        _selectedCategoryId.isEmpty
-                                            ? 'All'
-                                            : _getCategoryName(),
-                                  ),
-                            ),
-                          );
-                        },
+                        onPressed: () => context.push('/customer/all-products'),
                         child: Text(
                           'See All',
                           style: AppTextStyles.labelMedium().copyWith(
@@ -190,17 +186,19 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
                 ),
               ),
 
-              // Products Grid
-              if (productsState is ProductsLoaded)
-                _buildProductsGrid(productsState)
-              else if (productsState is ProductsLoading)
-                SliverToBoxAdapter(child: _buildLoadingState())
-              else if (productsState is ProductsError)
-                SliverToBoxAdapter(
-                  child: _buildErrorState(productsState.error),
+              SliverToBoxAdapter(
+                child: featuredProductsAsync.when(
+                  data:
+                      (products) =>
+                          products.isEmpty
+                              ? const SizedBox.shrink()
+                              : _buildFeaturedProductsList(products),
+                  loading: () => _buildLoadingState(),
+                  error: (_, __) => const SizedBox.shrink(),
                 ),
+              ),
 
-              // Featured Stores Section
+              // ── Featured Stores ─────────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(16.w, 24.h, 16.w, 8.h),
@@ -219,58 +217,29 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
               else if (storesState is StoresLoading)
                 SliverToBoxAdapter(child: _buildLoadingState()),
 
-              // All Stores Section (Non-Featured)
+              // ── All Stores ──────────────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(16.w, 24.h, 16.w, 8.h),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        _selectedCategoryId.isEmpty
-                            ? 'All Stores'
-                            : 'Stores in Category',
-                        style: AppTextStyles.titleLarge().copyWith(
-                          color: AppColorsDark.textPrimary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      // ✅ ADDED: See All button for stores
-                      TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder:
-                                  (_) => AllStoresScreen(
-                                    initialCategoryId: _selectedCategoryId,
-                                    initialCategoryName:
-                                        _selectedCategoryId.isEmpty
-                                            ? 'All'
-                                            : _getCategoryName(),
-                                  ),
-                            ),
-                          );
-                        },
-                        child: Text(
-                          'See All',
-                          style: AppTextStyles.labelMedium().copyWith(
-                            color: AppColorsDark.primary,
-                          ),
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    _selectedCategoryId.isEmpty
+                        ? 'All Stores'
+                        : 'Stores in Category',
+                    style: AppTextStyles.titleLarge().copyWith(
+                      color: AppColorsDark.textPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
 
-              // Store List (Non-Featured)
               if (storesState is StoresLoaded)
                 _buildStoreList(storesState)
               else if (storesState is StoresLoading)
-                SliverToBoxAdapter(child: _buildLoadingState())
-              else if (storesState is StoresError)
-                SliverToBoxAdapter(child: _buildErrorState(storesState.error)),
+                SliverToBoxAdapter(child: _buildLoadingState()),
+
+              // Bottom padding
+              SliverToBoxAdapter(child: SizedBox(height: 80.h)),
             ],
           ),
         ),
@@ -279,215 +248,393 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
     );
   }
 
-  Widget _buildContactSection() {
-    final contactState = ref.watch(contactSettingsProvider);
+  // ── Banner Carousel ──────────────────────────────────────────────────────
 
-    // Don't show section if still loading or errored with no data
-    if (contactState is ContactSettingsInitial ||
-        contactState is ContactSettingsLoading) {
-      return const SizedBox.shrink();
-    }
-
-    ContactSettingsModel? settings;
-    if (contactState is ContactSettingsLoaded) {
-      settings = contactState.settings;
-    }
-
-    // Hide entire section if nothing is configured yet
-    if (settings == null ||
-        (settings.bannerUrl.isEmpty &&
-            settings.whatsappNumber.isEmpty &&
-            settings.phoneNumber.isEmpty)) {
-      return const SizedBox.shrink();
-    }
-
+  Widget _buildBannerCarousel(List<BannerModel> banners) {
     return Container(
-      margin: EdgeInsets.fromLTRB(16.w, 24.h, 16.w, 16.h),
-      decoration: BoxDecoration(
-        color: AppColorsDark.cardBackground,
-        borderRadius: BorderRadius.circular(20.r),
-        border: Border.all(color: AppColorsDark.border),
-      ),
+      margin: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 0),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header ──────────────────────────────────────────────────────
-          Padding(
-            padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 0),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.support_agent,
-                  color: AppColorsDark.primary,
-                  size: 22.sp,
-                ),
-                SizedBox(width: 8.w),
-                Text(
-                  'Contact Us',
-                  style: AppTextStyles.titleLarge().copyWith(
-                    color: AppColorsDark.textPrimary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16.r),
+            child: SizedBox(
+              height: 160.h,
+              child: PageView.builder(
+                controller: _bannerController,
+                itemCount: banners.length,
+                onPageChanged: (i) => setState(() => _bannerPage = i),
+                itemBuilder: (context, index) {
+                  final banner = banners[index];
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.network(
+                        banner.imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder:
+                            (_, __, ___) => Container(
+                              color: AppColorsDark.surfaceContainer,
+                              child: Icon(
+                                Icons.image_outlined,
+                                size: 48.sp,
+                                color: AppColorsDark.textTertiary,
+                              ),
+                            ),
+                      ),
+                      // Gradient overlay for title
+                      if (banner.title.isNotEmpty)
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          child: Container(
+                            padding: EdgeInsets.all(12.w),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.bottomCenter,
+                                end: Alignment.topCenter,
+                                colors: [
+                                  Colors.black.withOpacity(0.7),
+                                  Colors.transparent,
+                                ],
+                              ),
+                            ),
+                            child: Text(
+                              banner.title,
+                              style: AppTextStyles.titleSmall().copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
             ),
           ),
 
-          // ── Banner Image ─────────────────────────────────────────────────
-          if (settings.bannerUrl.isNotEmpty) ...[
-            SizedBox(height: 12.h),
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(0),
-                topRight: Radius.circular(0),
-              ),
-              child: Image.network(
-                settings.bannerUrl,
-                width: double.infinity,
-                height: 160.h,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          // Dots indicator
+          if (banners.length > 1) ...[
+            SizedBox(height: 10.h),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                banners.length,
+                (i) => AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  margin: EdgeInsets.symmetric(horizontal: 3.w),
+                  width: _bannerPage == i ? 20.w : 6.w,
+                  height: 6.h,
+                  decoration: BoxDecoration(
+                    color:
+                        _bannerPage == i
+                            ? AppColorsDark.primary
+                            : AppColorsDark.border,
+                    borderRadius: BorderRadius.circular(3.r),
+                  ),
+                ),
               ),
             ),
           ],
-
-          // ── Contact Numbers ──────────────────────────────────────────────
-          Padding(
-            padding: EdgeInsets.all(16.w),
-            child: Column(
-              children: [
-                if (settings.whatsappNumber.isNotEmpty)
-                  _buildContactRow(
-                    icon: Icons.chat,
-                    iconColor: const Color(0xFF25D366), // WhatsApp green
-                    label: 'WhatsApp',
-                    value: settings.whatsappNumber,
-                  ),
-                if (settings.whatsappNumber.isNotEmpty &&
-                    settings.phoneNumber.isNotEmpty)
-                  SizedBox(height: 12.h),
-                if (settings.phoneNumber.isNotEmpty)
-                  _buildContactRow(
-                    icon: Icons.phone,
-                    iconColor: AppColorsDark.primary,
-                    label: 'Phone / PTCL',
-                    value: settings.phoneNumber,
-                  ),
-              ],
-            ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildContactRow({
-    required IconData icon,
-    required Color iconColor,
-    required String label,
-    required String value,
-  }) {
+  Widget _buildBannerSkeleton() {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 12.h),
+      margin: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 0),
+      height: 160.h,
       decoration: BoxDecoration(
         color: AppColorsDark.surfaceContainer,
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppColorsDark.border),
+        borderRadius: BorderRadius.circular(16.r),
       ),
+    );
+  }
+
+  // ── Featured Products ────────────────────────────────────────────────────
+
+  Widget _buildFeaturedProductsList(List<Map<String, dynamic>> rawProducts) {
+    return SizedBox(
+      height: 240.h,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.symmetric(horizontal: 16.w),
+        itemCount: rawProducts.length,
+        itemBuilder: (context, index) {
+          final data = rawProducts[index];
+          // Build a minimal product card from raw map
+          final storeId = data['storeId'] as String? ?? '';
+          final name = data['name'] as String? ?? '';
+          final storeName = data['storeName'] as String? ?? '';
+          final price = (data['price'] as num?)?.toDouble() ?? 0;
+          final discountedPrice =
+              (data['discountedPrice'] as num?)?.toDouble() ?? price;
+          final discount = (data['discount'] as num?)?.toDouble() ?? 0;
+          final images = data['images'] as List? ?? [];
+          final imageUrl = images.isNotEmpty ? images.first as String : '';
+
+          return Container(
+            width: 160.w,
+            margin: EdgeInsets.only(right: 12.w),
+            child: InkWell(
+              onTap: () => context.push('/customer/store/$storeId'),
+              borderRadius: BorderRadius.circular(12.r),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColorsDark.cardBackground,
+                  borderRadius: BorderRadius.circular(12.r),
+                  border: Border.all(color: AppColorsDark.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(12.r),
+                            topRight: Radius.circular(12.r),
+                          ),
+                          child:
+                              imageUrl.isNotEmpty
+                                  ? Image.network(
+                                    imageUrl,
+                                    width: double.infinity,
+                                    height: 120.h,
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (_, __, ___) =>
+                                            _buildProductPlaceholder(),
+                                  )
+                                  : _buildProductPlaceholder(),
+                        ),
+                        if (discount > 0)
+                          Positioned(
+                            top: 8.h,
+                            left: 8.w,
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 6.w,
+                                vertical: 3.h,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColorsDark.error,
+                                borderRadius: BorderRadius.circular(6.r),
+                              ),
+                              child: Text(
+                                '${discount.toInt()}% OFF',
+                                style: AppTextStyles.labelSmall().copyWith(
+                                  color: AppColorsDark.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 9.sp,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.all(10.w),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name,
+                              style: AppTextStyles.bodyMedium().copyWith(
+                                color: AppColorsDark.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            SizedBox(height: 4.h),
+                            Text(
+                              storeName,
+                              style: AppTextStyles.bodySmall().copyWith(
+                                color: AppColorsDark.textSecondary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const Spacer(),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (discount > 0)
+                                      Text(
+                                        'PKR ${price.toInt()}',
+                                        style: AppTextStyles.bodySmall()
+                                            .copyWith(
+                                              color: AppColorsDark.textTertiary,
+                                              decoration:
+                                                  TextDecoration.lineThrough,
+                                            ),
+                                      ),
+                                    Text(
+                                      'PKR ${discountedPrice.toInt()}',
+                                      style: AppTextStyles.titleSmall()
+                                          .copyWith(
+                                            color: AppColorsDark.primary,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                                Container(
+                                  width: 30.w,
+                                  height: 30.w,
+                                  decoration: BoxDecoration(
+                                    color: AppColorsDark.primary,
+                                    borderRadius: BorderRadius.circular(8.r),
+                                  ),
+                                  child: Icon(
+                                    Icons.add,
+                                    color: AppColorsDark.white,
+                                    size: 16.sp,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildProductPlaceholder() {
+    return Container(
+      width: double.infinity,
+      height: 120.h,
+      color: AppColorsDark.surfaceContainer,
+      child: Icon(
+        Icons.image_outlined,
+        size: 40.sp,
+        color: AppColorsDark.textTertiary,
+      ),
+    );
+  }
+
+  // ── Category Chips ───────────────────────────────────────────────────────
+
+  Widget _buildCategoryChips(CategoriesLoaded state) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: EdgeInsets.symmetric(horizontal: 16.w),
       child: Row(
         children: [
-          Container(
-            width: 38.w,
-            height: 38.w,
-            decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(10.r),
-            ),
-            child: Icon(icon, color: iconColor, size: 20.sp),
+          _buildCategoryChip(
+            id: '',
+            name: 'All',
+            icon: Icons.apps,
+            isSelected: _selectedCategoryId.isEmpty,
           ),
-          SizedBox(width: 12.w),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: AppTextStyles.bodySmall().copyWith(
-                  color: AppColorsDark.textSecondary,
-                ),
+          SizedBox(width: 8.w),
+          ...state.categories.map(
+            (c) => Padding(
+              padding: EdgeInsets.only(right: 8.w),
+              child: _buildCategoryChip(
+                id: c.id,
+                name: c.name,
+                icon: _getCategoryIcon(c.name),
+                isSelected: _selectedCategoryId == c.id,
               ),
-              SizedBox(height: 2.h),
-              Text(
-                value,
-                style: AppTextStyles.titleSmall().copyWith(
-                  color: AppColorsDark.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+            ),
           ),
         ],
       ),
     );
   }
-  // ============================================================
-  // APP BAR
-  // ============================================================
 
-  // ── STEP 5: ADD this helper method inside _CustomerHomeScreenState ─────────────
-  // Used by See All buttons to pass the current category name
-
-  String _getCategoryName() {
-    final state = ref.read(categoriesProvider);
-    if (state is CategoriesLoaded) {
-      try {
-        return state.categories
-            .firstWhere((c) => c.id == _selectedCategoryId)
-            .name;
-      } catch (_) {
-        return 'All';
-      }
-    }
-    return 'All';
+  Widget _buildCategoryChip({
+    required String id,
+    required String name,
+    required IconData icon,
+    required bool isSelected,
+  }) {
+    return InkWell(
+      onTap: () => _onCategoryChanged(id),
+      borderRadius: BorderRadius.circular(20.r),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
+        decoration: BoxDecoration(
+          color:
+              isSelected ? AppColorsDark.primary : AppColorsDark.surfaceVariant,
+          borderRadius: BorderRadius.circular(20.r),
+          border: Border.all(
+            color: isSelected ? AppColorsDark.primary : AppColorsDark.border,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 18.sp,
+              color:
+                  isSelected ? AppColorsDark.white : AppColorsDark.textPrimary,
+            ),
+            SizedBox(width: 6.w),
+            Text(
+              name,
+              style: AppTextStyles.labelMedium().copyWith(
+                color:
+                    isSelected
+                        ? AppColorsDark.white
+                        : AppColorsDark.textPrimary,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
+
+  IconData _getCategoryIcon(String name) {
+    final n = name.toLowerCase();
+    if (n.contains('food') || n.contains('restaurant')) return Icons.restaurant;
+    if (n.contains('grocery')) return Icons.shopping_basket;
+    if (n.contains('pharmacy')) return Icons.local_pharmacy;
+    if (n.contains('electronics')) return Icons.devices;
+    if (n.contains('fashion')) return Icons.checkroom;
+    return Icons.category;
+  }
+
+  // ── App Bar ──────────────────────────────────────────────────────────────
 
   Widget _buildSliverAppBar(CartState cartState) {
     final addressesState = ref.watch(addressesProvider);
-
-    // Resolve the label to show in the app bar
-    String locationLabel = 'Set your location';
+    String locationLabel = 'Set location';
     String locationSub = 'Tap to add address';
 
     if (addressesState is AddressSingleLoaded) {
       final a = addressesState.address;
-      locationLabel = a.label; // e.g. "Home"
-      // Build a short readable line: "House, Area, City"
-      final parts = <String>[
-        if (a.addressLine1.isNotEmpty) a.addressLine1,
-        if (a.area.isNotEmpty) a.area,
-        if (a.city.isNotEmpty) a.city,
-      ];
-      locationSub = parts.join(', ');
-      // Trim long strings so the app bar doesn't overflow
-      if (locationSub.length > 40) {
-        locationSub = '${locationSub.substring(0, 38)}…';
-      }
-    } else if (addressesState is AddressesLoaded &&
-        addressesState.addresses.isNotEmpty) {
-      // Fallback: first address in list
-      final a = addressesState.addresses.firstWhere(
-        (x) => x.isDefault,
-        orElse: () => addressesState.addresses.first,
-      );
       locationLabel = a.label;
-      final parts = <String>[
+      final parts = [
         if (a.addressLine1.isNotEmpty) a.addressLine1,
         if (a.area.isNotEmpty) a.area,
         if (a.city.isNotEmpty) a.city,
       ];
       locationSub = parts.join(', ');
-      if (locationSub.length > 40) {
+      if (locationSub.length > 40)
         locationSub = '${locationSub.substring(0, 38)}…';
-      }
     }
 
     return SliverAppBar(
@@ -542,38 +689,14 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
           ],
         ),
       ),
-      actions: [
-        // Contact Us icon
-        IconButton(
-          icon: const Icon(Icons.support_agent_outlined),
-          color: AppColorsDark.textPrimary,
-          tooltip: 'Contact Us',
-          onPressed:
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const CustomerContactScreen(),
-                ),
-              ),
-        ),
-        // Profile icon
-        IconButton(
-          icon: const Icon(Icons.person_outline),
-          color: AppColorsDark.textPrimary,
-          onPressed: () => context.push('/customer/profile'),
-        ),
-      ],
     );
   }
-  // ============================================================
-  // SEARCH BAR
-  // ============================================================
+
+  // ── Search Bar ───────────────────────────────────────────────────────────
 
   Widget _buildSearchBar() {
     return InkWell(
-      onTap: () {
-        context.push('/customer/search');
-      },
+      onTap: () => context.push('/customer/search'),
       borderRadius: BorderRadius.circular(12.r),
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
@@ -600,377 +723,30 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
     );
   }
 
-  // ============================================================
-  // CATEGORY CHIPS (HORIZONTAL FILTER)
-  // ============================================================
-
-  Widget _buildCategoryChips(CategoriesLoaded state) {
-    final categories = state.categories;
-
-    return Container(
-      margin: EdgeInsets.only(bottom: 8.h),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.symmetric(horizontal: 16.w),
-        child: Row(
-          children: [
-            // All chip
-            _buildCategoryChip(
-              id: '',
-              name: 'All',
-              icon: Icons.apps,
-              isSelected: _selectedCategoryId.isEmpty,
-            ),
-            SizedBox(width: 8.w),
-
-            // Category chips
-            ...categories.map(
-              (category) => Padding(
-                padding: EdgeInsets.only(right: 8.w),
-                child: _buildCategoryChip(
-                  id: category.id,
-                  name: category.name,
-                  icon: _getCategoryIcon(category.name),
-                  isSelected: _selectedCategoryId == category.id,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCategoryChip({
-    required String id,
-    required String name,
-    required IconData icon,
-    required bool isSelected,
-  }) {
-    return InkWell(
-      onTap: () => _onCategoryChanged(id),
-      borderRadius: BorderRadius.circular(20.r),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
-        decoration: BoxDecoration(
-          color:
-              isSelected ? AppColorsDark.primary : AppColorsDark.surfaceVariant,
-          borderRadius: BorderRadius.circular(20.r),
-          border: Border.all(
-            color: isSelected ? AppColorsDark.primary : AppColorsDark.border,
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 18.sp,
-              color:
-                  isSelected ? AppColorsDark.white : AppColorsDark.textPrimary,
-            ),
-            SizedBox(width: 6.w),
-            Text(
-              name,
-              style: AppTextStyles.labelMedium().copyWith(
-                color:
-                    isSelected
-                        ? AppColorsDark.white
-                        : AppColorsDark.textPrimary,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  IconData _getCategoryIcon(String categoryName) {
-    final name = categoryName.toLowerCase();
-    if (name.contains('food') || name.contains('restaurant')) {
-      return Icons.restaurant;
-    } else if (name.contains('grocery')) {
-      return Icons.shopping_basket;
-    } else if (name.contains('pharmacy') || name.contains('medicine')) {
-      return Icons.local_pharmacy;
-    } else if (name.contains('electronics')) {
-      return Icons.devices;
-    } else if (name.contains('fashion') || name.contains('clothing')) {
-      return Icons.checkroom;
-    }
-    return Icons.category;
-  }
-
-  // ============================================================
-  // PRODUCTS GRID
-  // ============================================================
-
-  Widget _buildProductsGrid(ProductsLoaded state) {
-    final products = state.products.take(10).toList(); // Show first 10 products
-
-    if (products.isEmpty) {
-      return SliverToBoxAdapter(
-        child: Center(
-          child: Padding(
-            padding: EdgeInsets.symmetric(vertical: 40.h),
-            child: Column(
-              children: [
-                Icon(
-                  Icons.shopping_bag_outlined,
-                  size: 64.sp,
-                  color: AppColorsDark.textTertiary,
-                ),
-                SizedBox(height: 16.h),
-                Text(
-                  'No products found',
-                  style: AppTextStyles.titleMedium().copyWith(
-                    color: AppColorsDark.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    return SliverToBoxAdapter(
-      child: SizedBox(
-        height: 240.h, // Fixed height for horizontal list
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          padding: EdgeInsets.symmetric(horizontal: 16.w),
-          itemCount: products.length,
-          itemBuilder: (context, index) {
-            final product = products[index];
-            return _buildProductCard(product);
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProductCard(ProductModel product) {
-    return Container(
-      width: 160.w, // ADD THIS LINE - Fixed width for horizontal scroll
-      margin: EdgeInsets.only(
-        right: 12.w,
-      ), // ADD THIS LINE - Spacing between cards
-      child: InkWell(
-        onTap: () {
-          context.push('/customer/store/${product.storeId}');
-        },
-        borderRadius: BorderRadius.circular(12.r),
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColorsDark.cardBackground,
-            borderRadius: BorderRadius.circular(12.r),
-            border: Border.all(color: AppColorsDark.border),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Product Image
-              Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(12.r),
-                      topRight: Radius.circular(12.r),
-                    ),
-                    child:
-                        product.images.isNotEmpty
-                            ? Image.network(
-                              product.images.first,
-                              width: double.infinity,
-                              height: 120.h,
-                              fit: BoxFit.cover,
-                              errorBuilder:
-                                  (_, __, ___) => _buildProductPlaceholder(),
-                            )
-                            : _buildProductPlaceholder(),
-                  ),
-
-                  // Discount Badge
-                  if (product.discount > 0)
-                    Positioned(
-                      top: 8.h,
-                      left: 8.w,
-                      child: Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 8.w,
-                          vertical: 4.h,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColorsDark.error,
-                          borderRadius: BorderRadius.circular(6.r),
-                        ),
-                        child: Text(
-                          '${product.discount.toInt()}% OFF',
-                          style: AppTextStyles.labelSmall().copyWith(
-                            color: AppColorsDark.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                  // Availability Badge
-                  if (!product.isAvailable)
-                    Positioned(
-                      top: 8.h,
-                      right: 8.w,
-                      child: Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 8.w,
-                          vertical: 4.h,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColorsDark.black.withOpacity(0.7),
-                          borderRadius: BorderRadius.circular(6.r),
-                        ),
-                        child: Text(
-                          'Out of Stock',
-                          style: AppTextStyles.labelSmall().copyWith(
-                            color: AppColorsDark.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-
-              // Product Details
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.all(10.w),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Product Name
-                      Text(
-                        product.name,
-                        style: AppTextStyles.bodyMedium().copyWith(
-                          color: AppColorsDark.textPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-
-                      SizedBox(height: 4.h),
-
-                      // Store Name
-                      Text(
-                        product.storeName,
-                        style: AppTextStyles.bodySmall().copyWith(
-                          color: AppColorsDark.textSecondary,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-
-                      const Spacer(),
-
-                      // Price & Add Button
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (product.discount > 0)
-                                Text(
-                                  'PKR ${product.price.toInt()}',
-                                  style: AppTextStyles.bodySmall().copyWith(
-                                    color: AppColorsDark.textTertiary,
-                                    decoration: TextDecoration.lineThrough,
-                                  ),
-                                ),
-                              Text(
-                                'PKR ${product.discountedPrice.toInt()}',
-                                style: AppTextStyles.titleSmall().copyWith(
-                                  color: AppColorsDark.primary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          // Add Button
-                          Container(
-                            width: 32.w,
-                            height: 32.w,
-                            decoration: BoxDecoration(
-                              color: AppColorsDark.primary,
-                              borderRadius: BorderRadius.circular(8.r),
-                            ),
-                            child: Icon(
-                              Icons.add,
-                              color: AppColorsDark.white,
-                              size: 18.sp,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProductPlaceholder() {
-    return Container(
-      width: double.infinity,
-      height: 120.h,
-      color: AppColorsDark.surfaceContainer,
-      child: Icon(
-        Icons.image_outlined,
-        size: 40.sp,
-        color: AppColorsDark.textTertiary,
-      ),
-    );
-  }
-
-  // ============================================================
-  // FEATURED STORES
-  // ============================================================
+  // ── Featured Stores ──────────────────────────────────────────────────────
 
   Widget _buildFeaturedStores(StoresLoaded state) {
-    final featuredStores =
+    final featured =
         state.stores
             .where(
-              (store) =>
-                  store.isFeatured &&
-                  store.isActive &&
+              (s) =>
+                  s.isFeatured &&
+                  s.isActive &&
                   (_selectedCategoryId.isEmpty ||
-                      store.categoryId == _selectedCategoryId),
+                      s.categoryId == _selectedCategoryId),
             )
             .take(5)
             .toList();
 
-    if (featuredStores.isEmpty) {
-      return SizedBox(height: 16.h);
-    }
+    if (featured.isEmpty) return SizedBox(height: 8.h);
 
     return SizedBox(
       height: 200.h,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.symmetric(horizontal: 16.w),
-        itemCount: featuredStores.length,
-        itemBuilder: (context, index) {
-          final store = featuredStores[index];
-          return _buildFeaturedCard(store);
-        },
+        itemCount: featured.length,
+        itemBuilder: (context, index) => _buildFeaturedCard(featured[index]),
       ),
     );
   }
@@ -980,50 +756,29 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
       width: 300.w,
       margin: EdgeInsets.only(right: 12.w),
       child: InkWell(
-        onTap: () {
-          context.push('/customer/store/${store.id}');
-        },
+        onTap: () => context.push('/customer/store/${store.id}'),
         borderRadius: BorderRadius.circular(16.r),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: AppColorsDark.cardGradient,
-            borderRadius: BorderRadius.circular(16.r),
-            border: Border.all(color: AppColorsDark.border),
-          ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16.r),
           child: Stack(
+            fit: StackFit.expand,
             children: [
-              // Image
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16.r),
-                child:
-                    store.bannerUrl.isNotEmpty
-                        ? Image.network(
-                          store.bannerUrl,
-                          width: double.infinity,
-                          height: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder:
-                              (_, __, ___) => _buildStorePlaceholder(),
-                        )
-                        : _buildStorePlaceholder(),
-              ),
-
-              // Gradient Overlay
+              store.bannerUrl.isNotEmpty
+                  ? Image.network(
+                    store.bannerUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _buildStorePlaceholder(),
+                  )
+                  : _buildStorePlaceholder(),
               Container(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16.r),
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      AppColorsDark.black.withOpacity(0.8),
-                    ],
+                    colors: [Colors.transparent, Colors.black.withOpacity(0.8)],
                   ),
                 ),
               ),
-
-              // Content
               Positioned(
                 bottom: 12.h,
                 left: 12.w,
@@ -1034,7 +789,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
                     Text(
                       store.name,
                       style: AppTextStyles.titleMedium().copyWith(
-                        color: AppColorsDark.white,
+                        color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
                       maxLines: 1,
@@ -1052,20 +807,20 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
                         Text(
                           store.rating.toStringAsFixed(1),
                           style: AppTextStyles.bodySmall().copyWith(
-                            color: AppColorsDark.white,
+                            color: Colors.white,
                           ),
                         ),
                         SizedBox(width: 12.w),
                         Icon(
                           Icons.access_time,
                           size: 14.sp,
-                          color: AppColorsDark.white,
+                          color: Colors.white,
                         ),
                         SizedBox(width: 4.w),
                         Text(
                           '${store.deliveryTime} min',
                           style: AppTextStyles.bodySmall().copyWith(
-                            color: AppColorsDark.white,
+                            color: Colors.white,
                           ),
                         ),
                       ],
@@ -1073,8 +828,6 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
                   ],
                 ),
               ),
-
-              // Featured Badge
               Positioned(
                 top: 12.h,
                 right: 12.w,
@@ -1100,46 +853,30 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
     );
   }
 
-  // ============================================================
-  // ALL STORES (NON-FEATURED)
-  // ============================================================
-
-  List<StoreModel> _getNonFeaturedStores(StoresLoaded state) {
-    // Get stores that are NOT featured
-    return state.stores
-        .where(
-          (s) =>
-              !s.isFeatured && // NOT featured
-              s.isActive &&
-              (_selectedCategoryId.isEmpty ||
-                  s.categoryId == _selectedCategoryId),
-        )
-        .toList();
-  }
+  // ── Store List ───────────────────────────────────────────────────────────
 
   Widget _buildStoreList(StoresLoaded state) {
-    final stores = _getNonFeaturedStores(state);
+    final stores =
+        state.stores
+            .where(
+              (s) =>
+                  !s.isFeatured &&
+                  s.isActive &&
+                  (_selectedCategoryId.isEmpty ||
+                      s.categoryId == _selectedCategoryId),
+            )
+            .toList();
 
     if (stores.isEmpty) {
       return SliverToBoxAdapter(
         child: Center(
           child: Padding(
-            padding: EdgeInsets.symmetric(vertical: 60.h),
-            child: Column(
-              children: [
-                Icon(
-                  Icons.store_outlined,
-                  size: 64.sp,
-                  color: AppColorsDark.textTertiary,
-                ),
-                SizedBox(height: 16.h),
-                Text(
-                  'No stores found',
-                  style: AppTextStyles.titleMedium().copyWith(
-                    color: AppColorsDark.textPrimary,
-                  ),
-                ),
-              ],
+            padding: EdgeInsets.symmetric(vertical: 40.h),
+            child: Text(
+              'No stores found',
+              style: AppTextStyles.titleMedium().copyWith(
+                color: AppColorsDark.textSecondary,
+              ),
             ),
           ),
         ),
@@ -1147,10 +884,10 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
     }
 
     return SliverList(
-      delegate: SliverChildBuilderDelegate((context, index) {
-        final store = stores[index];
-        return _buildStoreCard(store);
-      }, childCount: stores.length),
+      delegate: SliverChildBuilderDelegate(
+        (context, index) => _buildStoreCard(stores[index]),
+        childCount: stores.length,
+      ),
     );
   }
 
@@ -1158,9 +895,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
       child: InkWell(
-        onTap: () {
-          context.push('/customer/store/${store.id}');
-        },
+        onTap: () => context.push('/customer/store/${store.id}'),
         borderRadius: BorderRadius.circular(16.r),
         child: Container(
           padding: EdgeInsets.all(12.w),
@@ -1172,7 +907,6 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Image
               ClipRRect(
                 borderRadius: BorderRadius.circular(12.r),
                 child:
@@ -1187,10 +921,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
                         )
                         : _buildSmallPlaceholder(),
               ),
-
               SizedBox(width: 12.w),
-
-              // Details
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1209,15 +940,13 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
                       style: AppTextStyles.bodySmall().copyWith(
                         color: AppColorsDark.textTertiary,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                     SizedBox(height: 8.h),
                     Row(
                       children: [
                         Icon(
                           Icons.star,
-                          size: 16.sp,
+                          size: 14.sp,
                           color: AppColorsDark.foodRating,
                         ),
                         SizedBox(width: 4.w),
@@ -1227,18 +956,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
                             color: AppColorsDark.textPrimary,
                           ),
                         ),
-                        SizedBox(width: 4.w),
-                        Text(
-                          '(${store.totalReviews})',
-                          style: AppTextStyles.bodySmall().copyWith(
-                            color: AppColorsDark.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 4.h),
-                    Row(
-                      children: [
+                        SizedBox(width: 12.w),
                         Icon(
                           Icons.access_time,
                           size: 14.sp,
@@ -1251,7 +969,11 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
                             color: AppColorsDark.textSecondary,
                           ),
                         ),
-                        SizedBox(width: 12.w),
+                      ],
+                    ),
+                    SizedBox(height: 4.h),
+                    Row(
+                      children: [
                         Icon(
                           Icons.delivery_dining,
                           size: 14.sp,
@@ -1269,22 +991,20 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
                   ],
                 ),
               ),
-
-              // Status
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
                 decoration: BoxDecoration(
                   color:
-                      store.isOpen
+                      store.isCurrentlyOpen
                           ? AppColorsDark.success.withOpacity(0.2)
                           : AppColorsDark.error.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(6.r),
                 ),
                 child: Text(
-                  store.isOpen ? 'OPEN' : 'CLOSED',
+                  store.isCurrentlyOpen ? 'OPEN' : 'CLOSED',
                   style: AppTextStyles.labelSmall().copyWith(
                     color:
-                        store.isOpen
+                        store.isCurrentlyOpen
                             ? AppColorsDark.success
                             : AppColorsDark.error,
                     fontWeight: FontWeight.bold,
@@ -1298,82 +1018,41 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
     );
   }
 
-  // ============================================================
-  // PLACEHOLDERS & LOADING
-  // ============================================================
+  // ── Placeholders & loading ────────────────────────────────────────────────
 
-  Widget _buildStorePlaceholder() {
-    return Container(
-      color: AppColorsDark.surfaceContainer,
-      child: Center(
-        child: Icon(
-          Icons.restaurant,
-          size: 60.sp,
-          color: AppColorsDark.textTertiary,
-        ),
+  Widget _buildStorePlaceholder() => Container(
+    color: AppColorsDark.surfaceContainer,
+    child: Center(
+      child: Icon(
+        Icons.restaurant,
+        size: 60.sp,
+        color: AppColorsDark.textTertiary,
       ),
-    );
-  }
+    ),
+  );
 
-  Widget _buildSmallPlaceholder() {
-    return Container(
-      width: 100.w,
-      height: 100.w,
-      color: AppColorsDark.surfaceContainer,
-      child: Icon(Icons.store, size: 40.sp, color: AppColorsDark.textTertiary),
-    );
-  }
+  Widget _buildSmallPlaceholder() => Container(
+    width: 100.w,
+    height: 100.w,
+    color: AppColorsDark.surfaceContainer,
+    child: Icon(Icons.store, size: 40.sp, color: AppColorsDark.textTertiary),
+  );
 
-  Widget _buildLoadingState() {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(40.h),
-        child: const CircularProgressIndicator(color: AppColorsDark.primary),
-      ),
-    );
-  }
+  Widget _buildLoadingState() => Center(
+    child: Padding(
+      padding: EdgeInsets.all(40.h),
+      child: const CircularProgressIndicator(color: AppColorsDark.primary),
+    ),
+  );
 
-  Widget _buildErrorState(String error) {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(40.h),
-        child: Column(
-          children: [
-            Icon(Icons.error_outline, size: 48.sp, color: AppColorsDark.error),
-            SizedBox(height: 16.h),
-            Text(
-              'Something went wrong',
-              style: AppTextStyles.titleMedium().copyWith(
-                color: AppColorsDark.textPrimary,
-              ),
-            ),
-            SizedBox(height: 8.h),
-            Text(
-              error,
-              style: AppTextStyles.bodySmall().copyWith(
-                color: AppColorsDark.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // CART FAB
-  // ============================================================
+  // ── Cart FAB ─────────────────────────────────────────────────────────────
 
   Widget _buildCartFAB(CartState cartState) {
     if (cartState is! CartLoaded || cartState.cart.isEmpty) {
       return const SizedBox.shrink();
     }
-
     return FloatingActionButton.extended(
-      onPressed: () {
-        context.push('/customer/cart');
-      },
+      onPressed: () => context.push('/customer/cart'),
       backgroundColor: AppColorsDark.primary,
       icon: const Icon(Icons.shopping_cart, color: AppColorsDark.white),
       label: Row(
