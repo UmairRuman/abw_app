@@ -28,7 +28,7 @@ class CustomerHomeScreen extends ConsumerStatefulWidget {
 // ✅ FIX 1: AutomaticKeepAliveClientMixin keeps the tab alive in IndexedStack
 // but we also reload whenever the tab becomes visible via a custom trigger.
 class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
-    with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
+    with AutomaticKeepAliveClientMixin, WidgetsBindingObserver, RouteAware {
   @override
   bool get wantKeepAlive => true; // ✅ Keep state alive across tab switches
 
@@ -47,19 +47,39 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
     _loadData();
   }
 
+  PageRoute<dynamic>? _subscribedRoute;
+
   @override
   void dispose() {
+    if (_subscribedRoute != null) {
+      routeObserver.unsubscribe(this);
+      _subscribedRoute = null;
+    }
     _bannerTimer?.cancel();
     _bannerController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
+  // 4. Add didPopNext — fires when returning from store detail screen:
+  @override
+  void didPopNext() {
+    _loadData(); // ← reload stores/products when user comes back
+  }
+
   // ✅ FIX 1: Reload when app resumes from background
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _loadData();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      if (_subscribedRoute != route) {
+        if (_subscribedRoute != null) {
+          routeObserver.unsubscribe(this);
+        }
+        routeObserver.subscribe(this, route);
+        _subscribedRoute = route;
+      }
     }
   }
 

@@ -385,19 +385,22 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                                       .child('banners')
                                       .child('$id.jpg');
 
-                                  await storageRef.putFile(
+                                  final uploadTask = storageRef.putFile(
                                     imageFile,
                                     SettableMetadata(contentType: 'image/jpeg'),
                                   );
+                                  final snapshot = await uploadTask
+                                      .whenComplete(() {});
                                   final downloadUrl =
-                                      await storageRef.getDownloadURL();
+                                      await snapshot.ref.getDownloadURL();
 
                                   // Get current banner count for ordering
-                                  final snapshot =
+
+                                  final countSnap =
                                       await FirebaseFirestore.instance
                                           .collection('banners')
                                           .get();
-                                  final order = snapshot.docs.length;
+                                  final order = countSnap.docs.length;
 
                                   await ref
                                       .read(bannersProvider.notifier)
