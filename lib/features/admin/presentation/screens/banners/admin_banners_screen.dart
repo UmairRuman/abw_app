@@ -1,12 +1,12 @@
 // lib/features/admin/presentation/screens/banners/admin_banners_screen.dart
 
 import 'dart:io';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../../core/theme/colors/app_colors_dark.dart';
 import '../../../../../core/theme/text_styles/app_text_styles.dart';
 import '../../../../banners/presentation/providers/banners_provider.dart';
@@ -58,12 +58,9 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
               ),
             ),
         data: (banners) {
-          if (banners.isEmpty) {
-            return _buildEmptyState();
-          }
+          if (banners.isEmpty) return _buildEmptyState();
           return Column(
             children: [
-              // Info card
               Container(
                 margin: EdgeInsets.all(16.w),
                 padding: EdgeInsets.all(12.w),
@@ -84,7 +81,7 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                     SizedBox(width: 8.w),
                     Expanded(
                       child: Text(
-                        'Max 4 banners shown on home screen. Toggle to show/hide. Drag to reorder.',
+                        'Max 4 banners shown on home screen. Toggle to show/hide.',
                         style: AppTextStyles.bodySmall().copyWith(
                           color: AppColorsDark.info,
                         ),
@@ -93,35 +90,12 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                   ],
                 ),
               ),
-
-              // Banners list
               Expanded(
-                child: ReorderableListView.builder(
+                child: ListView.builder(
                   padding: EdgeInsets.symmetric(horizontal: 16.w),
                   itemCount: banners.length,
-                  onReorder: (oldIndex, newIndex) async {
-                    if (newIndex > oldIndex) newIndex--;
-                    final notifier = ref.read(bannersProvider.notifier);
-                    // Update orders
-                    for (int i = 0; i < banners.length; i++) {
-                      int newOrder = i;
-                      if (i == oldIndex)
-                        newOrder = newIndex;
-                      else if (oldIndex < newIndex &&
-                          i > oldIndex &&
-                          i <= newIndex)
-                        newOrder = i - 1;
-                      else if (oldIndex > newIndex &&
-                          i >= newIndex &&
-                          i < oldIndex)
-                        newOrder = i + 1;
-                      await notifier.updateOrder(banners[i].id, newOrder);
-                    }
-                  },
-                  itemBuilder: (context, index) {
-                    final banner = banners[index];
-                    return _buildBannerTile(banner, key: ValueKey(banner.id));
-                  },
+                  itemBuilder:
+                      (context, index) => _buildBannerTile(banners[index]),
                 ),
               ),
             ],
@@ -131,9 +105,8 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
     );
   }
 
-  Widget _buildBannerTile(BannerModel banner, {required Key key}) {
+  Widget _buildBannerTile(BannerModel banner) {
     return Container(
-      key: key,
       margin: EdgeInsets.only(bottom: 12.h),
       decoration: BoxDecoration(
         color: AppColorsDark.cardBackground,
@@ -148,7 +121,6 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Banner image
           ClipRRect(
             borderRadius: BorderRadius.vertical(top: Radius.circular(14.r)),
             child:
@@ -162,8 +134,6 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                     )
                     : _buildImagePlaceholder(),
           ),
-
-          // Controls
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
             child: Row(
@@ -183,7 +153,7 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                       ),
                       SizedBox(height: 2.h),
                       Text(
-                        'Order: ${banner.order + 1}',
+                        'Position: ${banner.order + 1}',
                         style: AppTextStyles.bodySmall().copyWith(
                           color: AppColorsDark.textSecondary,
                         ),
@@ -191,8 +161,6 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                     ],
                   ),
                 ),
-
-                // Active toggle
                 Row(
                   children: [
                     Text(
@@ -215,8 +183,6 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                     ),
                   ],
                 ),
-
-                // Delete
                 IconButton(
                   icon: Icon(
                     Icons.delete_outline,
@@ -233,18 +199,16 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
     );
   }
 
-  Widget _buildImagePlaceholder() {
-    return Container(
-      width: double.infinity,
-      height: 160.h,
-      color: AppColorsDark.surfaceContainer,
-      child: Icon(
-        Icons.image_outlined,
-        size: 48.sp,
-        color: AppColorsDark.textTertiary,
-      ),
-    );
-  }
+  Widget _buildImagePlaceholder() => Container(
+    width: double.infinity,
+    height: 160.h,
+    color: AppColorsDark.surfaceContainer,
+    child: Icon(
+      Icons.image_outlined,
+      size: 48.sp,
+      color: AppColorsDark.textTertiary,
+    ),
+  );
 
   Widget _buildEmptyState() {
     return Center(
@@ -284,10 +248,10 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
   void _showAddBannerDialog() {
     final titleController = TextEditingController();
     File? selectedImage;
-    bool isPickingImage = false;
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder:
           (ctx) => StatefulBuilder(
             builder:
@@ -303,7 +267,7 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Image picker
+                        // Image picker area
                         GestureDetector(
                           onTap: () async {
                             final picker = ImagePicker();
@@ -358,10 +322,7 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                                     ),
                           ),
                         ),
-
                         SizedBox(height: 16.h),
-
-                        // Title field
                         TextFormField(
                           controller: titleController,
                           style: AppTextStyles.bodyMedium().copyWith(
@@ -375,7 +336,6 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                             ),
                           ),
                         ),
-
                         if (_isUploading) ...[
                           SizedBox(height: 16.h),
                           const LinearProgressIndicator(
@@ -383,7 +343,7 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                           ),
                           SizedBox(height: 8.h),
                           Text(
-                            'Uploading...',
+                            'Uploading banner...',
                             style: AppTextStyles.bodySmall().copyWith(
                               color: AppColorsDark.textSecondary,
                             ),
@@ -394,7 +354,13 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                   ),
                   actions: [
                     TextButton(
-                      onPressed: () => Navigator.pop(ctx),
+                      onPressed:
+                          _isUploading
+                              ? null
+                              : () {
+                                titleController.dispose();
+                                Navigator.pop(ctx);
+                              },
                       child: const Text('Cancel'),
                     ),
                     ElevatedButton(
@@ -402,33 +368,42 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                           selectedImage == null || _isUploading
                               ? null
                               : () async {
+                                final imageFile = selectedImage!;
+                                final title = titleController.text.trim();
+
                                 setState(() => _isUploading = true);
+                                setDialogState(() {}); // refresh dialog
+
                                 try {
-                                  // Upload to Firebase Storage
+                                  // ✅ FIX 3: Renamed storage reference to 'storageRef'
+                                  // to avoid shadowing Riverpod's 'ref' variable.
                                   final id =
                                       DateTime.now().millisecondsSinceEpoch
                                           .toString();
-                                  final ref = FirebaseStorage.instance
+                                  final storageRef = FirebaseStorage.instance
                                       .ref()
-                                      .child('banners/$id.jpg');
-                                  await ref.putFile(
-                                    selectedImage!,
+                                      .child('banners')
+                                      .child('$id.jpg');
+
+                                  await storageRef.putFile(
+                                    imageFile,
                                     SettableMetadata(contentType: 'image/jpeg'),
                                   );
-                                  final url = await ref.getDownloadURL();
+                                  final downloadUrl =
+                                      await storageRef.getDownloadURL();
 
-                                  // Get current count for order
-                                  final banners =
+                                  // Get current banner count for ordering
+                                  final snapshot =
                                       await FirebaseFirestore.instance
                                           .collection('banners')
                                           .get();
-                                  final order = banners.docs.length;
+                                  final order = snapshot.docs.length;
 
-                                  await this.ref
+                                  await ref
                                       .read(bannersProvider.notifier)
                                       .addBanner(
-                                        imageUrl: url,
-                                        title: titleController.text.trim(),
+                                        imageUrl: downloadUrl,
+                                        title: title,
                                         order: order,
                                       );
 
@@ -438,7 +413,7 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
                                         content: Text(
-                                          'Banner added successfully',
+                                          'Banner added successfully ✅',
                                         ),
                                         backgroundColor: AppColorsDark.success,
                                       ),
@@ -463,7 +438,10 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                   ],
                 ),
           ),
-    ).then((_) => titleController.dispose());
+    ).then((_) {
+      // Dispose safely after dialog fully closes
+      if (!_isUploading) titleController.dispose();
+    });
   }
 
   void _confirmDelete(BannerModel banner) {
@@ -492,6 +470,16 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
               ElevatedButton(
                 onPressed: () async {
                   Navigator.pop(ctx);
+                  // ✅ Also delete from Firebase Storage if possible
+                  try {
+                    if (banner.imageUrl.isNotEmpty) {
+                      await FirebaseStorage.instance
+                          .refFromURL(banner.imageUrl)
+                          .delete();
+                    }
+                  } catch (_) {
+                    // Storage delete failing shouldn't block Firestore delete
+                  }
                   await ref
                       .read(bannersProvider.notifier)
                       .deleteBanner(banner.id);

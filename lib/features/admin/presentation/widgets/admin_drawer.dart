@@ -125,6 +125,16 @@ class AdminDrawer extends ConsumerWidget {
 
                   _buildDrawerItem(
                     context,
+                    icon: Icons.image_outlined,
+                    title: 'Banners',
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.push('/admin/banners');
+                    },
+                  ),
+
+                  _buildDrawerItem(
+                    context,
                     icon: Icons.payment_rounded,
                     title: 'Payment Settings',
                     onTap: () {

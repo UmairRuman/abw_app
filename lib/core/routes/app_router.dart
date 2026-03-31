@@ -3,6 +3,7 @@
 import 'dart:developer';
 
 import 'package:abw_app/features/admin/presentation/screens/analytics/analytics_screen.dart';
+import 'package:abw_app/features/admin/presentation/screens/banners/admin_banners_screen.dart';
 import 'package:abw_app/features/admin/presentation/screens/riders/admin_rider_detail_screen.dart';
 import 'package:abw_app/features/admin/presentation/screens/riders/admin_riders_list_screen.dart';
 import 'package:abw_app/features/admin/presentation/screens/riders/rider_details_screen.dart';
@@ -333,6 +334,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/admin/contact-settings',
         name: 'admin-contact-settings',
         builder: (context, state) => const AdminContactSettingsScreen(),
+      ),
+
+      GoRoute(
+        path: '/admin/banners',
+        name: 'admin-banner',
+        builder: (context, state) => const AdminBannersScreen(),
       ),
 
       GoRoute(

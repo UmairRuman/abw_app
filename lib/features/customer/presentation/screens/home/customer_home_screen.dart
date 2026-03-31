@@ -17,7 +17,6 @@ import '../../../../categories/presentation/providers/categories_provider.dart';
 import '../../../../stores/presentation/providers/stores_provider.dart';
 import '../../../../products/presentation/providers/products_provider.dart';
 import '../../../../cart/presentation/providers/cart_provider.dart';
-import '../../../../products/data/models/product_model.dart';
 
 class CustomerHomeScreen extends ConsumerStatefulWidget {
   const CustomerHomeScreen({super.key});
@@ -26,7 +25,13 @@ class CustomerHomeScreen extends ConsumerStatefulWidget {
   ConsumerState<CustomerHomeScreen> createState() => _CustomerHomeScreenState();
 }
 
-class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
+// ✅ FIX 1: AutomaticKeepAliveClientMixin keeps the tab alive in IndexedStack
+// but we also reload whenever the tab becomes visible via a custom trigger.
+class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
+    with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
+  @override
+  bool get wantKeepAlive => true; // ✅ Keep state alive across tab switches
+
   String _selectedCategoryId = '';
   bool _isInitialized = false;
 
@@ -38,6 +43,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadData();
   }
 
@@ -45,15 +51,24 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
   void dispose() {
     _bannerTimer?.cancel();
     _bannerController.dispose();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
-  void _startBannerTimer(int bannerCount) {
+  // ✅ FIX 1: Reload when app resumes from background
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadData();
+    }
+  }
+
+  void _startBannerTimer(int count) {
     _bannerTimer?.cancel();
-    if (bannerCount <= 1) return;
+    if (count <= 1) return;
     _bannerTimer = Timer.periodic(const Duration(seconds: 4), (_) {
       if (!mounted) return;
-      _bannerPage = (_bannerPage + 1) % bannerCount;
+      _bannerPage = (_bannerPage + 1) % count;
       if (_bannerController.hasClients) {
         _bannerController.animateToPage(
           _bannerPage,
@@ -65,20 +80,26 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
   }
 
   Future<void> _loadData() async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    await ref.read(categoriesProvider.notifier).getActiveCategories();
+    if (!mounted) return;
+    await Future.delayed(const Duration(milliseconds: 200));
+    if (!mounted) return;
 
+    await ref.read(categoriesProvider.notifier).getActiveCategories();
     final authState = ref.read(authProvider);
     final categoriesState = ref.read(categoriesProvider);
 
     if (categoriesState is CategoriesLoaded &&
         categoriesState.categories.isNotEmpty) {
-      setState(() {
-        _selectedCategoryId = categoriesState.categories.first.id;
-        _isInitialized = true;
-      });
+      if (mounted) {
+        setState(() {
+          _selectedCategoryId = categoriesState.categories.first.id;
+          _isInitialized = true;
+        });
+      }
     }
 
+    // ✅ FIX 1: Always reload stores on every _loadData call so that
+    // returning from a store detail screen shows fresh data.
     await Future.wait([
       ref.read(storesProvider.notifier).getAllStores(),
       _loadCart(),
@@ -107,6 +128,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // ✅ Required for AutomaticKeepAliveClientMixin
     final categoriesState = ref.watch(categoriesProvider);
     final storesState = ref.watch(storesProvider);
     final cartState = ref.watch(cartProvider);
@@ -122,10 +144,8 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
           backgroundColor: AppColorsDark.surface,
           child: CustomScrollView(
             slivers: [
-              // ── App Bar (address + search) ──────────────────────────────
-              _buildSliverAppBar(cartState),
+              _buildSliverAppBar(),
 
-              // ── Search Bar ──────────────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 0),
@@ -133,7 +153,6 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                 ),
               ),
 
-              // ── Category Chips ──────────────────────────────────────────
               if (categoriesState is CategoriesLoaded && _isInitialized)
                 SliverToBoxAdapter(
                   child: Padding(
@@ -142,12 +161,11 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                   ),
                 ),
 
-              // ── Banner Carousel ─────────────────────────────────────────
+              // ── Banners ──────────────────────────────────────────────────
               SliverToBoxAdapter(
                 child: bannersAsync.when(
                   data: (banners) {
                     if (banners.isEmpty) return const SizedBox.shrink();
-                    // Start/restart auto-scroll timer when banners load
                     WidgetsBinding.instance.addPostFrameCallback(
                       (_) => _startBannerTimer(banners.length),
                     );
@@ -158,7 +176,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                 ),
               ),
 
-              // ── Featured Products ───────────────────────────────────────
+              // ── Featured Items header ─────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 8.h),
@@ -173,7 +191,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                         ),
                       ),
                       TextButton(
-                        onPressed: () => context.push('/customer/all-products'),
+                        onPressed: () => context.push('/customer/search'),
                         child: Text(
                           'See All',
                           style: AppTextStyles.labelMedium().copyWith(
@@ -186,19 +204,26 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                 ),
               ),
 
+              // ── Featured Items ────────────────────────────────────────────
               SliverToBoxAdapter(
                 child: featuredProductsAsync.when(
                   data:
                       (products) =>
                           products.isEmpty
-                              ? const SizedBox.shrink()
+                              // ✅ FIX 4: Empty state for featured products
+                              ? _buildEmptyState(
+                                icon: Icons.star_border_rounded,
+                                title: 'No Featured Items',
+                                subtitle:
+                                    'Check back soon for featured products',
+                              )
                               : _buildFeaturedProductsList(products),
                   loading: () => _buildLoadingState(),
                   error: (_, __) => const SizedBox.shrink(),
                 ),
               ),
 
-              // ── Featured Stores ─────────────────────────────────────────
+              // ── Featured Stores header ────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(16.w, 24.h, 16.w, 8.h),
@@ -212,12 +237,13 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                 ),
               ),
 
+              // ── Featured Stores ───────────────────────────────────────────
               if (storesState is StoresLoaded)
                 SliverToBoxAdapter(child: _buildFeaturedStores(storesState))
               else if (storesState is StoresLoading)
                 SliverToBoxAdapter(child: _buildLoadingState()),
 
-              // ── All Stores ──────────────────────────────────────────────
+              // ── All Stores header ─────────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(16.w, 24.h, 16.w, 8.h),
@@ -233,12 +259,12 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                 ),
               ),
 
+              // ── All Stores ────────────────────────────────────────────────
               if (storesState is StoresLoaded)
                 _buildStoreList(storesState)
               else if (storesState is StoresLoading)
                 SliverToBoxAdapter(child: _buildLoadingState()),
 
-              // Bottom padding
               SliverToBoxAdapter(child: SizedBox(height: 80.h)),
             ],
           ),
@@ -248,7 +274,49 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     );
   }
 
-  // ── Banner Carousel ──────────────────────────────────────────────────────
+  // ── Empty State ────────────────────────────────────────────────────────────
+
+  // ✅ FIX 4: Reusable empty state widget
+  Widget _buildEmptyState({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 24.h, horizontal: 16.w),
+      child: Container(
+        padding: EdgeInsets.all(24.w),
+        decoration: BoxDecoration(
+          color: AppColorsDark.cardBackground,
+          borderRadius: BorderRadius.circular(16.r),
+          border: Border.all(color: AppColorsDark.border),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 48.sp, color: AppColorsDark.textTertiary),
+            SizedBox(height: 12.h),
+            Text(
+              title,
+              style: AppTextStyles.titleMedium().copyWith(
+                color: AppColorsDark.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(height: 6.h),
+            Text(
+              subtitle,
+              style: AppTextStyles.bodySmall().copyWith(
+                color: AppColorsDark.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Banner Carousel ────────────────────────────────────────────────────────
 
   Widget _buildBannerCarousel(List<BannerModel> banners) {
     return Container(
@@ -263,7 +331,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                 controller: _bannerController,
                 itemCount: banners.length,
                 onPageChanged: (i) => setState(() => _bannerPage = i),
-                itemBuilder: (context, index) {
+                itemBuilder: (_, index) {
                   final banner = banners[index];
                   return Stack(
                     fit: StackFit.expand,
@@ -281,7 +349,6 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
                               ),
                             ),
                       ),
-                      // Gradient overlay for title
                       if (banner.title.isNotEmpty)
                         Positioned(
                           bottom: 0,
@@ -314,8 +381,6 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
               ),
             ),
           ),
-
-          // Dots indicator
           if (banners.length > 1) ...[
             SizedBox(height: 10.h),
             Row(
@@ -354,7 +419,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     );
   }
 
-  // ── Featured Products ────────────────────────────────────────────────────
+  // ── Featured Products ──────────────────────────────────────────────────────
 
   Widget _buildFeaturedProductsList(List<Map<String, dynamic>> rawProducts) {
     return SizedBox(
@@ -365,7 +430,6 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
         itemCount: rawProducts.length,
         itemBuilder: (context, index) {
           final data = rawProducts[index];
-          // Build a minimal product card from raw map
           final storeId = data['storeId'] as String? ?? '';
           final name = data['name'] as String? ?? '';
           final storeName = data['storeName'] as String? ?? '';
@@ -516,20 +580,18 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     );
   }
 
-  Widget _buildProductPlaceholder() {
-    return Container(
-      width: double.infinity,
-      height: 120.h,
-      color: AppColorsDark.surfaceContainer,
-      child: Icon(
-        Icons.image_outlined,
-        size: 40.sp,
-        color: AppColorsDark.textTertiary,
-      ),
-    );
-  }
+  Widget _buildProductPlaceholder() => Container(
+    width: double.infinity,
+    height: 120.h,
+    color: AppColorsDark.surfaceContainer,
+    child: Icon(
+      Icons.image_outlined,
+      size: 40.sp,
+      color: AppColorsDark.textTertiary,
+    ),
+  );
 
-  // ── Category Chips ───────────────────────────────────────────────────────
+  // ── Category Chips ─────────────────────────────────────────────────────────
 
   Widget _buildCategoryChips(CategoriesLoaded state) {
     return SingleChildScrollView(
@@ -537,21 +599,16 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
       padding: EdgeInsets.symmetric(horizontal: 16.w),
       child: Row(
         children: [
-          _buildCategoryChip(
-            id: '',
-            name: 'All',
-            icon: Icons.apps,
-            isSelected: _selectedCategoryId.isEmpty,
-          ),
+          _buildChip('', 'All', Icons.apps, _selectedCategoryId.isEmpty),
           SizedBox(width: 8.w),
           ...state.categories.map(
             (c) => Padding(
               padding: EdgeInsets.only(right: 8.w),
-              child: _buildCategoryChip(
-                id: c.id,
-                name: c.name,
-                icon: _getCategoryIcon(c.name),
-                isSelected: _selectedCategoryId == c.id,
+              child: _buildChip(
+                c.id,
+                c.name,
+                _getCategoryIcon(c.name),
+                _selectedCategoryId == c.id,
               ),
             ),
           ),
@@ -560,12 +617,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     );
   }
 
-  Widget _buildCategoryChip({
-    required String id,
-    required String name,
-    required IconData icon,
-    required bool isSelected,
-  }) {
+  Widget _buildChip(String id, String name, IconData icon, bool isSelected) {
     return InkWell(
       onTap: () => _onCategoryChanged(id),
       borderRadius: BorderRadius.circular(20.r),
@@ -617,9 +669,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     return Icons.category;
   }
 
-  // ── App Bar ──────────────────────────────────────────────────────────────
+  // ── App Bar ────────────────────────────────────────────────────────────────
 
-  Widget _buildSliverAppBar(CartState cartState) {
+  Widget _buildSliverAppBar() {
     final addressesState = ref.watch(addressesProvider);
     String locationLabel = 'Set location';
     String locationSub = 'Tap to add address';
@@ -692,8 +744,6 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     );
   }
 
-  // ── Search Bar ───────────────────────────────────────────────────────────
-
   Widget _buildSearchBar() {
     return InkWell(
       onTap: () => context.push('/customer/search'),
@@ -723,7 +773,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     );
   }
 
-  // ── Featured Stores ──────────────────────────────────────────────────────
+  // ── Featured Stores ────────────────────────────────────────────────────────
 
   Widget _buildFeaturedStores(StoresLoaded state) {
     final featured =
@@ -738,7 +788,14 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             .take(5)
             .toList();
 
-    if (featured.isEmpty) return SizedBox(height: 8.h);
+    // ✅ FIX 4: Empty state for featured stores
+    if (featured.isEmpty) {
+      return _buildEmptyState(
+        icon: Icons.store_outlined,
+        title: 'No Featured Stores',
+        subtitle: 'No featured stores available for this category',
+      );
+    }
 
     return SizedBox(
       height: 200.h,
@@ -853,7 +910,7 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     );
   }
 
-  // ── Store List ───────────────────────────────────────────────────────────
+  // ── Store List ─────────────────────────────────────────────────────────────
 
   Widget _buildStoreList(StoresLoaded state) {
     final stores =
@@ -867,18 +924,19 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
             )
             .toList();
 
+    // ✅ FIX 4: Empty state for stores in category
     if (stores.isEmpty) {
       return SliverToBoxAdapter(
-        child: Center(
-          child: Padding(
-            padding: EdgeInsets.symmetric(vertical: 40.h),
-            child: Text(
-              'No stores found',
-              style: AppTextStyles.titleMedium().copyWith(
-                color: AppColorsDark.textSecondary,
-              ),
-            ),
-          ),
+        child: _buildEmptyState(
+          icon: Icons.storefront_outlined,
+          title:
+              _selectedCategoryId.isEmpty
+                  ? 'No Stores Available'
+                  : 'No Stores in This Category',
+          subtitle:
+              _selectedCategoryId.isEmpty
+                  ? 'No stores are currently available. Check back soon!'
+                  : 'Try selecting a different category to find more stores.',
         ),
       );
     }
@@ -1018,8 +1076,6 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     );
   }
 
-  // ── Placeholders & loading ────────────────────────────────────────────────
-
   Widget _buildStorePlaceholder() => Container(
     color: AppColorsDark.surfaceContainer,
     child: Center(
@@ -1045,12 +1101,9 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen> {
     ),
   );
 
-  // ── Cart FAB ─────────────────────────────────────────────────────────────
-
   Widget _buildCartFAB(CartState cartState) {
-    if (cartState is! CartLoaded || cartState.cart.isEmpty) {
+    if (cartState is! CartLoaded || cartState.cart.isEmpty)
       return const SizedBox.shrink();
-    }
     return FloatingActionButton.extended(
       onPressed: () => context.push('/customer/cart'),
       backgroundColor: AppColorsDark.primary,

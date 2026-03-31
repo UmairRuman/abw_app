@@ -143,12 +143,7 @@ class ActiveOrdersScreen extends ConsumerWidget {
             textAlign: TextAlign.center,
           ),
           SizedBox(height: 32.h),
-          ElevatedButton(
-            onPressed: () {
-              context.go('/customer/home');
-            },
-            child: const Text('Start Shopping'),
-          ),
+         
         ],
       ),
     );

@@ -35,11 +35,6 @@ class _CustomerContactScreenState extends ConsumerState<CustomerContactScreen> {
             color: AppColorsDark.textPrimary,
           ),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          color: AppColorsDark.textPrimary,
-          onPressed: () => Navigator.pop(context),
-        ),
       ),
       body:
           contactState is ContactSettingsLoading
