@@ -104,6 +104,42 @@ class ImageUploadNotifier extends Notifier<ImageUploadState> {
     }
   }
 
+  /// Upload home screen banner — returns Cloudinary secure_url directly.
+  Future<String?> uploadAppBanner(File imageFile) async {
+    if (!_collection.validateImage(imageFile)) {
+      state = ImageUploadError(error: 'Invalid image file');
+      return null;
+    }
+
+    state = ImageUploading(progress: 0.0);
+
+    try {
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final publicId = 'banner_$timestamp';
+
+      final secureUrl = await _collection.uploadImageGetUrl(
+        imageFile: imageFile,
+        folder: 'abw_app/banners',
+        publicId: publicId,
+        onProgress: (progress) {
+          state = ImageUploading(progress: progress);
+        },
+      );
+
+      if (secureUrl != null) {
+        state = ImageUploaded(url: secureUrl, publicId: publicId);
+        return secureUrl;
+      } else {
+        state = ImageUploadError(error: 'Upload failed');
+        return null;
+      }
+    } catch (e) {
+      state = ImageUploadError(error: e.toString());
+      log('Error in uploadAppBanner: ${e.toString()}');
+      return null;
+    }
+  }
+
   /// Upload multiple images
   Future<List<String>> uploadMultipleImages({
     required List<File> imageFiles,

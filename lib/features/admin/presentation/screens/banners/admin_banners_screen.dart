@@ -1,11 +1,11 @@
 // lib/features/admin/presentation/screens/banners/admin_banners_screen.dart
 
 import 'dart:io';
+import 'package:abw_app/core/presentation/providers/image_upload_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../../core/theme/colors/app_colors_dark.dart';
 import '../../../../../core/theme/text_styles/app_text_styles.dart';
@@ -19,8 +19,6 @@ class AdminBannersScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
-  bool _isUploading = false;
-
   @override
   Widget build(BuildContext context) {
     final bannersAsync = ref.watch(allBannersStreamProvider);
@@ -59,8 +57,14 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
             ),
         data: (banners) {
           if (banners.isEmpty) return _buildEmptyState();
+
+          // Sort by order field
+          final sorted = [...banners]
+            ..sort((a, b) => a.order.compareTo(b.order));
+
           return Column(
             children: [
+              // Info + reorder hint
               Container(
                 margin: EdgeInsets.all(16.w),
                 padding: EdgeInsets.all(12.w),
@@ -81,7 +85,8 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                     SizedBox(width: 8.w),
                     Expanded(
                       child: Text(
-                        'Max 4 banners shown on home screen. Toggle to show/hide.',
+                        'Max 4 banners shown on home. Toggle to show/hide. '
+                        'Drag ☰ to reorder.',
                         style: AppTextStyles.bodySmall().copyWith(
                           color: AppColorsDark.info,
                         ),
@@ -90,12 +95,19 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                   ],
                 ),
               ),
+
+              // ✅ Drag-to-reorder list
               Expanded(
-                child: ListView.builder(
+                child: ReorderableListView.builder(
                   padding: EdgeInsets.symmetric(horizontal: 16.w),
-                  itemCount: banners.length,
-                  itemBuilder:
-                      (context, index) => _buildBannerTile(banners[index]),
+                  itemCount: sorted.length,
+                  onReorder:
+                      (oldIndex, newIndex) =>
+                          _onReorder(sorted, oldIndex, newIndex),
+                  itemBuilder: (context, index) {
+                    final banner = sorted[index];
+                    return _buildBannerTile(banner, key: Key(banner.id));
+                  },
                 ),
               ),
             ],
@@ -105,8 +117,34 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
     );
   }
 
-  Widget _buildBannerTile(BannerModel banner) {
+  // ── Reorder handler ────────────────────────────────────────────────────────
+
+  Future<void> _onReorder(
+    List<BannerModel> sorted,
+    int oldIndex,
+    int newIndex,
+  ) async {
+    if (newIndex > oldIndex) newIndex--;
+    final reordered = [...sorted];
+    final item = reordered.removeAt(oldIndex);
+    reordered.insert(newIndex, item);
+
+    // Write new order values to Firestore
+    final batch = FirebaseFirestore.instance.batch();
+    for (int i = 0; i < reordered.length; i++) {
+      batch.update(
+        FirebaseFirestore.instance.collection('banners').doc(reordered[i].id),
+        {'order': i},
+      );
+    }
+    await batch.commit();
+  }
+
+  // ── Banner tile ────────────────────────────────────────────────────────────
+
+  Widget _buildBannerTile(BannerModel banner, {required Key key}) {
     return Container(
+      key: key,
       margin: EdgeInsets.only(bottom: 12.h),
       decoration: BoxDecoration(
         color: AppColorsDark.cardBackground,
@@ -121,6 +159,7 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ✅ Image — now correctly uses secure_url from Cloudinary
           ClipRRect(
             borderRadius: BorderRadius.vertical(top: Radius.circular(14.r)),
             child:
@@ -130,14 +169,39 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                       width: double.infinity,
                       height: 160.h,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _buildImagePlaceholder(),
+                      loadingBuilder:
+                          (_, child, progress) =>
+                              progress == null
+                                  ? child
+                                  : Container(
+                                    height: 160.h,
+                                    color: AppColorsDark.surfaceContainer,
+                                    child: const Center(
+                                      child: CircularProgressIndicator(
+                                        color: AppColorsDark.primary,
+                                      ),
+                                    ),
+                                  ),
+                      errorBuilder: (_, err, __) {
+                        debugPrint('Banner image error: $err');
+                        return _buildImagePlaceholder();
+                      },
                     )
                     : _buildImagePlaceholder(),
           ),
+
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
             child: Row(
               children: [
+                // ✅ Drag handle
+                Icon(
+                  Icons.drag_handle,
+                  color: AppColorsDark.textTertiary,
+                  size: 24.sp,
+                ),
+                SizedBox(width: 8.w),
+
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -161,6 +225,8 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                     ],
                   ),
                 ),
+
+                // Toggle
                 Row(
                   children: [
                     Text(
@@ -172,7 +238,7 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                                 : AppColorsDark.textTertiary,
                       ),
                     ),
-                    SizedBox(width: 6.w),
+                    SizedBox(width: 4.w),
                     Switch(
                       value: banner.isActive,
                       onChanged:
@@ -183,6 +249,8 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                     ),
                   ],
                 ),
+
+                // Delete
                 IconButton(
                   icon: Icon(
                     Icons.delete_outline,
@@ -245,9 +313,12 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
     );
   }
 
+  // ── Add banner dialog ──────────────────────────────────────────────────────
+
   void _showAddBannerDialog() {
     final titleController = TextEditingController();
     File? selectedImage;
+    bool isUploading = false;
 
     showDialog(
       context: context,
@@ -267,20 +338,23 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Image picker area
+                        // Image picker
                         GestureDetector(
-                          onTap: () async {
-                            final picker = ImagePicker();
-                            final file = await picker.pickImage(
-                              source: ImageSource.gallery,
-                              imageQuality: 80,
-                            );
-                            if (file != null) {
-                              setDialogState(
-                                () => selectedImage = File(file.path),
-                              );
-                            }
-                          },
+                          onTap:
+                              isUploading
+                                  ? null
+                                  : () async {
+                                    final picker = ImagePicker();
+                                    final file = await picker.pickImage(
+                                      source: ImageSource.gallery,
+                                      imageQuality: 80,
+                                    );
+                                    if (file != null) {
+                                      setDialogState(
+                                        () => selectedImage = File(file.path),
+                                      );
+                                    }
+                                  },
                           child: Container(
                             width: double.infinity,
                             height: 150.h,
@@ -325,25 +399,26 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                         SizedBox(height: 16.h),
                         TextFormField(
                           controller: titleController,
+                          enabled: !isUploading,
                           style: AppTextStyles.bodyMedium().copyWith(
                             color: AppColorsDark.textPrimary,
                           ),
                           decoration: InputDecoration(
                             labelText: 'Banner Title (optional)',
-                            hintText: 'e.g., Summer Sale, New Arrivals',
+                            hintText: 'e.g., Summer Sale',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10.r),
                             ),
                           ),
                         ),
-                        if (_isUploading) ...[
+                        if (isUploading) ...[
                           SizedBox(height: 16.h),
                           const LinearProgressIndicator(
                             color: AppColorsDark.primary,
                           ),
                           SizedBox(height: 8.h),
                           Text(
-                            'Uploading banner...',
+                            'Uploading to Cloudinary...',
                             style: AppTextStyles.bodySmall().copyWith(
                               color: AppColorsDark.textSecondary,
                             ),
@@ -355,7 +430,7 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                   actions: [
                     TextButton(
                       onPressed:
-                          _isUploading
+                          isUploading
                               ? null
                               : () {
                                 titleController.dispose();
@@ -365,36 +440,24 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                     ),
                     ElevatedButton(
                       onPressed:
-                          selectedImage == null || _isUploading
+                          selectedImage == null || isUploading
                               ? null
                               : () async {
                                 final imageFile = selectedImage!;
                                 final title = titleController.text.trim();
-
-                                setState(() => _isUploading = true);
-                                setDialogState(() {}); // refresh dialog
+                                setDialogState(() => isUploading = true);
 
                                 try {
-                                  // ✅ FIX 3: Renamed storage reference to 'storageRef'
-                                  // to avoid shadowing Riverpod's 'ref' variable.
-                                  final id =
-                                      DateTime.now().millisecondsSinceEpoch
-                                          .toString();
-                                  final storageRef = FirebaseStorage.instance
-                                      .ref()
-                                      .child('banners')
-                                      .child('$id.jpg');
+                                  // ✅ uploadAppBanner returns a real secure_url
+                                  final secureUrl = await ref
+                                      .read(imageUploadProvider.notifier)
+                                      .uploadAppBanner(imageFile);
 
-                                  final uploadTask = storageRef.putFile(
-                                    imageFile,
-                                    SettableMetadata(contentType: 'image/jpeg'),
-                                  );
-                                  final snapshot = await uploadTask
-                                      .whenComplete(() {});
-                                  final downloadUrl =
-                                      await snapshot.ref.getDownloadURL();
-
-                                  // Get current banner count for ordering
+                                  if (secureUrl == null || secureUrl.isEmpty) {
+                                    throw Exception(
+                                      'No URL returned — check Cloudinary preset',
+                                    );
+                                  }
 
                                   final countSnap =
                                       await FirebaseFirestore.instance
@@ -405,24 +468,25 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                                   await ref
                                       .read(bannersProvider.notifier)
                                       .addBanner(
-                                        imageUrl: downloadUrl,
+                                        imageUrl: secureUrl,
                                         title: title,
                                         order: order,
                                       );
 
                                   titleController.dispose();
-                                  if (mounted) Navigator.pop(ctx);
+                                  if (ctx.mounted) Navigator.pop(ctx);
                                   if (mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
-                                        content: Text(
-                                          'Banner added successfully ✅',
-                                        ),
+                                        content: Text('Banner added ✅'),
                                         backgroundColor: AppColorsDark.success,
                                       ),
                                     );
                                   }
                                 } catch (e) {
+                                  if (ctx.mounted) {
+                                    setDialogState(() => isUploading = false);
+                                  }
                                   if (mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
@@ -431,9 +495,6 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                                       ),
                                     );
                                   }
-                                } finally {
-                                  if (mounted)
-                                    setState(() => _isUploading = false);
                                 }
                               },
                       child: const Text('Upload & Add'),
@@ -442,10 +503,13 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
                 ),
           ),
     ).then((_) {
-      // Dispose safely after dialog fully closes
-      if (!_isUploading) titleController.dispose();
+      try {
+        titleController.dispose();
+      } catch (_) {}
     });
   }
+
+  // ── Delete ─────────────────────────────────────────────────────────────────
 
   void _confirmDelete(BannerModel banner) {
     showDialog(
@@ -473,16 +537,6 @@ class _AdminBannersScreenState extends ConsumerState<AdminBannersScreen> {
               ElevatedButton(
                 onPressed: () async {
                   Navigator.pop(ctx);
-                  // ✅ Also delete from Firebase Storage if possible
-                  try {
-                    if (banner.imageUrl.isNotEmpty) {
-                      await FirebaseStorage.instance
-                          .refFromURL(banner.imageUrl)
-                          .delete();
-                    }
-                  } catch (_) {
-                    // Storage delete failing shouldn't block Firestore delete
-                  }
                   await ref
                       .read(bannersProvider.notifier)
                       .deleteBanner(banner.id);

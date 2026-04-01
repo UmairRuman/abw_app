@@ -46,12 +46,12 @@ class _OrderDetailsScreenState extends ConsumerState<OrderDetailsScreen> {
       final settingsDoc =
           await FirebaseFirestore.instance
               .collection('app_settings')
-              .doc('general')
+              .doc('contact')
               .get();
 
       if (settingsDoc.exists && mounted) {
         setState(() {
-          _helplineNumber = settingsDoc.data()?['helplineNumber'] as String?;
+          _helplineNumber = settingsDoc.data()?['phoneNumber'] as String?;
         });
       }
     } catch (e) {
