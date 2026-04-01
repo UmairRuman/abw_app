@@ -104,8 +104,8 @@ class _CustomerScaffoldState extends ConsumerState<CustomerScaffold> {
               _buildNavItem(
                 4,
                 currentIndex,
-                Icons.support_agent_outlined,
-                Icons.support_agent_rounded,
+                Icons.phone_outlined,
+                Icons.phone_rounded,
                 'Contact',
               ),
             ],

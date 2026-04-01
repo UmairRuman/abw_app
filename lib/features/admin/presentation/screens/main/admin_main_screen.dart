@@ -1,5 +1,6 @@
 // lib/features/admin/presentation/screens/main/admin_main_screen.dart
 
+import 'package:abw_app/features/admin/presentation/screens/orders/admin_orders_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -24,9 +25,10 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
 
   final List<Widget> _screens = const [
     AdminDashboardScreen(),
+    AdminOrdersScreen(),
     RestaurantManagementScreen(),
+
     ProductManagementScreen(),
-    UsersListScreen(),
   ];
 
   final List<String> _screenTitles = const [
@@ -285,21 +287,21 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
                 index: 0,
               ),
               _buildNavItem(
+                icon: Icons.receipt_long_rounded,
+                activeIcon: Icons.receipt_long,
+                label: 'Orders',
+                index: 1,
+              ),
+              _buildNavItem(
                 icon: Icons.store_outlined,
                 activeIcon: Icons.store,
                 label: 'Stores',
-                index: 1,
+                index: 2,
               ),
               _buildNavItem(
                 icon: Icons.inventory_outlined,
                 activeIcon: Icons.inventory,
                 label: 'Products',
-                index: 2,
-              ),
-              _buildNavItem(
-                icon: Icons.people_outline,
-                activeIcon: Icons.people,
-                label: 'Users',
                 index: 3,
               ),
             ],

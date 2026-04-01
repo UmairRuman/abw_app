@@ -1,6 +1,8 @@
 // lib/features/orders/presentation/screens/customer/order_details_screen.dart
 // UPDATED: Show rider info and helpline instead of customer info
 
+import 'dart:developer';
+
 import 'package:abw_app/features/orders/data/models/order_model.dart';
 import 'package:abw_app/features/orders/domain/entities/order_entity.dart';
 import 'package:flutter/material.dart';
@@ -43,7 +45,7 @@ class _OrderDetailsScreenState extends ConsumerState<OrderDetailsScreen> {
     try {
       final settingsDoc =
           await FirebaseFirestore.instance
-              .collection('settings')
+              .collection('app_settings')
               .doc('general')
               .get();
 
@@ -53,7 +55,7 @@ class _OrderDetailsScreenState extends ConsumerState<OrderDetailsScreen> {
         });
       }
     } catch (e) {
-      print('Error loading helpline: $e');
+      log('Error loading helpline: $e');
     }
   }
 
