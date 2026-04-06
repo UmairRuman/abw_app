@@ -4,6 +4,7 @@
 
 import 'dart:developer';
 import 'dart:math' as math;
+import 'package:abw_app/core/services/order_cleanup_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -167,20 +168,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           }
           return;
         }
-
-        // ✅ LOCATION CHECK: If customer has no saved location, go to picker first
       }
-      log('User role: ${user.role}');
-      // Normal navigation
+
+      // Navigate first — user should never wait for cleanup
       if (mounted) {
         switch (user.role) {
           case UserRole.customer:
             final hasLocation = await _customerHasLocation(user.id);
             if (!hasLocation && mounted) {
               context.go('/customer/location-setup');
-              return;
-            } else {
-              log('Location is already Present');
+            } else if (mounted) {
               context.go('/customer/home');
             }
             break;
@@ -192,6 +189,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             break;
         }
       }
+
+      // ✅ Trigger cleanup AFTER navigation — non-blocking, runs in isolate
+      // Uses fire-and-forget: no await, isolate handles its own lifecycle
+      OrderCleanupService.runIfNeeded(
+        userId: user.id,
+        role: user.role.name, // 'admin', 'rider', or 'customer'
+      );
     } else if (authState is RiderPendingApproval) {
       if (mounted) context.go('/rider/pending');
     } else {

@@ -66,6 +66,7 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
   // Tags
   final List<String> _availableTags = [
     // Original tags
+    'Featured',
     'New',
     'Best Seller',
     'Hot Deal',
