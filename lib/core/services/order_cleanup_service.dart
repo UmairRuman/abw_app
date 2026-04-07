@@ -162,24 +162,20 @@ Future<int> _deleteOldOrders({
   required Map<String, String> additionalFilters,
 }) async {
   try {
-    // Build query — only terminal statuses, older than cutoff
+    // ✅ Remove the status filter — any order older than cutoff is stale
     Query query = firestore
         .collection('orders')
-        .where('createdAt', isLessThan: Timestamp.fromDate(cutoffDate))
-        .where('status', whereIn: ['delivered', 'cancelled']);
+        .where('createdAt', isLessThan: Timestamp.fromDate(cutoffDate));
 
-    // Apply role-specific filter (riderId or userId)
     additionalFilters.forEach((field, value) {
       query = query.where(field, isEqualTo: value);
     });
 
     final snapshot = await query.get();
-
     if (snapshot.docs.isEmpty) return 0;
 
-    // Batch delete — Firestore allows max 500 operations per batch
     int deleted = 0;
-    const batchSize = 400; // Stay under 500 limit
+    const batchSize = 400;
 
     for (int i = 0; i < snapshot.docs.length; i += batchSize) {
       final batch = firestore.batch();
@@ -198,7 +194,6 @@ Future<int> _deleteOldOrders({
 
     return deleted;
   } catch (e) {
-    // Log but don't rethrow — partial cleanup is better than crashing
     return 0;
   }
 }
