@@ -8,6 +8,7 @@
 
 import 'dart:async';
 
+import 'package:abw_app/core/utils/order_copy_helper.dart';
 import 'package:abw_app/features/admin/presentation/screens/orders/widgets/assign_rider_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -85,12 +86,27 @@ class _AdminOrderDetailsScreenState
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
             onSelected: (value) {
-              if (value == 'cancel' && _streamOrder != null) {
+              if (value == 'copy' && _streamOrder != null) {
+                // ✅ Copy order details to clipboard
+                OrderCopyHelper.copyOrderToClipboard(context, _streamOrder!);
+              } else if (value == 'cancel' && _streamOrder != null) {
                 _showCancelOrderDialog(_streamOrder!);
               }
             },
             itemBuilder:
                 (context) => [
+                  // ✅ NEW: Copy option
+                  const PopupMenuItem(
+                    value: 'copy',
+                    child: Row(
+                      children: [
+                        Icon(Icons.copy, color: AppColorsDark.primary),
+                        SizedBox(width: 8),
+                        Text('Copy Order Details'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuDivider(),
                   const PopupMenuItem(
                     value: 'cancel',
                     child: Row(

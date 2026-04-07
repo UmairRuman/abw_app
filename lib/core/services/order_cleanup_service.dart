@@ -4,8 +4,10 @@
 
 import 'dart:developer';
 import 'dart:isolate';
+import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Payload passed to the isolate — primitives only (isolate boundary rule).
@@ -13,11 +15,13 @@ class _CleanupPayload {
   final String userId;
   final String role; // 'admin', 'rider', 'customer'
   final SendPort sendPort;
+  final RootIsolateToken rootIsolateToken;
 
   const _CleanupPayload({
     required this.userId,
     required this.role,
     required this.sendPort,
+    required this.rootIsolateToken,
   });
 }
 
@@ -34,10 +38,10 @@ class OrderCleanupService {
   }) async {
     try {
       // 24-hour debounce — don't run on every single app open
-      if (!await _shouldRun()) {
-        log('🧹 Order cleanup skipped — ran recently');
-        return;
-      }
+      // if (!await _shouldRun()) {
+      //   log('🧹 Order cleanup skipped — ran recently');
+      //   return;
+      // }
 
       log('🧹 Order cleanup starting for role=$role userId=$userId');
 
@@ -45,6 +49,9 @@ class OrderCleanupService {
       await _markAsRun();
 
       // Spawn isolate — completely non-blocking for the UI
+
+      // ✅ Capture token HERE, in the main isolate
+      final rootIsolateToken = RootIsolateToken.instance!;
       final receivePort = ReceivePort();
       await Isolate.spawn(
         _cleanupIsolateEntry,
@@ -52,6 +59,7 @@ class OrderCleanupService {
           userId: userId,
           role: role,
           sendPort: receivePort.sendPort,
+          rootIsolateToken: rootIsolateToken,
         ),
         debugName: 'order_cleanup',
         // Don't kill main isolate if this one errors
@@ -97,6 +105,9 @@ class OrderCleanupService {
 @pragma('vm:entry-point')
 Future<void> _cleanupIsolateEntry(_CleanupPayload payload) async {
   try {
+    BackgroundIsolateBinaryMessenger.ensureInitialized(
+      payload.rootIsolateToken,
+    );
     // Isolates need their own Firebase initialization
     await Firebase.initializeApp();
 
