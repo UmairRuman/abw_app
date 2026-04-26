@@ -1,15 +1,25 @@
 // lib/features/cart/data/collections/carts_collection.dart
 
 import 'dart:developer';
+import 'package:abw_app/features/cart/presentation/providers/cart_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as ref;
 import '../models/cart_model.dart';
 import '../models/cart_item_model.dart';
+
+
+
+class CartWithRemovedInfo {
+  final CartModel cart;
+  final List<String> removedNames;
+  const CartWithRemovedInfo({required this.cart, required this.removedNames});
+}
 
 class CartsCollection {
   static final CartsCollection instance = CartsCollection._internal();
   CartsCollection._internal();
   factory CartsCollection() => instance;
-
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final _cartsCollection = FirebaseFirestore.instance.collection(
     'carts',
   );
@@ -23,22 +33,172 @@ class CartsCollection {
 
   // ── Read ──────────────────────────────────────────────────────────────────
 
-  Future<CartModel> getCart(String userId) async {
-    try {
-      final snapshot = await _cartsCollection.doc(userId).get();
-      if (snapshot.exists && snapshot.data() != null) {
-        return CartModel.fromJson(snapshot.data()!);
-      }
-      log('Cart not found for user: $userId, returning empty cart');
-      return CartModel.empty(userId);
-    } on FirebaseException catch (e) {
-      log('Firebase Error getting cart: ${e.code} - ${e.message}');
-      return CartModel.empty(userId);
-    } catch (e) {
-      log('Error getting cart: ${e.toString()}');
-      return CartModel.empty(userId);
+
+
+
+
+Future<CartModel> getCart(String userId) async {
+  final doc = await _firestore.collection('carts').doc(userId).get();
+  if (!doc.exists) return CartModel.empty(userId);
+
+  final cart = CartModel.fromJson(doc.data()!);
+  if (cart.isEmpty) return cart;
+
+  // ✅ Validate items against current product availability
+  return await _validateAndCleanCart(userId, cart);
+}
+
+// Add this method to CartsCollection class
+Future<CartWithRemovedInfo> getCartWithRemovedInfo(String userId) async {
+  final doc = await _firestore.collection('carts').doc(userId).get();
+  if (!doc.exists) {
+    return CartWithRemovedInfo(
+      cart: CartModel.empty(userId),
+      removedNames: [],
+    );
+  }
+
+  final cart = CartModel.fromJson(doc.data()!);
+  if (cart.isEmpty) {
+    return CartWithRemovedInfo(cart: cart, removedNames: []);
+  }
+
+  // Validate against product availability
+  final productIds = cart.items.map((i) => i.productId).toSet().toList();
+  final unavailableIds = <String>{};
+
+  for (int i = 0; i < productIds.length; i += 30) {
+    final chunk = productIds.sublist(
+      i, (i + 30 > productIds.length) ? productIds.length : i + 30,
+    );
+
+    final snapshot = await _firestore
+        .collection('products')
+        .where(FieldPath.documentId, whereIn: chunk)
+        .get();
+
+    // Mark unavailable products
+    for (final doc in snapshot.docs) {
+      final isAvailable = (doc.data()['isAvailable'] as bool?) ?? true;
+      if (!isAvailable) unavailableIds.add(doc.id);
+    }
+
+    // Mark hard-deleted products (not returned at all)
+    final returnedIds = snapshot.docs.map((d) => d.id).toSet();
+    for (final id in chunk) {
+      if (!returnedIds.contains(id)) unavailableIds.add(id);
     }
   }
+
+  if (unavailableIds.isEmpty) {
+    return CartWithRemovedInfo(cart: cart, removedNames: []);
+  }
+
+  // Collect removed item names for toast message
+  final removedNames = cart.items
+      .where((item) => unavailableIds.contains(item.productId))
+      .map((item) => item.productName)
+      .toList();
+
+  // Rebuild cart with only valid items
+  final validItems = cart.items
+      .where((item) => !unavailableIds.contains(item.productId))
+      .toList();
+
+  log('🛒 Removed ${removedNames.length} unavailable items: $removedNames');
+
+  final cleanedCart = _rebuildCart(cart, validItems);
+
+  // Persist cleaned cart to Firestore
+  if (validItems.isEmpty) {
+    await _cartsCollection.doc(userId).delete();
+  } else {
+    await _cartsCollection.doc(userId).set(cleanedCart.toJson());
+  }
+
+  return CartWithRemovedInfo(cart: cleanedCart, removedNames: removedNames);
+}
+
+Future<CartModel> _validateAndCleanCart(String userId, CartModel cart) async {
+  if (cart.items.isEmpty) return cart;
+
+  // Fetch all product IDs in one batch read — not N reads
+  final productIds = cart.items.map((i) => i.productId).toSet().toList();
+
+  // Firestore whereIn supports up to 30 items per query
+  final unavailableIds = <String>{};
+
+  for (int i = 0; i < productIds.length; i += 30) {
+    final chunk = productIds.sublist(
+      i, i + 30 > productIds.length ? productIds.length : i + 30,
+    );
+
+    final snapshot = await _firestore
+        .collection('products')
+        .where(FieldPath.documentId, whereIn: chunk)
+        .get();
+
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      final isAvailable = data['isAvailable'] as bool? ?? true;
+      final isDeleted = !doc.exists;
+
+      if (!isAvailable || isDeleted) {
+        unavailableIds.add(doc.id);
+      }
+    }
+
+    // Also catch products that don't exist at all (truly deleted)
+    final returnedIds = snapshot.docs.map((d) => d.id).toSet();
+    for (final id in chunk) {
+      if (!returnedIds.contains(id)) {
+        unavailableIds.add(id); // Product was hard-deleted
+      }
+    }
+  }
+
+  if (unavailableIds.isEmpty) return cart; // Nothing to clean
+
+  // Remove unavailable items from cart in Firestore
+  final validItems = cart.items
+      .where((item) => !unavailableIds.contains(item.productId))
+      .toList();
+
+  final removedItems = cart.items
+      .where((item) => unavailableIds.contains(item.productId))
+      .toList();
+
+  log('🛒 Cart cleanup: removed ${removedItems.length} unavailable items: '
+      '${removedItems.map((i) => i.productName).join(', ')}');
+
+  // Persist cleaned cart back to Firestore
+  final cleanedCart = _rebuildCart(cart, validItems);
+  await _firestore
+      .collection('carts')
+      .doc(userId)
+      .set(cleanedCart.toJson());
+
+  return cleanedCart;
+}
+
+CartModel _rebuildCart(CartModel original, List<CartItemModel> validItems) {
+  if (validItems.isEmpty) return CartModel.empty(original.userId);
+
+  final subtotal = validItems.fold<double>(
+    0, (sum, item) => sum + item.total,
+  );
+  final totalItems = validItems.fold<int>(
+    0, (sum, item) => sum + item.quantity,
+  );
+
+  return original.copyWith(
+    items: validItems,
+    subtotal: subtotal,
+    total: subtotal + original.deliveryFee - original.discount,
+    totalItems: totalItems,
+    updatedAt: DateTime.now(),
+  );
+}
 
   // ── Add ───────────────────────────────────────────────────────────────────
 

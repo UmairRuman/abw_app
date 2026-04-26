@@ -4,7 +4,7 @@ class AppConstants {
   AppConstants._();
 
   // App Info
-  static const String appName = 'ABW Services';
+  static const String appName = 'AbW Services';
   static const String appVersion = '1.0.0';
 
   // Design Reference (for ScreenUtil)

@@ -738,16 +738,45 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
   }
 
+  // REPLACE _proceedToPayment() in checkout_screen.dart
   void _proceedToPayment() async {
     final authState = ref.read(authProvider);
-    final hasLocation = await _customerHasLocation(
-      authState is Authenticated ? authState.user.id : '',
-    );
-    if (!hasLocation && mounted) {
+    if (authState is! Authenticated) return;
+
+    final userId = authState.user.id;
+
+    // Gate 1 — location check (already existed)
+    final hasLocation = await _customerHasLocation(userId);
+    if (!mounted) return;
+    if (!hasLocation) {
       context.go('/customer/location-setup');
       return;
-    } else {
-      context.push('/customer/payment');
     }
+
+    // Gate 2 — final product availability check
+    final isValid = await ref
+        .read(checkoutProvider.notifier)
+        .validateBeforeCheckout(userId);
+
+    if (!mounted) return;
+
+    if (!isValid) {
+      // Items were removed — checkout state already reloaded above
+      // Show snackbar and stay on checkout screen so user sees updated cart
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Some items are no longer available and were removed. '
+            'Please review your order.',
+          ),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 4),
+        ),
+      );
+      return; // Don't navigate — let user see the updated checkout
+    }
+
+    // All clear — proceed
+    context.push('/customer/payment');
   }
 }

@@ -27,11 +27,17 @@ class CartNotifier extends Notifier<CartState> {
   Future<void> loadCart(String userId) async {
     state = CartLoading();
     try {
-      final cart = await _collection.getCart(userId);
-      state = CartLoaded(cart: cart);
+      final result = await _collection.getCartWithRemovedInfo(userId); // ← HERE
+      if (result.removedNames.isNotEmpty) {
+        state = CartItemsRemoved(
+          cart: result.cart,
+          removedNames: result.removedNames,
+        );
+      } else {
+        state = CartLoaded(cart: result.cart);
+      }
     } catch (e) {
       state = CartError(error: e.toString());
-      log('Error in loadCart: ${e.toString()}');
     }
   }
 
@@ -316,4 +322,9 @@ class CartLoaded extends CartState {
 class CartError extends CartState {
   final String error;
   CartError({required this.error});
+}
+
+class CartItemsRemoved extends CartLoaded {
+  final List<String> removedNames;
+  CartItemsRemoved({required super.cart, required this.removedNames});
 }

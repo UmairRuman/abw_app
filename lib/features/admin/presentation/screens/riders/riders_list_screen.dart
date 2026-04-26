@@ -111,7 +111,7 @@ class _RidersListScreenState extends ConsumerState<RidersListScreen>
           FirebaseFirestore.instance
               .collection('rider_requests')
               .where('status', isEqualTo: 'pending')
-              .orderBy('requestedAt', descending: true)
+              // ✅ Removed .orderBy() — sort client-side instead
               .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -121,9 +121,10 @@ class _RidersListScreenState extends ConsumerState<RidersListScreen>
         }
 
         if (snapshot.hasError) {
+          // ✅ Now you'll actually see the real error if something goes wrong
           return Center(
             child: Text(
-              'Error loading requests: ${snapshot.error}',
+              'Error: ${snapshot.error}',
               style: AppTextStyles.bodyMedium().copyWith(
                 color: AppColorsDark.error,
               ),
@@ -135,9 +136,17 @@ class _RidersListScreenState extends ConsumerState<RidersListScreen>
           return _buildEmptyState('pending');
         }
 
+        // ✅ Sort client-side by requestedAt descending
         final requests = snapshot.data!.docs;
+        requests.sort((a, b) {
+          final aData = a.data() as Map<String, dynamic>;
+          final bData = b.data() as Map<String, dynamic>;
+          final aTime = aData['requestedAt'] as Timestamp?;
+          final bTime = bData['requestedAt'] as Timestamp?;
+          if (aTime == null || bTime == null) return 0;
+          return bTime.compareTo(aTime); // descending
+        });
 
-        // Apply search filter
         final filteredRequests =
             _searchQuery.isEmpty
                 ? requests
@@ -149,15 +158,12 @@ class _RidersListScreenState extends ConsumerState<RidersListScreen>
                       (data['riderPhone'] as String? ?? '').toLowerCase();
                   final vehicle =
                       (data['vehicleNumber'] as String? ?? '').toLowerCase();
-
                   return name.contains(_searchQuery) ||
                       phone.contains(_searchQuery) ||
                       vehicle.contains(_searchQuery);
                 }).toList();
 
-        if (filteredRequests.isEmpty) {
-          return _buildSearchEmptyState();
-        }
+        if (filteredRequests.isEmpty) return _buildSearchEmptyState();
 
         return ListView.builder(
           padding: EdgeInsets.all(16.w),

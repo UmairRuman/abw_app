@@ -211,6 +211,54 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     }
   }
 
+  // In CheckoutNotifier class
+  Future<bool> validateBeforeCheckout(String userId) async {
+    if (state is! CheckoutLoaded) return false;
+    final checkout = (state as CheckoutLoaded).checkout;
+
+    if (checkout.items.isEmpty) return false;
+
+    final productIds = checkout.items.map((i) => i.productId).toList();
+    final unavailableNames = <String>[];
+
+    // Batch fetch — same pattern as lazy cleanup
+    for (int i = 0; i < productIds.length; i += 30) {
+      final chunk = productIds.sublist(
+        i,
+        (i + 30 > productIds.length) ? productIds.length : i + 30,
+      );
+
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('products')
+              .where(FieldPath.documentId, whereIn: chunk)
+              .get();
+
+      for (final doc in snapshot.docs) {
+        final isAvailable = (doc.data()['isAvailable'] as bool?) ?? true;
+        if (!isAvailable) {
+          unavailableNames.add(doc.data()['name'] as String? ?? doc.id);
+        }
+      }
+
+      // Hard-deleted products
+      final returnedIds = snapshot.docs.map((d) => d.id).toSet();
+      for (final id in chunk) {
+        if (!returnedIds.contains(id)) unavailableNames.add(id);
+      }
+    }
+
+    if (unavailableNames.isNotEmpty) {
+      // Force cart reload — lazy cleanup will remove the stale items
+      await ref.read(cartProvider.notifier).loadCart(userId);
+      // Re-prepare checkout with cleaned cart
+      await prepareCheckout(userId);
+      return false; // Block payment
+    }
+
+    return true; // All clear
+  }
+
   Future<void> prepareCheckout(String userId) async {
     state = CheckoutLoading();
 

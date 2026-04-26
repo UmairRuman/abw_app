@@ -16,6 +16,29 @@ class CartScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // ✅ Listen for removed items notification
+    // ✅ ref.listen goes at the TOP of build, before any return
+    ref.listen<CartState>(cartProvider, (previous, next) {
+      if (next is CartItemsRemoved && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${next.removedNames.join(', ')} '
+              '${next.removedNames.length == 1 ? 'is' : 'are'} '
+              'no longer available and was removed from your cart.',
+            ),
+            backgroundColor: AppColorsDark.warning,
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'OK',
+              textColor: Colors.white,
+              onPressed: () {},
+            ),
+          ),
+        );
+      }
+    });
+
     final cartState = ref.watch(cartProvider);
     final authState = ref.read(authProvider);
 

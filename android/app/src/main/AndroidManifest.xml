@@ -29,7 +29,7 @@
 
     <!-- ✅ SINGLE APPLICATION TAG - Everything goes inside here -->
     <application
-        android:label="abw_app"
+        android:label="AbW"
         android:usesCleartextTraffic="true"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
@@ -55,6 +55,9 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_color"
             android:resource="@color/notification_color" />
+
+             <!-- ✅ Default notification icon -->
+ 
 
         <!-- ✅ MAIN ACTIVITY -->
         <activity

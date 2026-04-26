@@ -430,53 +430,87 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 return Transform.scale(
                   scale: _pulseAnimation.value,
                   child: Container(
-                    width: 140.w,
-                    height: 140.w,
+                    width: 160.w,
+                    height: 160.w,
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(35.r),
+                      shape: BoxShape.circle,
                       boxShadow: [
+                        // Main shadow
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 30,
-                          spreadRadius: 5,
+                          color: Colors.black.withOpacity(0.25),
+                          blurRadius: 40,
+                          spreadRadius: 8,
+                          offset: const Offset(0, 15),
+                        ),
+                        // Pink/magenta glow
+                        BoxShadow(
+                          color: const Color(0xFFEC4899).withOpacity(0.4),
+                          blurRadius: 50,
+                          spreadRadius: 15,
                           offset: const Offset(0, 10),
                         ),
+                        // Inner highlight
                         BoxShadow(
-                          color: const Color(0xFFEC4899).withOpacity(0.3),
-                          blurRadius: 40,
-                          spreadRadius: 10,
-                          offset: const Offset(0, 5),
+                          color: Colors.white.withOpacity(0.6),
+                          blurRadius: 20,
+                          spreadRadius: 2,
+                          offset: const Offset(-5, -5),
                         ),
                       ],
                     ),
-                    child: AnimatedBuilder(
-                      animation: _rotationController,
-                      builder: (context, child) {
-                        return Transform.rotate(
-                          angle: _rotationAnimation.value * 0.1,
-                          child: Center(
-                            child: ShaderMask(
-                              shaderCallback: (bounds) {
-                                return const LinearGradient(
-                                  colors: [
-                                    Color(0xFFEC4899),
-                                    Color(0xFF9333EA),
-                                    Color(0xFF06B6D4),
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ).createShader(bounds);
-                              },
-                              child: Icon(
-                                Icons.delivery_dining,
-                                size: 70.sp,
-                                color: Colors.white,
-                              ),
+                    child: Stack(
+                      children: [
+                        // Circular border gradient effect
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white,
+                              width: 0.5,
                             ),
                           ),
-                        );
-                      },
+                        ),
+                        // Image with rotation
+                        AnimatedBuilder(
+                          animation: _rotationController,
+                          builder: (context, child) {
+                            return Transform.rotate(
+                              angle: _rotationAnimation.value * 0.08,
+                              child: Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(12.w),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 3,
+                                      ),
+                                    ),
+                                    child: ClipOval(
+                                      child: Image.asset(
+                                        'assets/images/app_icon.png',
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Container(
+                                            color: const Color(0xFF10B981),
+                                            child: Icon(
+                                              Icons.delivery_dining,
+                                              size: 70.sp,
+                                              color: Colors.white,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ),
                   ),
                 );
