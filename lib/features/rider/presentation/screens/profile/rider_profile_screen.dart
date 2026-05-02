@@ -2,6 +2,8 @@
 
 import 'package:abw_app/features/auth/data/models/rider_model.dart';
 import 'package:abw_app/features/auth/domain/entities/rider_entity.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -12,11 +14,17 @@ import '../../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../auth/presentation/providers/auth_state.dart';
 import '../../../../riders/presentation/providers/riders_provider.dart';
 
-class RiderProfileScreen extends ConsumerWidget {
+// ✅ Convert to ConsumerStatefulWidget — needed for _handleDeleteAccount
+class RiderProfileScreen extends ConsumerStatefulWidget {
   const RiderProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RiderProfileScreen> createState() => _RiderProfileScreenState();
+}
+
+class _RiderProfileScreenState extends ConsumerState<RiderProfileScreen> {
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     if (authState is! Authenticated) return const SizedBox();
 
@@ -91,8 +99,6 @@ class RiderProfileScreen extends ConsumerWidget {
 
                 SizedBox(height: 20.h),
 
-                SizedBox(height: 20.h),
-
                 // Account Info
                 _buildInfoCard(rider),
 
@@ -116,6 +122,23 @@ class RiderProfileScreen extends ConsumerWidget {
                   ),
                 ),
 
+                SizedBox(height: 12.h),
+
+                // ✅ Delete Account Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _showDeleteAccountDialog(context),
+                    icon: Icon(Icons.delete_forever, size: 20.sp),
+                    label: const Text('Delete Account'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColorsDark.error,
+                      foregroundColor: AppColorsDark.white,
+                      padding: EdgeInsets.symmetric(vertical: 16.h),
+                    ),
+                  ),
+                ),
+
                 SizedBox(height: 32.h),
               ],
             ),
@@ -130,41 +153,194 @@ class RiderProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatTile({
-    required String label,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: AppColorsDark.cardBackground,
-        borderRadius: BorderRadius.circular(16.r),
-        border: Border.all(color: AppColorsDark.border),
-      ),
-      child: Column(
+  // ✅ Delete Account Dialog
+  void _showDeleteAccountDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            backgroundColor: AppColorsDark.surface,
+            icon: Icon(
+              Icons.warning_amber_rounded,
+              color: AppColorsDark.error,
+              size: 48.sp,
+            ),
+            title: Text(
+              'Delete Account?',
+              style: AppTextStyles.titleLarge().copyWith(
+                color: AppColorsDark.error,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'This will permanently delete your rider account.',
+                  style: AppTextStyles.bodyMedium().copyWith(
+                    color: AppColorsDark.textPrimary,
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                Container(
+                  padding: EdgeInsets.all(12.w),
+                  decoration: BoxDecoration(
+                    color: AppColorsDark.warning.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8.r),
+                    border: Border.all(
+                      color: AppColorsDark.warning.withOpacity(0.3),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'What happens:',
+                        style: AppTextStyles.labelMedium().copyWith(
+                          color: AppColorsDark.warning,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(height: 8.h),
+                      _buildConsequenceItem('Your login will be removed'),
+                      _buildConsequenceItem('You cannot sign in again'),
+                      _buildConsequenceItem(
+                        'Your delivery history is kept for records',
+                      ),
+                      _buildConsequenceItem(
+                        'Any active orders will be unassigned',
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: AppColorsDark.textSecondary),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _handleDeleteAccount();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColorsDark.error,
+                ),
+                child: const Text('Delete My Account'),
+              ),
+            ],
+          ),
+    );
+  }
+
+  Widget _buildConsequenceItem(String text) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 4.h),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 24.sp),
-          SizedBox(height: 8.h),
-          Text(
-            value,
-            style: AppTextStyles.titleLarge().copyWith(
-              color: AppColorsDark.textPrimary,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          SizedBox(height: 4.h),
-          Text(
-            label,
-            style: AppTextStyles.bodySmall().copyWith(
-              color: AppColorsDark.textSecondary,
+          Icon(Icons.close, size: 16.sp, color: AppColorsDark.error),
+          SizedBox(width: 8.w),
+          Expanded(
+            child: Text(
+              text,
+              style: AppTextStyles.bodySmall().copyWith(
+                color: AppColorsDark.textSecondary,
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  // ✅ Handle Account Deletion
+  Future<void> _handleDeleteAccount() async {
+    final authState = ref.read(authProvider);
+    if (authState is! Authenticated) return;
+
+    final userId = authState.user.id;
+    bool dialogOpen = false;
+
+    void closeDialog() {
+      if (dialogOpen && mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        dialogOpen = false;
+      }
+    }
+
+    // Show loading dialog
+    if (mounted) {
+      dialogOpen = true;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder:
+            (_) => const AlertDialog(
+              backgroundColor: AppColorsDark.surface,
+              content: Row(
+                children: [
+                  CircularProgressIndicator(color: AppColorsDark.primary),
+                  SizedBox(width: 16),
+                  Text('Deleting account...'),
+                ],
+              ),
+            ),
+      );
+    }
+
+    try {
+      final batch = FirebaseFirestore.instance.batch();
+
+      // Step 1 — Remove from users collection
+      batch.delete(FirebaseFirestore.instance.collection('users').doc(userId));
+
+      // Step 2 — Remove from riders collection
+      batch.delete(FirebaseFirestore.instance.collection('riders').doc(userId));
+
+      // Step 3 — Unassign any active orders assigned to this rider
+      final activeOrders =
+          await FirebaseFirestore.instance
+              .collection('orders')
+              .where('riderId', isEqualTo: userId)
+              .where('status', whereIn: ['confirmed', 'picked_up'])
+              .get();
+
+      for (final doc in activeOrders.docs) {
+        batch.update(doc.reference, {
+          'riderId': null,
+          'riderName': null,
+          'riderPhone': null,
+          'status': 'pending', // Put back to pending so admin can reassign
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      await batch.commit();
+
+      // Step 4 — Delete Firebase Auth account
+      await FirebaseAuth.instance.currentUser?.delete();
+
+      closeDialog();
+
+      if (mounted) context.go('/login');
+    } catch (e) {
+      closeDialog();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete account: $e'),
+            backgroundColor: AppColorsDark.error,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildInfoCard(RiderModel rider) {
@@ -229,16 +405,5 @@ class RiderProfileScreen extends ConsumerWidget {
         ),
       ],
     );
-  }
-
-  Color _getStatusColor(RiderStatus status) {
-    switch (status) {
-      case RiderStatus.available:
-        return AppColorsDark.success;
-      case RiderStatus.busy:
-        return AppColorsDark.warning;
-      case RiderStatus.offline:
-        return AppColorsDark.textTertiary;
-    }
   }
 }

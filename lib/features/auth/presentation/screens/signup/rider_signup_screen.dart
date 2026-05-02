@@ -1,6 +1,7 @@
 //  lib/features/auth/presentation/screens/signup/rider_signup_screen.dart
 
 import 'package:abw_app/core/utils/validators.dart';
+import 'package:abw_app/core/widgets/terms_checkbox.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -292,27 +293,27 @@ class _RiderSignupScreenState extends ConsumerState<RiderSignupScreen> {
 
                 SizedBox(height: 16.h),
 
-                _buildTextField(
-                  controller: _vehicleNumberController,
-                  label: 'Vehicle Number',
-                  hint: 'e.g., ABC-1234',
-                  icon: Icons.confirmation_number_outlined,
-                  textCapitalization: TextCapitalization.characters,
-                  validator:
-                      (value) =>
-                          value?.isEmpty ?? true
-                              ? 'Vehicle number required'
-                              : null,
-                ),
+                // _buildTextField(
+                //   controller: _vehicleNumberController,
+                //   label: 'Vehicle Number',
+                //   hint: 'e.g., ABC-1234',
+                //   icon: Icons.confirmation_number_outlined,
+                //   textCapitalization: TextCapitalization.characters,
+                //   validator:
+                //       (value) =>
+                //           value?.isEmpty ?? true
+                //               ? 'Vehicle number required'
+                //               : null,
+                // ),
 
-                SizedBox(height: 16.h),
+                // SizedBox(height: 16.h),
 
-                _buildTextField(
-                  controller: _licenseController,
-                  label: 'License Number (Optional)',
-                  hint: 'Enter license number',
-                  icon: Icons.badge_outlined,
-                ),
+                // _buildTextField(
+                //   controller: _licenseController,
+                //   label: 'License Number (Optional)',
+                //   hint: 'Enter license number',
+                //   icon: Icons.badge_outlined,
+                // ),
 
                 SizedBox(height: 32.h),
 
@@ -364,7 +365,11 @@ class _RiderSignupScreenState extends ConsumerState<RiderSignupScreen> {
                 SizedBox(height: 24.h),
 
                 // Terms Checkbox
-                _buildTermsCheckbox(),
+                TermsCheckbox(
+                  value: _agreeToTerms,
+                  onChanged: (v) => setState(() => _agreeToTerms = v),
+                  activeColor: AppColorsDark.accent, // rider accent color
+                ),
 
                 SizedBox(height: 32.h),
 

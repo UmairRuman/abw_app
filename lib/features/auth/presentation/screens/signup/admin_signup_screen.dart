@@ -1,5 +1,6 @@
 //Location: lib/features/auth/presentation/screens/signup/admin_signup_screen.dart
 
+import 'package:abw_app/core/widgets/terms_checkbox.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -326,29 +327,10 @@ class _AdminSignupScreenState extends ConsumerState<AdminSignupScreen> {
                 SizedBox(height: 20.h),
 
                 // Terms Checkbox
-                Row(
-                  children: [
-                    Checkbox(
-                      value: _agreeToTerms,
-                      onChanged: (value) {
-                        setState(() => _agreeToTerms = value ?? false);
-                      },
-                      activeColor: AppColorsDark.primary,
-                    ),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() => _agreeToTerms = !_agreeToTerms);
-                        },
-                        child: Text(
-                          'I agree to the Terms & Conditions',
-                          style: AppTextStyles.bodySmall().copyWith(
-                            color: AppColorsDark.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                TermsCheckbox(
+                  value: _agreeToTerms,
+                  onChanged: (v) => setState(() => _agreeToTerms = v),
+                  activeColor: AppColorsDark.primary,
                 ),
 
                 SizedBox(height: 24.h),

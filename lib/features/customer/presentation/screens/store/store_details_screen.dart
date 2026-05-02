@@ -141,7 +141,7 @@ class _StoreDetailsScreenState extends ConsumerState<StoreDetailsScreen>
 
 ${store.description}
 
-⭐ ${store.rating.toStringAsFixed(1)}/5 • 🚚 ${store.deliveryTime} min
+ 🚚 ${store.deliveryTime} min
 💰 PKR ${store.deliveryFee.toInt()} delivery fee
 
 Order now on ABW app!
@@ -439,33 +439,33 @@ Order now on ABW app!
                     ),
                   ),
                 ),
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 12.w,
-                    vertical: 6.h,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColorsDark.success.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8.r),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.star,
-                        size: 16.sp,
-                        color: AppColorsDark.foodRating,
-                      ),
-                      SizedBox(width: 4.w),
-                      Text(
-                        store.rating.toStringAsFixed(1),
-                        style: AppTextStyles.titleSmall().copyWith(
-                          color: AppColorsDark.textPrimary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                // Container(
+                //   padding: EdgeInsets.symmetric(
+                //     horizontal: 12.w,
+                //     vertical: 6.h,
+                //   ),
+                //   decoration: BoxDecoration(
+                //     color: AppColorsDark.success.withOpacity(0.2),
+                //     borderRadius: BorderRadius.circular(8.r),
+                //   ),
+                //   child: Row(
+                //     children: [
+                //       Icon(
+                //         Icons.star,
+                //         size: 16.sp,
+                //         color: AppColorsDark.foodRating,
+                //       ),
+                //       SizedBox(width: 4.w),
+                //       Text(
+                //         store.rating.toStringAsFixed(1),
+                //         style: AppTextStyles.titleSmall().copyWith(
+                //           color: AppColorsDark.textPrimary,
+                //           fontWeight: FontWeight.bold,
+                //         ),
+                //       ),
+                //     ],
+                //   ),
+                // ),
               ],
             ),
 

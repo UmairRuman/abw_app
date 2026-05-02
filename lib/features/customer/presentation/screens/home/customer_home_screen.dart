@@ -876,19 +876,6 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
                     Row(
                       children: [
                         Icon(
-                          Icons.star,
-                          size: 14.sp,
-                          color: AppColorsDark.foodRating,
-                        ),
-                        SizedBox(width: 4.w),
-                        Text(
-                          store.rating.toStringAsFixed(1),
-                          style: AppTextStyles.bodySmall().copyWith(
-                            color: Colors.white,
-                          ),
-                        ),
-                        SizedBox(width: 12.w),
-                        Icon(
                           Icons.access_time,
                           size: 14.sp,
                           color: Colors.white,
@@ -1022,19 +1009,6 @@ class _CustomerHomeScreenState extends ConsumerState<CustomerHomeScreen>
                     SizedBox(height: 8.h),
                     Row(
                       children: [
-                        Icon(
-                          Icons.star,
-                          size: 14.sp,
-                          color: AppColorsDark.foodRating,
-                        ),
-                        SizedBox(width: 4.w),
-                        Text(
-                          store.rating.toStringAsFixed(1),
-                          style: AppTextStyles.bodySmall().copyWith(
-                            color: AppColorsDark.textPrimary,
-                          ),
-                        ),
-                        SizedBox(width: 12.w),
                         Icon(
                           Icons.access_time,
                           size: 14.sp,

@@ -3,6 +3,7 @@
 import 'dart:developer';
 
 import 'package:abw_app/core/utils/validators.dart';
+import 'package:abw_app/core/widgets/terms_checkbox.dart';
 import 'package:abw_app/features/auth/domain/entities/customer_entity.dart';
 import 'package:abw_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:abw_app/features/auth/presentation/providers/auth_state.dart';
@@ -367,7 +368,11 @@ class _CustomerSignupScreenState extends ConsumerState<CustomerSignupScreen>
                           SizedBox(height: 20.h),
 
                           // Terms & Conditions
-                          _buildTermsCheckbox(),
+                          TermsCheckbox(
+                            value: _agreeToTerms,
+                            onChanged: (v) => setState(() => _agreeToTerms = v),
+                            activeColor: AppColorsDark.primary, // pink
+                          ),
 
                           SizedBox(height: 24.h),
 
